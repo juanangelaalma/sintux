@@ -1,14 +1,14 @@
-import { Form, Head } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import type { FormEventHandler } from 'react';
 import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
+
+type LoginForm = {
+    email: string;
+    password: string;
+    remember: boolean;
+};
 
 type Props = {
     status?: string;
@@ -16,86 +16,81 @@ type Props = {
 };
 
 export default function Login({ status, canResetPassword }: Props) {
+    const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
+        email: '',
+        password: '',
+        remember: false,
+    });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        post(store.url(), {
+            onFinish: () => reset('password'),
+        });
+    };
+
     return (
         <>
             <Head title="Log in" />
-
-            <Form
-                {...store.form()}
-                resetOnSuccess={['password']}
-                className="flex flex-col gap-6"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        <div className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    name="email"
-                                    required
-                                    autoFocus
-                                    tabIndex={1}
-                                    autoComplete="email"
-                                    placeholder="email@example.com"
-                                />
-                                <InputError message={errors.email} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <div className="flex items-center">
-                                    <Label htmlFor="password">Password</Label>
-                                    {canResetPassword && (
-                                        <TextLink
-                                            href={request()}
-                                            className="ml-auto text-sm"
-                                            tabIndex={5}
-                                        >
-                                            Forgot your password?
-                                        </TextLink>
-                                    )}
-                                </div>
-                                <PasswordInput
-                                    id="password"
-                                    name="password"
-                                    required
-                                    tabIndex={2}
-                                    autoComplete="current-password"
-                                    placeholder="Password"
-                                />
-                                <InputError message={errors.password} />
-                            </div>
-
-                            <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="remember"
-                                    name="remember"
-                                    tabIndex={3}
-                                />
-                                <Label htmlFor="remember">Remember me</Label>
-                            </div>
-
-                            <Button
-                                type="submit"
-                                className="mt-4 w-full"
-                                tabIndex={4}
-                                disabled={processing}
-                                data-test="login-button"
-                            >
-                                {processing && <Spinner />}
-                                Log in
-                            </Button>
+            {status && <div className="mb-4 text-sm font-medium text-green-600">{status}</div>}
+            <form onSubmit={submit}>
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email address</label>
+                        <input
+                            id="email"
+                            type="email"
+                            required
+                            autoFocus
+                            autoComplete="email"
+                            placeholder="email@example.com"
+                            value={data.email}
+                            onChange={(e) => setData('email', e.target.value)}
+                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        />
+                        <InputError message={errors.email} />
+                    </div>
+                    <div>
+                        <div className="flex items-center justify-between">
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                            {canResetPassword && (
+                                <Link href={request()} className="text-sm text-brand-500 hover:text-brand-600">
+                                    Forgot your password?
+                                </Link>
+                            )}
                         </div>
-                    </>
-                )}
-            </Form>
-
-            {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    {status}
+                        <input
+                            id="password"
+                            type="password"
+                            required
+                            autoComplete="current-password"
+                            placeholder="Password"
+                            value={data.password}
+                            onChange={(e) => setData('password', e.target.value)}
+                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        />
+                        <InputError message={errors.password} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <input
+                            id="remember"
+                            type="checkbox"
+                            checked={data.remember}
+                            onChange={(e) => setData('remember', e.target.checked)}
+                            className="rounded border-gray-300"
+                        />
+                        <label htmlFor="remember" className="text-sm text-gray-600 dark:text-gray-400">Remember me</label>
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={processing}
+                        data-test="login-button"
+                        className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+                    >
+                        Log in
+                    </button>
                 </div>
-            )}
+            </form>
         </>
     );
 }

@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
+import svgr from 'vite-plugin-svgr';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -12,8 +13,8 @@ export default defineConfig({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
             fonts: [
-                bunny('Instrument Sans', {
-                    weights: [400, 500, 600],
+                bunny('Outfit', {
+                    weights: [300, 400, 500, 600, 700],
                 }),
             ],
         }),
@@ -24,6 +25,7 @@ export default defineConfig({
             },
         }),
         tailwindcss(),
+        svgr(),
         wayfinder({
             formVariants: true,
         }),

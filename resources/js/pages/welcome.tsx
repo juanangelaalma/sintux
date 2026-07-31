@@ -2,7 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { dashboard, login } from '@/routes';
 
 export default function Welcome() {
-    const { auth } = usePage().props;
+    const { auth } = usePage().props as unknown as { auth: { user?: { name: string } } };
 
     return (
         <>
