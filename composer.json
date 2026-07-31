@@ -102,6 +102,11 @@
                 "post-create-project": [
                 ]
             }
+        },
+        "merge-plugin": {
+            "include": [
+                "Modules/*/composer.json"
+            ]
         }
     },
     "config": {

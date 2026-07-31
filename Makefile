@@ -16,6 +16,15 @@ endif
 
 MODULES_DIR = app/Modules
 
+# ── Permissions ───────────────────────────────
+.PHONY: fix-perms
+fix-perms: ## Fix file permissions (Docker ↔ local)
+	@docker compose exec -T laravel.test chown -R $(shell id -u):$(shell id -g) \
+		/var/www/html/Modules \
+		/var/www/html/resources/js/pages \
+		/var/www/html/database/migrations 2>/dev/null || true
+	@echo "Permissions fixed."
+
 # ── Help ──────────────────────────────────────
 .PHONY: help
 help: ## Show this help
@@ -39,7 +48,7 @@ dev: ## Start dev server (Laravel + Vite)
 
 .PHONY: up
 up: ## Start Docker containers
-	$(COMPOSE) up -d
+	$(EXEC) up -d
 
 .PHONY: down
 down: ## Stop Docker containers
@@ -73,7 +82,7 @@ rollback: ## Rollback last migration batch
 .PHONY: module-make
 module-make: ## Create a new module  (make module-make M=ModuleName)
 	@test -n "$(M)" || (echo "Usage: make module-make M=ModuleName" && exit 1)
-	$(ARTISAN) module:make $(M)
+	$(ARTISAN) module:make $(M) --web && $(MAKE) fix-perms
 
 .PHONY: module-migrate
 module-migrate: ## Run module migrations
@@ -126,6 +135,12 @@ module-make-seeder: ## Create seeder in module  (make module-make-seeder M=Sales
 module-make-request: ## Create form request in module  (make module-make-request M=Sales N=StoreInvoiceRequest)
 	@test -n "$(M)" && test -n "$(N)" || (echo "Usage: make module-make-request M=Module N=RequestName" && exit 1)
 	$(ARTISAN) module:make-request $(N) $(M)
+
+# ── Inertia Pages (Centralized) ─────────────
+.PHONY: inertia-page
+inertia-page: ## Create Inertia page  (make inertia-page P=User/Index)
+	@test -n "$(P)" || (echo "Usage: make inertia-page P=ModuleName/PageName" && exit 1)
+	$(ARTISAN) make:inertia-page $(P) && $(MAKE) fix-perms
 
 # ── NPM / Frontend ───────────────────────────
 .PHONY: npm-install
