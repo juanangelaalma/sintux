@@ -1,8 +1,8 @@
 import React from 'react';
-import AppHeader from '../shared/app-header';
-import AdminSidebar from './admin-sidebar';
-import Backdrop from '../shared/backdrop';
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
+import AppHeader from '../shared/app-header';
+import Backdrop from '../shared/backdrop';
+import AdminSidebar from './admin-sidebar';
 
 const AdminLayoutContent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();

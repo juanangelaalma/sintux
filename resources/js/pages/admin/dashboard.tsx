@@ -1,5 +1,5 @@
-import React from 'react';
 import { Head } from '@inertiajs/react';
+import React from 'react';
 import AdminLayout from '@/layouts/admin/admin-layout';
 
 export default function AdminDashboard() {

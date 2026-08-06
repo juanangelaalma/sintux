@@ -1,12 +1,11 @@
 import { Link, usePage } from "@inertiajs/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSidebar } from "@/context/SidebarContext";
 import {
   GridIcon,
   HorizontaLDots,
   UserIcon,
 } from "@/icons";
-import SidebarWidget from "@/layouts/SidebarWidget";
 
 type NavItem = {
   name: string;
@@ -45,10 +44,13 @@ const CompanySidebar: React.FC = () => {
     type: "main";
     index: number;
   } | null>(null);
-  const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
-    {}
-  );
-  const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const [prevUrl, setPrevUrl] = useState(url);
+
+  if (prevUrl !== url) {
+    setPrevUrl(url);
+    setManualSubmenu(null);
+  }
 
   const isActive = useCallback(
     (path: string) => url === path,
@@ -71,23 +73,6 @@ const CompanySidebar: React.FC = () => {
   }, [isActive, visibleNavItems]);
 
   const openSubmenu = manualSubmenu ?? autoOpenSubmenu;
-
-  useEffect(() => {
-    setManualSubmenu(null);
-  }, [url]);
-
-  useEffect(() => {
-    if (openSubmenu !== null) {
-      const key = `${openSubmenu.type}-${openSubmenu.index}`;
-
-      if (subMenuRefs.current[key]) {
-        setSubMenuHeight((prevHeights) => ({
-          ...prevHeights,
-          [key]: subMenuRefs.current[key]?.scrollHeight || 0,
-        }));
-      }
-    }
-  }, [openSubmenu]);
 
   const handleSubmenuToggle = (index: number, menuType: "main") => {
     setManualSubmenu((prev) => {

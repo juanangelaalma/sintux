@@ -3,7 +3,6 @@ import { useRef } from 'react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
 import InputError from '@/components/input-error';
 import SettingsLayout from '@/layouts/settings/layout';
-import { edit } from '@/routes/security';
 
 type Props = {
     passwordRules: string;

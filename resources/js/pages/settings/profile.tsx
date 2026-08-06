@@ -3,7 +3,6 @@ import { useRef, useState } from 'react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import InputError from '@/components/input-error';
 import SettingsLayout from '@/layouts/settings/layout';
-import { edit } from '@/routes/profile';
 import type { Auth } from '@/types';
 
 type PageProps = {

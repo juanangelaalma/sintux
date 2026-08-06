@@ -8,7 +8,9 @@ export default function UserDropdown() {
   const { auth } = usePage().props as unknown as { auth?: { user?: { name: string; email: string } } };
   const user = auth?.user;
 
-  if (!user) return null;
+  if (!user) {
+return null;
+}
 
   function toggleDropdown() {
     setIsOpen(!isOpen);

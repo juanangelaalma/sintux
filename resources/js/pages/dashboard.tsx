@@ -1,5 +1,4 @@
 import { Head } from '@inertiajs/react';
-import { dashboard } from '@/routes';
 import CompanyLayout from '@/layouts/company/company-layout';
 
 export default function Dashboard() {

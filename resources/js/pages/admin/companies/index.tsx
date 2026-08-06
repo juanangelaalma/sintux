@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
-import AdminLayout from '@/layouts/admin/admin-layout';
+import React, { useState } from 'react';
 import InputError from '@/components/input-error';
+import AdminLayout from '@/layouts/admin/admin-layout';
 import companiesRoute from '@/routes/admin/companies';
 
 type Company = {
@@ -62,6 +62,7 @@ export default function Index({ companies }: Props) {
 
     const submitEdit = (e: React.FormEvent) => {
         e.preventDefault();
+
         if (editCompany) {
             put(companiesRoute.update.url(editCompany.id), {
                 onSuccess: () => closeModals(),

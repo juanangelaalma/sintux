@@ -2,7 +2,6 @@ import { Head } from '@inertiajs/react';
 import type { Appearance } from '@/hooks/use-appearance';
 import { useAppearance } from '@/hooks/use-appearance';
 import SettingsLayout from '@/layouts/settings/layout';
-import { edit as editAppearance } from '@/routes/appearance';
 
 export default function Appearance() {
     const { appearance, updateAppearance } = useAppearance();
