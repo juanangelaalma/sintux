@@ -2,6 +2,7 @@ import { Link, usePage } from "@inertiajs/react";
 import { useCallback, useMemo, useState } from "react";
 import { useSidebar } from "@/context/SidebarContext";
 import {
+  BoxIcon,
   GridIcon,
   HorizontaLDots,
   UserIcon,
@@ -26,6 +27,12 @@ const companyNavItems: NavItem[] = [
     name: "Users",
     path: "/company/users",
     permission: "company.user.manage",
+  },
+  {
+    icon: <BoxIcon />,
+    name: "Branches",
+    path: "/company/branches",
+    permission: "company.branch.manage",
   },
 ];
 

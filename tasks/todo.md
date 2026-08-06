@@ -1,23 +1,18 @@
-# Todo List: CRUD Company (Modular Monolith)
+# Todo List: CRUD Branch (Company Module)
 
-## Phase 1: Module Scaffolding
-- [ ] Task 1.1: Generate Company Module (`php artisan module:make Company --web`)
-- [ ] Task 1.2: Bersihkan folder tidak terpakai di `Modules/Company/` (views, assets, dll)
-- [ ] Task 1.3: Jalankan `composer dump-autoload` untuk mereset class map
+## Phase 1: Backend (TDD)
+- [ ] Task 1: Tulis `CompanyBranchCrudTest` (5 skenario) — expect red
+- [ ] Task 2: Implementasi backend: `Branch` model, `Store/UpdateCompanyBranchRequest`, `CompanyBranchController`, route `company/branches` — expect green
 
-## Phase 2: Backend
-- [ ] Task 2.1: Buat `CompanyController` di `Modules/Company/app/Http/Controllers`
-- [ ] Task 2.2: Buat Form Requests `StoreCompanyRequest` dan `UpdateCompanyRequest`
-- [ ] Task 2.3: Daftarkan routes admin company di `Modules/Company/routes/web.php`
-- [ ] Task 2.4: Sambungkan Event-Listener `stancl/tenancy` dengan controller flow
+### Checkpoint Backend
+- [ ] `php artisan test --filter=CompanyBranchCrudTest` → pass (5)
+- [ ] `composer lint:check` & `composer types:check` clean
 
-## Phase 3: Frontend & UI
-- [ ] Task 3.1: Buat page list company `resources/js/pages/admin/companies/index.tsx`
-- [ ] Task 3.2: Buat form modal/page `resources/js/pages/admin/companies/form.tsx`
-- [ ] Task 3.3: Hubungkan sidebar admin ke `/admin/companies`
-- [ ] Task 3.4: Buat integration test `Modules/Company/tests/Feature/CompanyCrudTest.php`
+## Phase 2: Frontend
+- [ ] Task 3: Halaman `Company/Branches/index.tsx` + menu sidebar "Branches" (permission-gated)
 
-## Verification
-- [ ] `composer lint` -> Passed
-- [ ] `composer types:check` -> Passed
-- [ ] `php artisan test` -> Passed
+### Checkpoint Frontend
+- [ ] `npm run lint:check`, `npm run types:check`, `npm run build` clean
+
+## Phase 3: Verifikasi
+- [ ] Task 4: `php artisan test` full suite hijau + semua lint/type/build clean

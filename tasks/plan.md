@@ -1,53 +1,53 @@
-# Implementation Plan: Company Management Module (Modular Monolith)
+# Implementation Plan: CRUD Branch (Company Module)
 
 ## Overview
-Implementasi CRUD Company (Tenant) yang utuh menggunakan arsitektur Modular Monolith (`laravel-modules`). Modul ini akan dinamakan **Company** dan diletakkan di bawah direktori `Modules/Company`. Modul ini hanya bisa diakses oleh `superadmin` di panel admin (`/admin/companies`).
+
+Menambahkan pengelolaan branch (cabang) dalam konteks tenant. Table `branches` sudah ada (migrasi tenant); fitur ini menambah model Eloquent, controller + FormRequest, route, halaman Inertia satu-file (tabel + modal), dan menu sidebar permission-gated. Tidak ada hapus fisik — hanya toggle `is_active`. Flag `is_headquarters` read-only. Halaman & mutasi dibatasi permission `company.branch.manage`.
 
 ## Architecture Decisions
-- **Modul Baru**: Buat modul `Company` menggunakan Artisan Command `module:make`.
-- **Public API / Boundaries**: Modul Company mengekspos domain / application layer untuk pembuatan database schema secara dinamis (mengintegrasikan tenant creation + database credentials generation yang sebelumnya ada di seeder).
-- **Controller & Request Validation**: Controller diletakkan di `Modules/Company/app/Http/Controllers/CompanyController.php`. Request validation diletakkan di `Modules/Company/app/Http/Requests`.
-- **Presentation**: Render menggunakan Inertia.js React pages yang diletakkan di `resources/js/pages/admin/companies/` (mengikuti aturan letak Inertia pages yang terpusat).
-- **Event-Driven Tenant Database Setup**: Saat tenant baru disimpan di database central (public), event `TenantCreated` dari `stancl/tenancy` akan otomatis men-trigger pembuatan schema PostgreSQL `company_{slug}` dan melakukan migrasi tenant secara otomatis.
 
----
+- **Model tenant**: `Modules/Company/app/Models/Branch.php` (default connection → tenant DB saat tenancy aktif). `is_headquarters` TIDAK masuk `$fillable` (read-only di level model).
+- **Controller tipis**: `CompanyBranchController` hanya `index/store/update` (no `destroy`), mengikuti pola `CompanyUserController` (`abort_unless(hasPermissionTo('company.branch.manage'), 403)` di index + FormRequest `authorize()`).
+- **Validasi**: FormRequest `Store/UpdateCompanyBranchRequest`. `code` unik per-tenant via `unique:branches,code` (berjalan di koneksi tenant — benar untuk data tenant). Update pakai `Rule::unique('branches','code')->ignore($branch->id)`.
+- **Route**: `Route::resource('company/branches', ...)->only(['index','store','update'])->names('company.branches')` di dalam grup `EnsureCompanyMember`.
+- **Tidak menambah abstraction** (no interface/repo/DTO): model + controller cukup untuk CRUD sederhana.
 
 ## Task List
 
-### Phase 1: Module Scaffolding
-- **Task 1.1: Generate Company Module**
-  - Buat modul `Company` menggunakan command laravel-modules.
-  - Hapus file-file generator yang tidak terpakai (views, config bawaan) agar modul tetap bersih dan modular monolith minimalis.
-- **Task 1.2: Register Autoloading**
-  - Pastikan composer.json dan merge-plugin mendeteksi modul baru di `Modules/Company`.
+### Phase 1: Backend (TDD)
+- [ ] **Task 1: Tulis test dulu (red)** — `Modules/Company/tests/Feature/CompanyBranchCrudTest.php`
+  - Acceptance: test menegakkan 5 skenario spec (admin manage, kode unik, owner manage, member 403, HQ read-only).
+  - Verify: `php artisan test --filter=CompanyBranchCrudTest` → fail (class/route belum ada).
+  - Files: `Modules/Company/tests/Feature/CompanyBranchCrudTest.php`
+- [ ] **Task 2: Implementasi backend (green)** — Model `Branch`, `Store/UpdateCompanyBranchRequest`, `CompanyBranchController`, route.
+  - Acceptance: test 5 skenario lulus; `pint` & `phpstan` clean pada file modul.
+  - Verify: `php artisan test --filter=CompanyBranchCrudTest`; `composer lint:check`; `composer types:check`.
+  - Files: `Modules/Company/app/Models/Branch.php`, `Modules/Company/app/Http/Requests/{Store,Update}CompanyBranchRequest.php`, `Modules/Company/app/Http/Controllers/CompanyBranchController.php`, `Modules/Company/routes/web.php`
 
-### Checkpoint: Scaffolding
-- [ ] Modul `Company` berhasil digenerate dan didaftarkan.
-- [ ] Command `php artisan module:list` menampilkan modul `Company` dengan status `Enabled`.
+### Checkpoint: Backend
+- [ ] `php artisan test --filter=CompanyBranchCrudTest` → 5 tests pass
+- [ ] `composer lint:check` & `composer types:check` clean
 
-### Phase 2: Backend (Domain & HTTP)
-- **Task 2.1: Model & Migrations**
-  - Karena data `tenants` (companies) sudah berada di central `public` schema (`tenants` table), kita akan memindahkan model `Tenant` ke modul Company jika perlu, atau meng-extend model Tenant bawaan dari modul Company.
-- **Task 2.2: CompanyController & FormRequest**
-  - Implementasikan index, create, store, edit, update, dan destroy endpoints.
-  - Tambahkan FormRequest dengan validasi unik untuk `id` (tenant slug/subdomain) dan `schema_name`.
-  - Keamanan: Gunakan middleware `EnsureSuperadmin` untuk memproteksi routes ini.
-- **Task 2.3: Tenant Schema Creation Integration**
-  - Ketika superadmin menyimpan Company baru, panggil `Tenant::create(...)` yang memicu auto-create schema PostgreSQL dan migrate (sudah terkonfigurasi di `TenancyServiceProvider` event listener).
+### Phase 2: Frontend
+- [ ] **Task 3: Halaman Inertia + menu sidebar**
+  - Acceptance: halaman `Company/Branches/index.tsx` (tabel: name/code/address/phone/status/HQ; aksi Edit + Deactivate/Activate; modal create/edit; HQ non-editable; tanpa tombol delete). Menu "Branches" di `company-sidebar.tsx` hanya muncul untuk pemegang `company.branch.manage`.
+  - Verify: `npm run lint:check`, `npm run types:check`, `npm run build`.
+  - Files: `resources/js/pages/Company/Branches/index.tsx`, `resources/js/layouts/company/company-sidebar.tsx`
 
-### Checkpoint: Backend CRUD
-- [ ] Backend routes `/admin/companies` terdaftar dan diproteksi middleware `EnsureSuperadmin`.
-- [ ] Unit/Feature test untuk controller API berhasil disimulasikan.
+### Checkpoint: Frontend
+- [ ] `npm run build` sukses; lint & types clean
 
-### Phase 3: Frontend (Inertia React)
-- **Task 3.1: Companies Index Page**
-  - Buat `resources/js/pages/admin/companies/index.tsx` menampilkan list company yang ada (dengan kolom ID, Nama, Schema Name, Status Active, Created At).
-- **Task 3.2: Company Form (Create & Edit)**
-  - Buat form modal atau page untuk membuat dan meng-edit Company.
-- **Task 3.3: Sidebar Navigation**
-  - Hubungkan link "Tenants / Companies" di `admin-sidebar.tsx` ke route `admin.companies.index`.
+### Phase 3: Verifikasi menyeluruh
+- [ ] **Task 4: Full verification**
+  - Acceptance: seluruh suite (31+5 test) hijau; lint/type/build backend+frontend clean.
+  - Verify: `php artisan test`; `composer lint:check`; `composer types:check`; `npm run lint:check`; `npm run types:check`; `npm run build`.
 
-### Checkpoint: Complete E2E
-- [ ] Superadmin berhasil melakukan flow CRUD Company dari UI.
-- [ ] Pembuatan company baru otomatis melahirkan schema PostgreSQL baru dengan tabel `branches`.
-- [ ] Seluruh unit test & standard linting/types lulus (0 error).
+## Risks and Mitigations
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Validasi `unique:branches,code` jalan di koneksi salah | High | Branch adalah data tenant; rule unik memang harus di koneksi tenant (ter-initialize via ResolveTenant). Konfirmasi via test create+update. |
+| Assertion tenant table setelah request gagal (tenancy sudah end) | High | Dalam test, re-initialize tenancy sebelum assert, lalu end. |
+| Route resource `{branch}` model binding tak resolve di tenant DB | Med | Type-hint `Branch $branch` — binding berjalan saat tenancy aktif (di dalam request). |
+
+## Open Questions
+- (tidak ada)
