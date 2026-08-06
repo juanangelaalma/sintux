@@ -1,6 +1,8 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
-import InputError from '@/components/input-error';
+import Button from '@/components/ui/button';
+import FormField from '@/components/ui/form-field';
+import TextInput from '@/components/ui/text-input';
 import { login } from '@/routes';
 import { email } from '@/routes/password';
 
@@ -26,9 +28,12 @@ export default function ForgotPassword({ status }: { status?: string }) {
 
             <form onSubmit={submit}>
                 <div className="space-y-4">
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email address</label>
-                        <input
+                    <FormField
+                        label="Email address"
+                        htmlFor="email"
+                        error={errors.email}
+                    >
+                        <TextInput
                             id="email"
                             type="email"
                             required
@@ -37,25 +42,28 @@ export default function ForgotPassword({ status }: { status?: string }) {
                             placeholder="email@example.com"
                             value={data.email}
                             onChange={(e) => setData('email', e.target.value)}
-                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                         />
-                        <InputError message={errors.email} />
-                    </div>
+                    </FormField>
 
-                    <button
+                    <Button
                         type="submit"
                         disabled={processing}
                         data-test="email-password-reset-link-button"
-                        className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+                        fullWidth
                     >
                         Email password reset link
-                    </button>
+                    </Button>
                 </div>
             </form>
 
             <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
                 <span>Or, return to </span>
-                <Link href={login()} className="text-brand-500 hover:text-brand-600">log in</Link>
+                <Link
+                    href={login()}
+                    className="text-brand-500 hover:text-brand-600"
+                >
+                    log in
+                </Link>
             </div>
         </>
     );

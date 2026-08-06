@@ -1,6 +1,14 @@
 import { Head, useForm } from '@inertiajs/react';
 import React, { useState } from 'react';
-import InputError from '@/components/input-error';
+import DataTable from '@/components/tables/data-table';
+import type { DataTableColumn } from '@/components/tables/data-table';
+import Button from '@/components/ui/button';
+import FormActions from '@/components/ui/form-actions';
+import FormField from '@/components/ui/form-field';
+import Modal from '@/components/ui/modal';
+import PageHeader from '@/components/ui/page-header';
+import SelectInput from '@/components/ui/select-input';
+import TextInput from '@/components/ui/text-input';
 import CompanyLayout from '@/layouts/company/company-layout';
 import usersRoute from '@/routes/company/users';
 
@@ -25,11 +33,26 @@ type Props = {
     canManageUsers: boolean;
 };
 
-export default function Index({ members, branches, roles, canManageUsers }: Props) {
+export default function Index({
+    members,
+    branches,
+    roles,
+    canManageUsers,
+}: Props) {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editMember, setEditMember] = useState<Member | null>(null);
 
-    const { data, setData, post, put, delete: destroy, processing, errors, reset, clearErrors } = useForm({
+    const {
+        data,
+        setData,
+        post,
+        put,
+        delete: destroy,
+        processing,
+        errors,
+        reset,
+        clearErrors,
+    } = useForm({
         name: '',
         email: '',
         password: '',
@@ -55,7 +78,9 @@ export default function Index({ members, branches, roles, canManageUsers }: Prop
             company_role: member.company_role,
             scope: member.scope,
             branch_id: member.branch_id,
-            roles: roles.filter(r => member.roles.includes(r.slug)).map(r => r.id),
+            roles: roles
+                .filter((r) => member.roles.includes(r.slug))
+                .map((r) => r.id),
         });
     };
 
@@ -66,7 +91,12 @@ export default function Index({ members, branches, roles, canManageUsers }: Prop
     };
 
     const toggleRole = (id: number) => {
-        setData('roles', data.roles.includes(id) ? data.roles.filter(r => r !== id) : [...data.roles, id]);
+        setData(
+            'roles',
+            data.roles.includes(id)
+                ? data.roles.filter((r) => r !== id)
+                : [...data.roles, id],
+        );
     };
 
     const submitCreate = (e: React.FormEvent) => {
@@ -92,105 +122,126 @@ export default function Index({ members, branches, roles, canManageUsers }: Prop
         }
     };
 
-    const roleName = (slug: string) => roles.find(r => r.slug === slug)?.name ?? slug;
+    const roleName = (slug: string) =>
+        roles.find((r) => r.slug === slug)?.name ?? slug;
+
+    const columns: DataTableColumn<Member>[] = [
+        {
+            key: 'name',
+            header: 'Name',
+            render: (member) => member.name,
+            cellClassName: 'font-medium text-gray-900 dark:text-white',
+        },
+        { key: 'email', header: 'Email', render: (member) => member.email },
+        {
+            key: 'company-role',
+            header: 'Company Role',
+            render: (member) => member.company_role,
+        },
+        { key: 'scope', header: 'Scope', render: (member) => member.scope },
+        {
+            key: 'branch',
+            header: 'Branch',
+            render: (member) =>
+                branches.find((b) => b.id === member.branch_id)?.name ?? '-',
+        },
+        {
+            key: 'roles',
+            header: 'Roles',
+            render: (member) => member.roles.map(roleName).join(', ') || '-',
+        },
+        ...(canManageUsers
+            ? [
+                  {
+                      key: 'actions',
+                      header: 'Actions',
+                      align: 'right' as const,
+                      cellClassName: 'font-medium',
+                      render: (member: Member) => (
+                          <div className="space-x-3">
+                              <button
+                                  onClick={() => openEdit(member)}
+                                  className="text-brand-500 hover:text-brand-600"
+                              >
+                                  Edit
+                              </button>
+                              <button
+                                  onClick={() => handleDelete(member)}
+                                  className="text-red-500 hover:text-red-600"
+                              >
+                                  Remove
+                              </button>
+                          </div>
+                      ),
+                  },
+              ]
+            : []),
+    ];
 
     return (
         <>
             <Head title="Company Users" />
 
             <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Company Users</h1>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage users and their branch-level roles.</p>
-                    </div>
-                    {canManageUsers && (
-                        <button
-                            onClick={openCreate}
-                            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
-                        >
-                            Add User
-                        </button>
-                    )}
-                </div>
-
-                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-                        <thead className="bg-gray-50 dark:bg-gray-800/50">
-                            <tr>
-                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Name</th>
-                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Email</th>
-                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Company Role</th>
-                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Scope</th>
-                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Branch</th>
-                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Roles</th>
-                                {canManageUsers && (
-                                    <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Actions</th>
-                                )}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-900">
-                            {members.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                                        No users yet. Click "Add User" to invite one.
-                                    </td>
-                                </tr>
-                            ) : (
-                                members.map(member => (
-                                    <tr key={member.id}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{member.name}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{member.email}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{member.company_role}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{member.scope}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                            {branches.find(b => b.id === member.branch_id)?.name ?? '-'}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                            {member.roles.map(roleName).join(', ') || '-'}
-                                        </td>
-                                        {canManageUsers && (
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                                                <button onClick={() => openEdit(member)} className="text-brand-500 hover:text-brand-600">Edit</button>
-                                                <button onClick={() => handleDelete(member)} className="text-red-500 hover:text-red-600">Remove</button>
-                                            </td>
-                                        )}
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <PageHeader
+                    title="Company Users"
+                    description="Manage users and their branch-level roles."
+                    actions={
+                        canManageUsers ? (
+                            <Button onClick={openCreate}>Add User</Button>
+                        ) : undefined
+                    }
+                />
+                <DataTable
+                    columns={columns}
+                    rows={members}
+                    getRowKey={(member) => member.id}
+                    emptyMessage={
+                        canManageUsers
+                            ? 'No users yet. Click "Add User" to invite one.'
+                            : 'No users found.'
+                    }
+                />
             </div>
 
             {isCreateOpen && canManageUsers && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add User</h3>
-                        <form onSubmit={submitCreate} className="mt-4 space-y-4">
-                            <UserFields data={data} setData={setData as any} branches={branches} roles={roles} errors={errors} toggleRole={toggleRole} />
-                            <div className="flex justify-end gap-2 pt-2">
-                                <button type="button" onClick={closeModals} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">Cancel</button>
-                                <button type="submit" disabled={processing} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50">Create</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                <Modal title="Add User" maxWidth="lg">
+                    <form onSubmit={submitCreate} className="mt-4 space-y-4">
+                        <UserFields
+                            data={data}
+                            setData={setData as any}
+                            branches={branches}
+                            roles={roles}
+                            errors={errors}
+                            toggleRole={toggleRole}
+                        />
+                        <FormActions
+                            onCancel={closeModals}
+                            submitLabel="Create"
+                            processing={processing}
+                        />
+                    </form>
+                </Modal>
             )}
 
             {editMember && canManageUsers && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Edit User</h3>
-                        <form onSubmit={submitEdit} className="mt-4 space-y-4">
-                            <UserFields data={data} setData={setData as any} branches={branches} roles={roles} errors={errors} toggleRole={toggleRole} editing />
-                            <div className="flex justify-end gap-2 pt-2">
-                                <button type="button" onClick={closeModals} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">Cancel</button>
-                                <button type="submit" disabled={processing} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50">Save</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                <Modal title="Edit User" maxWidth="lg">
+                    <form onSubmit={submitEdit} className="mt-4 space-y-4">
+                        <UserFields
+                            data={data}
+                            setData={setData as any}
+                            branches={branches}
+                            roles={roles}
+                            errors={errors}
+                            toggleRole={toggleRole}
+                            editing
+                        />
+                        <FormActions
+                            onCancel={closeModals}
+                            processing={processing}
+                        />
+                    </form>
+                </Modal>
             )}
         </>
     );
@@ -206,75 +257,111 @@ type FieldProps = {
     editing?: boolean;
 };
 
-function UserFields({ data, setData, branches, roles, errors, toggleRole, editing }: FieldProps) {
+function UserFields({
+    data,
+    setData,
+    branches,
+    roles,
+    errors,
+    toggleRole,
+    editing,
+}: FieldProps) {
     return (
         <>
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
-                <input type="text" required value={data.name} onChange={e => setData('name', e.target.value)} className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white" />
-                <InputError message={errors.name} />
-            </div>
+            <FormField label="Name" error={errors.name}>
+                <TextInput
+                    type="text"
+                    required
+                    value={data.name}
+                    onChange={(e) => setData('name', e.target.value)}
+                />
+            </FormField>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
-                <input type="email" required disabled={editing} value={data.email} onChange={e => setData('email', e.target.value)} className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 disabled:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:disabled:bg-gray-800" />
-                <InputError message={errors.email} />
-            </div>
+            <FormField label="Email" error={errors.email}>
+                <TextInput
+                    type="email"
+                    required
+                    disabled={editing}
+                    value={data.email}
+                    onChange={(e) => setData('email', e.target.value)}
+                />
+            </FormField>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{editing ? 'New Password (optional)' : 'Password'}</label>
-                <input type="password" value={data.password} onChange={e => setData('password', e.target.value)} placeholder="Minimum 8 characters" className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white" />
-                <InputError message={errors.password} />
-            </div>
+            <FormField
+                label={editing ? 'New Password (optional)' : 'Password'}
+                error={errors.password}
+            >
+                <TextInput
+                    type="password"
+                    value={data.password}
+                    onChange={(e) => setData('password', e.target.value)}
+                    placeholder="Minimum 8 characters"
+                />
+            </FormField>
 
             <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Company Role</label>
-                    <select value={data.company_role} onChange={e => setData('company_role', e.target.value)} className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                <FormField label="Company Role" error={errors.company_role}>
+                    <SelectInput
+                        value={data.company_role}
+                        onChange={(e) =>
+                            setData('company_role', e.target.value)
+                        }
+                    >
                         <option value="admin">Admin</option>
                         <option value="member">Member</option>
-                    </select>
-                    <InputError message={errors.company_role} />
-                </div>
+                    </SelectInput>
+                </FormField>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Branch Scope</label>
-                    <select value={data.scope} onChange={e => setData('scope', e.target.value)} className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                <FormField label="Branch Scope" error={errors.scope}>
+                    <SelectInput
+                        value={data.scope}
+                        onChange={(e) => setData('scope', e.target.value)}
+                    >
                         <option value="branch">Specific branch</option>
                         <option value="all">All branches</option>
-                    </select>
-                    <InputError message={errors.scope} />
-                </div>
+                    </SelectInput>
+                </FormField>
             </div>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Home Branch</label>
-                <select value={data.branch_id ?? ''} onChange={e => setData('branch_id', e.target.value ? Number(e.target.value) : null)} className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+            <FormField label="Home Branch" error={errors.branch_id}>
+                <SelectInput
+                    value={data.branch_id ?? ''}
+                    onChange={(e) =>
+                        setData(
+                            'branch_id',
+                            e.target.value ? Number(e.target.value) : null,
+                        )
+                    }
+                >
                     <option value="">Select branch...</option>
-                    {branches.map(b => (
-                        <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
+                    {branches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                            {b.name} ({b.code})
+                        </option>
                     ))}
-                </select>
-                <InputError message={errors.branch_id} />
-            </div>
+                </SelectInput>
+            </FormField>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Branch Roles</label>
+            <FormField label="Branch Roles" error={errors.roles}>
                 <div className="mt-2 space-y-2">
-                    {roles.filter(r => r.level === 'branch').map(role => (
-                        <label key={role.id} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                            <input
-                                type="checkbox"
-                                checked={data.roles.includes(role.id)}
-                                onChange={() => toggleRole(role.id)}
-                                className="rounded border-gray-300"
-                            />
-                            {role.name}
-                        </label>
-                    ))}
+                    {roles
+                        .filter((r) => r.level === 'branch')
+                        .map((role) => (
+                            <label
+                                key={role.id}
+                                className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={data.roles.includes(role.id)}
+                                    onChange={() => toggleRole(role.id)}
+                                    className="rounded border-gray-300"
+                                />
+                                {role.name}
+                            </label>
+                        ))}
                 </div>
-                <InputError message={errors.roles} />
-            </div>
+            </FormField>
         </>
     );
 }
