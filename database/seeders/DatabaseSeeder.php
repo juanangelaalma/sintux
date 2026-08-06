@@ -15,11 +15,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Hapus seed dummy sebelumnya, buat satu akun Superadmin
+        $this->call(RolePermissionSeeder::class);
 
         User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'Superadmin Sintux',
+            'email' => 'superadmin@sintux.com',
+            'role' => 'superadmin',
+            'password' => bcrypt('password'),
         ]);
     }
 }

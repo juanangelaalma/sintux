@@ -1,0 +1,239 @@
+<?php
+
+namespace Modules\Company\Tests\Feature;
+
+use App\Models\CompanyUser;
+use App\Models\CompanyUserRole;
+use App\Models\Role;
+use App\Models\Tenant;
+use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
+
+class CompanyUserManagementTest extends TestCase
+{
+    private const SCHEMA_NAME = 'company_users_test';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(RolePermissionSeeder::class);
+
+        DB::table('company_users')->delete();
+        DB::table('tenants')->delete();
+        DB::table('users')->delete();
+
+        $this->dropSchema();
+    }
+
+    protected function tearDown(): void
+    {
+        if (tenancy()->initialized) {
+            tenancy()->end();
+        }
+
+        $this->dropSchema();
+        parent::tearDown();
+    }
+
+    public function test_admin_with_permission_can_manage_company_users(): void
+    {
+        [$tenantId, $branchId, $admin] = $this->createCompanyWithAdmin();
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
+
+        $this->actingAs($admin)->get(route('company.users.index'))->assertStatus(200);
+
+        // Create
+        $this->actingAs($admin)->post(route('company.users.store'), [
+            'name' => 'Branch Staff',
+            'email' => 'staff@acme.test',
+            'password' => 'secret-password',
+            'company_role' => 'member',
+            'scope' => 'branch',
+            'branch_id' => $branchId,
+            'roles' => [Role::where('slug', 'sales_admin')->value('id')],
+        ])->assertRedirect(route('company.users.index'));
+
+        $staff = User::where('email', 'staff@acme.test')->first();
+        $this->assertNotNull($staff, 'Staff user should be created in the central schema.');
+
+        $membership = CompanyUser::where('user_id', $staff->id)->where('tenant_id', $tenantId)->first();
+        $this->assertNotNull($membership);
+        $this->assertSame('member', $membership->role);
+        $this->assertSame('branch', $membership->scope);
+        $this->assertSame($branchId, $membership->branch_id);
+
+        $this->assertDatabaseHas('company_user_roles', [
+            'company_user_id' => $membership->id,
+            'role_id' => Role::where('slug', 'sales_admin')->value('id'),
+            'branch_id' => $branchId,
+        ]);
+
+        // Update
+        $this->actingAs($admin)->put(route('company.users.update', $membership->id), [
+            'name' => 'Branch Staff Updated',
+            'company_role' => 'admin',
+            'scope' => 'all',
+            'roles' => [],
+        ])->assertRedirect(route('company.users.index'));
+
+        $this->assertSame('Branch Staff Updated', $staff->fresh()->name);
+        $this->assertSame('admin', $membership->fresh()->role);
+        $this->assertSame('all', $membership->fresh()->scope);
+        $this->assertDatabaseMissing('company_user_roles', ['company_user_id' => $membership->id]);
+
+        // Delete
+        $this->actingAs($admin)->delete(route('company.users.destroy', $membership->id))
+            ->assertRedirect(route('company.users.index'));
+
+        $this->assertDatabaseMissing('company_users', ['id' => $membership->id]);
+        $this->assertDatabaseMissing('users', ['id' => $staff->id]);
+    }
+
+    public function test_owner_can_manage_company_users(): void
+    {
+        [$tenantId, $branchId, $owner] = $this->createCompanyWithOwner();
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
+
+        $this->actingAs($owner)
+            ->get(route('company.users.index'))
+            ->assertStatus(200);
+    }
+
+    public function test_member_without_permission_can_view_but_not_mutate_company_users(): void
+    {
+        [$tenantId, $branchId, $member] = $this->createCompanyWithMember();
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
+
+        $this->actingAs($member)
+            ->get(route('company.users.index'))
+            ->assertStatus(200);
+
+        $this->actingAs($member)
+            ->post(route('company.users.store'), [
+                'name' => 'Should Not Exist',
+                'email' => 'forbidden@acme.test',
+                'password' => 'secret-password',
+                'company_role' => 'member',
+                'scope' => 'branch',
+                'branch_id' => $branchId,
+            ])
+            ->assertStatus(403);
+
+        $this->assertDatabaseMissing('users', ['email' => 'forbidden@acme.test']);
+
+        $membershipId = CompanyUser::where('user_id', $member->id)
+            ->where('tenant_id', $tenantId)
+            ->value('id');
+
+        $this->actingAs($member)
+            ->delete(route('company.users.destroy', $membershipId))
+            ->assertStatus(403);
+
+        $this->assertDatabaseHas('company_users', ['id' => $membershipId]);
+    }
+
+    /**
+     * @return array{0: string, 1: int, 2: User}
+     */
+    private function createCompanyWithAdmin(): array
+    {
+        $tenant = Tenant::create([
+            'id' => 'user-mgmt-tenant',
+            'name' => 'User Mgmt Corp',
+            'schema_name' => self::SCHEMA_NAME,
+            'is_active' => true,
+        ]);
+
+        [$branchId, $admin] = $this->provision($tenant, 'admin@acme.test');
+
+        $membership = CompanyUser::where('user_id', $admin->id)->where('tenant_id', $tenant->id)->first();
+        CompanyUserRole::create([
+            'company_user_id' => $membership->id,
+            'branch_id' => null,
+            'role_id' => Role::where('slug', 'admin')->value('id'),
+        ]);
+
+        return [$tenant->id, $branchId, $admin];
+    }
+
+    /**
+     * @return array{0: string, 1: int, 2: User}
+     */
+    private function createCompanyWithOwner(): array
+    {
+        $tenant = Tenant::create([
+            'id' => 'owner-tenant',
+            'name' => 'Owner Corp',
+            'schema_name' => self::SCHEMA_NAME,
+            'is_active' => true,
+        ]);
+
+        [$branchId, $owner] = $this->provision($tenant, 'owner@acme.test');
+
+        return [$tenant->id, $branchId, $owner];
+    }
+
+    /**
+     * @return array{0: string, 1: int, 2: User}
+     */
+    private function createCompanyWithMember(): array
+    {
+        $tenant = Tenant::create([
+            'id' => 'member-tenant',
+            'name' => 'Member Corp',
+            'schema_name' => self::SCHEMA_NAME,
+            'is_active' => true,
+        ]);
+
+        [$branchId, $member] = $this->provision($tenant, 'member@acme.test');
+
+        CompanyUser::where('user_id', $member->id)
+            ->where('tenant_id', $tenant->id)
+            ->update(['role' => 'member', 'scope' => 'branch', 'branch_id' => $branchId]);
+
+        return [$tenant->id, $branchId, $member];
+    }
+
+    /**
+     * Create a tenant, its schema & HQ branch, then provision a user as owner.
+     *
+     * @return array{0: int, 1: User}
+     */
+    private function provision(Tenant $tenant, string $email): array
+    {
+        tenancy()->initialize($tenant);
+        $branchId = DB::table('branches')->insertGetId([
+            'name' => 'HQ Branch',
+            'code' => 'HQ',
+            'is_headquarters' => true,
+        ]);
+        tenancy()->end();
+
+        $user = User::factory()->create(['email' => $email, 'role' => 'user']);
+
+        CompanyUser::create([
+            'user_id' => $user->id,
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branchId,
+            'scope' => 'all',
+            'role' => 'owner',
+            'is_default' => true,
+        ]);
+
+        return [$branchId, $user];
+    }
+
+    private function dropSchema(): void
+    {
+        try {
+            (new \PDO('pgsql:host=127.0.0.1;port=5432;dbname=testing;user=root;password='))
+                ->exec('DROP SCHEMA IF EXISTS "'.self::SCHEMA_NAME.'" CASCADE');
+        } catch (\Exception $e) {
+        }
+    }
+}

@@ -37,6 +37,12 @@ class MakeInertiaPage extends Command
         }
 
         $stub = file_get_contents(base_path('.stubs/inertia-page.tsx.stub'));
+        if ($stub === false) {
+            $this->error('Stub file not found.');
+
+            return self::FAILURE;
+        }
+
         $content = str_replace(
             '{{ pageName }}',
             $pageName,

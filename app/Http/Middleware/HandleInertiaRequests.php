@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Access\CompanyAccess;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -35,11 +37,47 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $activeTenant = null;
+        $activeBranch = null;
+        $branches = collect();
+        $scope = 'all';
+        $roles = [];
+        $permissions = [];
+
+        if (tenancy()->initialized && $request->user()) {
+            $activeTenant = tenant();
+
+            $membership = $request->user()->companyUserFor((string) tenant('id'));
+            $scope = $membership->scope ?? 'all';
+
+            $branches = DB::table('branches')
+                ->where('is_active', true)
+                ->get();
+
+            $activeBranchId = (int) session('active_branch_id');
+
+            if ($scope === 'branch' && $membership?->branch_id) {
+                $activeBranchId = (int) $membership->branch_id;
+                $branches = $branches->where('id', $activeBranchId);
+            }
+
+            $activeBranch = $branches->firstWhere('id', $activeBranchId);
+
+            $roles = CompanyAccess::rolesFor($request->user(), (string) tenant('id'));
+            $permissions = CompanyAccess::permissionsFor($request->user(), (string) tenant('id'), $activeBranchId ?: null);
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
                 'user' => $request->user(),
+                'tenant' => $activeTenant,
+                'branch' => $activeBranch,
+                'branches' => $branches->values(),
+                'scope' => $scope,
+                'roles' => $roles,
+                'permissions' => $permissions,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
