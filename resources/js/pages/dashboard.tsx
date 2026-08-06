@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { dashboard } from '@/routes';
+import CompanyLayout from '@/layouts/company/company-layout';
 
 export default function Dashboard() {
     return (
@@ -17,11 +18,4 @@ export default function Dashboard() {
     );
 }
 
-Dashboard.layout = {
-    breadcrumbs: [
-        {
-            title: 'Dashboard',
-            href: dashboard(),
-        },
-    ],
-};
+Dashboard.layout = (page: any) => <CompanyLayout>{page}</CompanyLayout>;

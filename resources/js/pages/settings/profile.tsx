@@ -2,6 +2,7 @@ import { Form, Head, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import InputError from '@/components/input-error';
+import SettingsLayout from '@/layouts/settings/layout';
 import { edit } from '@/routes/profile';
 import type { Auth } from '@/types';
 
@@ -164,11 +165,4 @@ export default function Profile() {
     );
 }
 
-Profile.layout = {
-    breadcrumbs: [
-        {
-            title: 'Profile settings',
-            href: edit(),
-        },
-    ],
-};
+Profile.layout = (page: any) => <SettingsLayout>{page}</SettingsLayout>;

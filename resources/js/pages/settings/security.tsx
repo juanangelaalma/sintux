@@ -2,6 +2,7 @@ import { Form, Head } from '@inertiajs/react';
 import { useRef } from 'react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
 import InputError from '@/components/input-error';
+import SettingsLayout from '@/layouts/settings/layout';
 import { edit } from '@/routes/security';
 
 type Props = {
@@ -113,11 +114,4 @@ export default function Security(props: Props) {
     );
 }
 
-Security.layout = {
-    breadcrumbs: [
-        {
-            title: 'Security settings',
-            href: edit(),
-        },
-    ],
-};
+Security.layout = (page: any) => <SettingsLayout>{page}</SettingsLayout>;

@@ -1,6 +1,5 @@
 import { createInertiaApp } from '@inertiajs/react';
 import { initializeTheme } from '@/hooks/use-appearance';
-import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -16,7 +15,8 @@ createInertiaApp({
             return AuthLayout;
         }
 
-        return AppLayout;
+        // Return null so the pages can define their own layouts without wrapping twice
+        return null;
     },
     strictMode: true,
     progress: {
