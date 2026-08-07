@@ -10,6 +10,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
+use Laravel\Fortify\Contracts\LoginResponse;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 
@@ -31,6 +32,12 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
+
+        // Bind custom login response
+        $this->app->singleton(
+            LoginResponse::class,
+            \App\Http\Responses\LoginResponse::class
+        );
     }
 
     /**

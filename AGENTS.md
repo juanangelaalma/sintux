@@ -776,6 +776,8 @@ React is responsible for:
 * Presentation logic
 * Client-side UI state
 
+Before writing page markup, search `resources/js/components`. Extract presentational UI when it is reused or clearly needed by multiple pages; keep business-specific page UI local and avoid speculative one-use abstractions.
+
 Laravel is responsible for:
 
 * Business rules

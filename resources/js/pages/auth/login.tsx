@@ -1,6 +1,8 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
-import InputError from '@/components/input-error';
+import Button from '@/components/ui/button';
+import FormField from '@/components/ui/form-field';
+import TextInput from '@/components/ui/text-input';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 
@@ -16,7 +18,9 @@ type Props = {
 };
 
 export default function Login({ status, canResetPassword }: Props) {
-    const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
+    const { data, setData, post, processing, errors, reset } = useForm<
+        Required<LoginForm>
+    >({
         email: '',
         password: '',
         remember: false,
@@ -32,12 +36,19 @@ export default function Login({ status, canResetPassword }: Props) {
     return (
         <>
             <Head title="Log in" />
-            {status && <div className="mb-4 text-sm font-medium text-green-600">{status}</div>}
+            {status && (
+                <div className="mb-4 text-sm font-medium text-green-600">
+                    {status}
+                </div>
+            )}
             <form onSubmit={submit}>
                 <div className="space-y-4">
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email address</label>
-                        <input
+                    <FormField
+                        label="Email address"
+                        htmlFor="email"
+                        error={errors.email}
+                    >
+                        <TextInput
                             id="email"
                             type="email"
                             required
@@ -46,49 +57,60 @@ export default function Login({ status, canResetPassword }: Props) {
                             placeholder="email@example.com"
                             value={data.email}
                             onChange={(e) => setData('email', e.target.value)}
-                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                         />
-                        <InputError message={errors.email} />
-                    </div>
-                    <div>
-                        <div className="flex items-center justify-between">
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-                            {canResetPassword && (
-                                <Link href={request()} className="text-sm text-brand-500 hover:text-brand-600">
+                    </FormField>
+                    <FormField
+                        htmlFor="password"
+                        error={errors.password}
+                        label="Password"
+                        labelAction={
+                            canResetPassword ? (
+                                <Link
+                                    href={request()}
+                                    className="text-sm text-brand-500 hover:text-brand-600"
+                                >
                                     Forgot your password?
                                 </Link>
-                            )}
-                        </div>
-                        <input
+                            ) : undefined
+                        }
+                    >
+                        <TextInput
                             id="password"
                             type="password"
                             required
                             autoComplete="current-password"
                             placeholder="Password"
                             value={data.password}
-                            onChange={(e) => setData('password', e.target.value)}
-                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            onChange={(e) =>
+                                setData('password', e.target.value)
+                            }
                         />
-                        <InputError message={errors.password} />
-                    </div>
+                    </FormField>
                     <div className="flex items-center gap-2">
                         <input
                             id="remember"
                             type="checkbox"
                             checked={data.remember}
-                            onChange={(e) => setData('remember', e.target.checked)}
+                            onChange={(e) =>
+                                setData('remember', e.target.checked)
+                            }
                             className="rounded border-gray-300"
                         />
-                        <label htmlFor="remember" className="text-sm text-gray-600 dark:text-gray-400">Remember me</label>
+                        <label
+                            htmlFor="remember"
+                            className="text-sm text-gray-600 dark:text-gray-400"
+                        >
+                            Remember me
+                        </label>
                     </div>
-                    <button
+                    <Button
                         type="submit"
                         disabled={processing}
                         data-test="login-button"
-                        className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+                        fullWidth
                     >
                         Log in
-                    </button>
+                    </Button>
                 </div>
             </form>
         </>

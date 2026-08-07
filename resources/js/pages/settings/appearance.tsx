@@ -1,7 +1,8 @@
 import { Head } from '@inertiajs/react';
+import SectionHeader from '@/components/ui/section-header';
 import type { Appearance } from '@/hooks/use-appearance';
 import { useAppearance } from '@/hooks/use-appearance';
-import { edit as editAppearance } from '@/routes/appearance';
+import SettingsLayout from '@/layouts/settings/layout';
 
 export default function Appearance() {
     const { appearance, updateAppearance } = useAppearance();
@@ -19,10 +20,10 @@ export default function Appearance() {
             <h1 className="sr-only">Appearance settings</h1>
 
             <div className="space-y-6">
-                <header>
-                    <h2 className="mb-0.5 text-base font-medium">Appearance settings</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Update the appearance settings for your account</p>
-                </header>
+                <SectionHeader
+                    title="Appearance settings"
+                    description="Update the appearance settings for your account"
+                />
                 <div className="inline-flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
                     {tabs.map(({ value, label }) => (
                         <button
@@ -43,11 +44,4 @@ export default function Appearance() {
     );
 }
 
-Appearance.layout = {
-    breadcrumbs: [
-        {
-            title: 'Appearance settings',
-            href: editAppearance(),
-        },
-    ],
-};
+Appearance.layout = (page: any) => <SettingsLayout>{page}</SettingsLayout>;

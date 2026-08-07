@@ -1,6 +1,8 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import AdminLayout from '@/layouts/admin/admin-layout';
+import CompanyLayout from '@/layouts/company/company-layout';
 import { cn, toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
@@ -15,8 +17,10 @@ const sidebarNavItems: NavItem[] = [
 
 export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const { auth } = usePage<any>().props;
+    const isSuperadmin = auth?.user?.role === 'superadmin';
 
-    return (
+    const layout = (
         <div className="px-4 py-6">
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Settings</h1>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage your profile and account settings</p>
@@ -46,5 +50,11 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                 </div>
             </div>
         </div>
+    );
+
+    return isSuperadmin ? (
+        <AdminLayout>{layout}</AdminLayout>
+    ) : (
+        <CompanyLayout>{layout}</CompanyLayout>
     );
 }

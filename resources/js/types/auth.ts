@@ -9,8 +9,28 @@ export type User = {
     [key: string]: unknown;
 };
 
+export type Tenant = {
+    id: string;
+    name: string;
+    [key: string]: unknown;
+};
+
+export type Branch = {
+    id: number;
+    name: string;
+    code: string;
+    is_headquarters?: boolean;
+    [key: string]: unknown;
+};
+
 export type Auth = {
     user: User;
+    tenant: Tenant | null;
+    branch: Branch | null;
+    branches: Branch[];
+    is_hq: boolean;
+    roles: string[];
+    permissions: string[];
 };
 
 /* @chisel-passkeys */

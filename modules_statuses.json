@@ -1,5 +1,6 @@
 {
     "User": true,
     "TestModule": true,
-    "Invoice": true
+    "Invoice": true,
+    "Company": true
 }

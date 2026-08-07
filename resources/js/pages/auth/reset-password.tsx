@@ -1,6 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
-import InputError from '@/components/input-error';
+import Button from '@/components/ui/button';
+import FormField from '@/components/ui/form-field';
+import TextInput from '@/components/ui/text-input';
 import { update } from '@/routes/password';
 
 type Props = {
@@ -30,22 +32,26 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
 
             <form onSubmit={submit}>
                 <div className="space-y-4">
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
-                        <input
+                    <FormField
+                        label="Email"
+                        htmlFor="email"
+                        error={errors.email}
+                    >
+                        <TextInput
                             id="email"
                             type="email"
                             autoComplete="email"
                             value={data.email}
                             readOnly
-                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                         />
-                        <InputError message={errors.email} />
-                    </div>
+                    </FormField>
 
-                    <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-                        <input
+                    <FormField
+                        label="Password"
+                        htmlFor="password"
+                        error={errors.password}
+                    >
+                        <TextInput
                             id="password"
                             type="password"
                             required
@@ -54,15 +60,18 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                             placeholder="Password"
                             passwordrules={passwordRules}
                             value={data.password}
-                            onChange={(e) => setData('password', e.target.value)}
-                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            onChange={(e) =>
+                                setData('password', e.target.value)
+                            }
                         />
-                        <InputError message={errors.password} />
-                    </div>
+                    </FormField>
 
-                    <div>
-                        <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm password</label>
-                        <input
+                    <FormField
+                        label="Confirm password"
+                        htmlFor="password_confirmation"
+                        error={errors.password_confirmation}
+                    >
+                        <TextInput
                             id="password_confirmation"
                             type="password"
                             required
@@ -70,20 +79,20 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                             placeholder="Confirm password"
                             passwordrules={passwordRules}
                             value={data.password_confirmation}
-                            onChange={(e) => setData('password_confirmation', e.target.value)}
-                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            onChange={(e) =>
+                                setData('password_confirmation', e.target.value)
+                            }
                         />
-                        <InputError message={errors.password_confirmation} />
-                    </div>
+                    </FormField>
 
-                    <button
+                    <Button
                         type="submit"
                         disabled={processing}
                         data-test="reset-password-button"
-                        className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+                        fullWidth
                     >
                         Reset password
-                    </button>
+                    </Button>
                 </div>
             </form>
         </>
