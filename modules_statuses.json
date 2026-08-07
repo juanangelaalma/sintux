@@ -2,5 +2,6 @@
     "User": true,
     "TestModule": true,
     "Invoice": true,
-    "Company": true
+    "Company": true,
+    "Contact": true
 }

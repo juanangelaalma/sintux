@@ -21,8 +21,14 @@ class EnsureCompanyMember
             return redirect()->route('admin.dashboard');
         }
 
-        if (! session('active_tenant_id')) {
+        $tenantId = session('active_tenant_id');
+
+        if (! $tenantId) {
             return redirect()->route('dashboard');
+        }
+
+        if (! $user || ! $user->companyUserFor($tenantId)) {
+            abort(403);
         }
 
         return $next($request);
