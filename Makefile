@@ -78,6 +78,16 @@ seed: ## Run seeders
 rollback: ## Rollback last migration batch
 	$(ARTISAN) migrate:rollback
 
+# ── Tenant Database ──────────────────────────
+.PHONY: tenant-make-migration
+tenant-make-migration: ## Create tenant migration  (make tenant-make-migration N=create_invoices_table)
+	@test -n "$(N)" || (echo "Usage: make tenant-make-migration N=MigrationName" && exit 1)
+	$(ARTISAN) make:migration $(N) --path=database/migrations/tenant && $(MAKE) fix-perms
+
+.PHONY: tenant-migrate
+tenant-migrate: ## Run migrations for all tenants
+	$(ARTISAN) tenants:migrate
+
 # ── Modules (nwidart/laravel-modules) ─────────
 .PHONY: module-make
 module-make: ## Create a new module  (make module-make M=ModuleName)
