@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\CompanyUser;
 use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -60,24 +61,57 @@ class ResolveTenant
      */
     private function resolveBranchSession(?Authenticatable $user, string $tenantId): void
     {
-        if (session('active_branch_id')) {
-            return;
-        }
-
         /** @var User|null $user */
         $membership = $user?->companyUserFor($tenantId);
 
+        $activeBranchId = (int) session('active_branch_id');
+
+        if ($activeBranchId && $this->branchIsAccessible($membership, $activeBranchId)) {
+            return;
+        }
+
         $branchId = $membership?->branch_id;
 
-        if (! $branchId) {
-            $branchId = DB::table('branches')
-                ->where('is_active', true)
-                ->orderByDesc('is_headquarters')
-                ->value('id');
+        if ($branchId && $this->branchIsAccessible($membership, $branchId)) {
+            session(['active_branch_id' => $branchId]);
+
+            return;
         }
+
+        $branchId = DB::table('branches')
+            ->where('is_active', true)
+            ->orderByDesc('is_headquarters')
+            ->value('id');
 
         if ($branchId) {
             session(['active_branch_id' => (int) $branchId]);
         }
+    }
+
+    /**
+     * Determine whether a membership may use the given branch.
+     */
+    private function branchIsAccessible(?CompanyUser $membership, int $branchId): bool
+    {
+        if (! $membership) {
+            return false;
+        }
+
+        $isHq = false;
+        if ($membership->branch_id) {
+            $isHq = (bool) DB::table('branches')
+                ->where('id', $membership->branch_id)
+                ->where('is_active', true)
+                ->value('is_headquarters');
+        }
+
+        if ($isHq) {
+            return DB::table('branches')
+                ->where('is_active', true)
+                ->where('id', $branchId)
+                ->exists();
+        }
+
+        return in_array($branchId, $membership->allowedBranchIds(), true);
     }
 }

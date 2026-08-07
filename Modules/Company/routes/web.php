@@ -19,4 +19,6 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
     Route::resource('company/users', CompanyUserController::class)->except(['create', 'show', 'edit'])->names('company.users');
 
     Route::resource('company/branches', CompanyBranchController::class)->only(['index', 'store', 'update'])->names('company.branches');
+
+    Route::post('company/branches/switch', [CompanyBranchController::class, 'switchBranch'])->name('company.branches.switch');
 });

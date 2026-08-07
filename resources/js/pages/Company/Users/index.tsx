@@ -6,13 +6,14 @@ import Button from '@/components/ui/button';
 import FormActions from '@/components/ui/form-actions';
 import FormField from '@/components/ui/form-field';
 import Modal from '@/components/ui/modal';
+import MultiSelect from '@/components/ui/multi-select';
 import PageHeader from '@/components/ui/page-header';
 import SelectInput from '@/components/ui/select-input';
 import TextInput from '@/components/ui/text-input';
 import CompanyLayout from '@/layouts/company/company-layout';
 import usersRoute from '@/routes/company/users';
 
-type Branch = { id: number; name: string; code: string };
+type Branch = { id: number; name: string; code: string; is_headquarters: boolean };
 type Role = { id: number; name: string; slug: string; level: string };
 type Member = {
     id: number;
@@ -20,8 +21,8 @@ type Member = {
     name: string;
     email: string;
     company_role: string;
-    scope: string;
     branch_id: number | null;
+    allowed_branch_ids: number[];
     is_default: boolean;
     roles: string[];
 };
@@ -57,8 +58,8 @@ export default function Index({
         email: '',
         password: '',
         company_role: 'member',
-        scope: 'branch',
         branch_id: null as number | null,
+        allowed_branch_ids: [] as number[],
         roles: [] as number[],
     });
 
@@ -76,8 +77,8 @@ export default function Index({
             email: member.email,
             password: '',
             company_role: member.company_role,
-            scope: member.scope,
             branch_id: member.branch_id,
+            allowed_branch_ids: member.allowed_branch_ids ?? [],
             roles: roles
                 .filter((r) => member.roles.includes(r.slug))
                 .map((r) => r.id),
@@ -88,15 +89,6 @@ export default function Index({
         setIsCreateOpen(false);
         setEditMember(null);
         reset();
-    };
-
-    const toggleRole = (id: number) => {
-        setData(
-            'roles',
-            data.roles.includes(id)
-                ? data.roles.filter((r) => r !== id)
-                : [...data.roles, id],
-        );
     };
 
     const submitCreate = (e: React.FormEvent) => {
@@ -138,12 +130,19 @@ export default function Index({
             header: 'Company Role',
             render: (member) => member.company_role,
         },
-        { key: 'scope', header: 'Scope', render: (member) => member.scope },
         {
             key: 'branch',
             header: 'Branch',
-            render: (member) =>
-                branches.find((b) => b.id === member.branch_id)?.name ?? '-',
+            render: (member) => {
+                const home =
+                    branches.find((b) => b.id === member.branch_id)?.name ?? '-';
+                const extra =
+                    member.allowed_branch_ids?.filter(
+                        (id) => id !== member.branch_id,
+                    ).length ?? 0;
+
+                return extra > 0 ? `${home} +${extra}` : home;
+            },
         },
         {
             key: 'roles',
@@ -213,7 +212,6 @@ export default function Index({
                             branches={branches}
                             roles={roles}
                             errors={errors}
-                            toggleRole={toggleRole}
                         />
                         <FormActions
                             onCancel={closeModals}
@@ -233,7 +231,6 @@ export default function Index({
                             branches={branches}
                             roles={roles}
                             errors={errors}
-                            toggleRole={toggleRole}
                             editing
                         />
                         <FormActions
@@ -253,7 +250,6 @@ type FieldProps = {
     branches: Branch[];
     roles: Role[];
     errors: any;
-    toggleRole: (id: number) => void;
     editing?: boolean;
 };
 
@@ -263,7 +259,6 @@ function UserFields({
     branches,
     roles,
     errors,
-    toggleRole,
     editing,
 }: FieldProps) {
     return (
@@ -299,68 +294,74 @@ function UserFields({
                 />
             </FormField>
 
-            <div className="grid grid-cols-2 gap-4">
-                <FormField label="Company Role" error={errors.company_role}>
-                    <SelectInput
-                        value={data.company_role}
-                        onChange={(e) =>
-                            setData('company_role', e.target.value)
-                        }
-                    >
-                        <option value="admin">Admin</option>
-                        <option value="member">Member</option>
-                    </SelectInput>
-                </FormField>
-
-                <FormField label="Branch Scope" error={errors.scope}>
-                    <SelectInput
-                        value={data.scope}
-                        onChange={(e) => setData('scope', e.target.value)}
-                    >
-                        <option value="branch">Specific branch</option>
-                        <option value="all">All branches</option>
-                    </SelectInput>
-                </FormField>
-            </div>
+            <FormField label="Company Role" error={errors.company_role}>
+                <SelectInput
+                    value={data.company_role}
+                    onChange={(e) =>
+                        setData('company_role', e.target.value)
+                    }
+                >
+                    <option value="admin">Admin</option>
+                    <option value="member">Member</option>
+                </SelectInput>
+            </FormField>
 
             <FormField label="Home Branch" error={errors.branch_id}>
                 <SelectInput
                     value={data.branch_id ?? ''}
-                    onChange={(e) =>
-                        setData(
-                            'branch_id',
-                            e.target.value ? Number(e.target.value) : null,
-                        )
-                    }
+                    onChange={(e) => {
+                        const branchId = e.target.value
+                            ? Number(e.target.value)
+                            : null;
+                        setData((prev: any) => ({
+                            ...prev,
+                            branch_id: branchId,
+                            allowed_branch_ids: prev.allowed_branch_ids.filter(
+                                (id: number) => id !== branchId,
+                            ),
+                        }));
+                    }}
                 >
                     <option value="">Select branch...</option>
                     {branches.map((b) => (
                         <option key={b.id} value={b.id}>
                             {b.name} ({b.code})
+                            {b.is_headquarters ? ' - HQ' : ''}
                         </option>
                     ))}
                 </SelectInput>
             </FormField>
 
+            {!(branches.find((b) => b.id === data.branch_id)?.is_headquarters ?? false) && data.branch_id && (
+                <FormField
+                    label="Allowed Branches"
+                    error={errors.allowed_branch_ids}
+                >
+                    <MultiSelect
+                        values={data.allowed_branch_ids}
+                        options={branches
+                            .filter((b) => b.id !== data.branch_id && !b.is_headquarters)
+                            .map((b) => ({
+                                value: b.id,
+                                label: `${b.name} (${b.code})`,
+                            }))}
+                        onChange={(values) =>
+                            setData('allowed_branch_ids', values)
+                        }
+                        placeholder="Select branches..."
+                    />
+                </FormField>
+            )}
+
             <FormField label="Branch Roles" error={errors.roles}>
-                <div className="mt-2 space-y-2">
-                    {roles
+                <MultiSelect
+                    values={data.roles}
+                    options={roles
                         .filter((r) => r.level === 'branch')
-                        .map((role) => (
-                            <label
-                                key={role.id}
-                                className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={data.roles.includes(role.id)}
-                                    onChange={() => toggleRole(role.id)}
-                                    className="rounded border-gray-300"
-                                />
-                                {role.name}
-                            </label>
-                        ))}
-                </div>
+                        .map((r) => ({ value: r.id, label: r.name }))}
+                    onChange={(values) => setData('roles', values)}
+                    placeholder="Select roles..."
+                />
             </FormField>
         </>
     );

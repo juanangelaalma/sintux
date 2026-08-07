@@ -40,8 +40,9 @@ class StoreCompanyUserRequest extends FormRequest
             ],
             'password' => ['required', 'string', 'min:8'],
             'company_role' => ['required', 'in:admin,member'],
-            'scope' => ['required', 'in:all,branch'],
-            'branch_id' => ['nullable', 'integer', 'required_if:scope,branch'],
+            'branch_id' => ['required', 'integer', 'exists:branches,id'],
+            'allowed_branch_ids' => ['nullable', 'array'],
+            'allowed_branch_ids.*' => ['integer', 'exists:branches,id'],
             'roles' => ['nullable', 'array'],
             'roles.*' => [
                 'integer',

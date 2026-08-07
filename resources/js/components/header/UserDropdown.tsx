@@ -1,4 +1,4 @@
-import { Link, usePage } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { useState } from "react";
 import { Dropdown } from "@/components/ui/dropdown/Dropdown";
 import { DropdownItem } from "@/components/ui/dropdown/DropdownItem";
@@ -42,6 +42,8 @@ export default function UserDropdown() {
   const user = auth?.user;
   const tenant = auth?.tenant;
   const branch = auth?.branch;
+  const branches = auth?.branches ?? [];
+  const showBranchSwitcher = !auth?.is_hq && branches.length > 1;
 
   if (!user) {
     return null;
@@ -56,6 +58,19 @@ export default function UserDropdown() {
 
   function closeDropdown() {
     setIsOpen(false);
+  }
+
+  function handleSwitchBranch(branchId: number) {
+    if (branch?.id === branchId) {
+      closeDropdown();
+
+      return;
+    }
+
+    router.post("/company/branches/switch", { branch_id: branchId }, {
+      preserveScroll: true,
+      onSuccess: closeDropdown,
+    });
   }
 
   return (
@@ -114,6 +129,50 @@ export default function UserDropdown() {
             {user.email}
           </span>
         </div>
+
+        {showBranchSwitcher && (
+          <div className="pt-3 pb-3 border-b border-gray-200 dark:border-gray-800">
+            <span className="block px-1 pb-2 text-theme-xs font-medium text-gray-500 dark:text-gray-400">
+              Switch branch
+            </span>
+            <ul className="flex flex-col gap-1">
+              {branches.map((b) => (
+                <li key={b.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchBranch(b.id)}
+                    className={`${itemClasses} w-full justify-between ${
+                      branch?.id === b.id
+                        ? "bg-brand-50 text-brand-700 dark:bg-white/5 dark:text-brand-300"
+                        : ""
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <svg
+                        className="fill-gray-500 dark:fill-gray-400"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          clipRule="evenodd"
+                          d="M4 3.25C3.0335 3.25 2.25 4.0335 2.25 5V19C2.25 19.9665 3.0335 20.75 4 20.75H20C20.9665 20.75 21.75 19.9665 21.75 19V5C21.75 4.0335 20.9665 3.25 20 3.25H4ZM4 4.75C3.86193 4.75 3.75 4.86193 3.75 5V6.25H20.25V5C20.25 4.86193 20.1381 4.75 20 4.75H4ZM20.25 7.75H3.75V19C3.75 19.1381 3.86193 19.25 4 19.25H20C20.1381 19.25 20.25 19.1381 20.25 19V7.75ZM6.75 9.25C6.33579 9.25 6 9.58579 6 10V15C6 15.4142 6.33579 15.75 6.75 15.75H9.75C10.1642 15.75 10.5 15.4142 10.5 15V10C10.5 9.58579 10.1642 9.25 9.75 9.25H6.75ZM7.5 10.75V14.25H9V10.75H7.5ZM14.25 9.25C13.8358 9.25 13.5 9.58579 13.5 10V15C13.5 15.4142 13.8358 15.75 14.25 15.75H17.25C17.6642 15.75 18 15.4142 18 15V10C18 9.58579 17.6642 9.25 17.25 9.25H14.25ZM15 10.75V14.25H16.5V10.75H15Z"
+                        />
+                      </svg>
+                      {b.name}
+                    </span>
+                    <span className="text-theme-xs text-gray-400 dark:text-gray-500">
+                      {b.code}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <ul className="flex flex-col gap-1 pt-4 pb-3 border-b border-gray-200 dark:border-gray-800">
           {menuItems.map((item) => (

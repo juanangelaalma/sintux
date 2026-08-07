@@ -26,8 +26,9 @@ class UpdateCompanyUserRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'password' => ['sometimes', 'nullable', 'string', 'min:8'],
             'company_role' => ['sometimes', 'in:admin,member'],
-            'scope' => ['sometimes', 'in:all,branch'],
-            'branch_id' => ['sometimes', 'nullable', 'integer', 'required_if:scope,branch'],
+            'branch_id' => ['sometimes', 'required', 'integer', 'exists:branches,id'],
+            'allowed_branch_ids' => ['nullable', 'array'],
+            'allowed_branch_ids.*' => ['integer', 'exists:branches,id'],
             'roles' => ['nullable', 'array'],
             'roles.*' => ['integer', 'exists:roles,id'],
         ];

@@ -216,7 +216,7 @@ class CompanyBranchCrudTest extends TestCase
 
         CompanyUser::where('user_id', $member->id)
             ->where('tenant_id', $tenant->id)
-            ->update(['role' => 'member', 'scope' => 'branch', 'branch_id' => $branchId]);
+            ->update(['role' => 'member', 'branch_id' => $branchId]);
 
         return [$tenant->id, $branchId, $member];
     }
@@ -242,7 +242,6 @@ class CompanyBranchCrudTest extends TestCase
             'user_id' => $user->id,
             'tenant_id' => $tenant->id,
             'branch_id' => $branchId,
-            'scope' => 'all',
             'role' => 'owner',
             'is_default' => true,
         ]);

@@ -19,6 +19,7 @@ export type Branch = {
     id: number;
     name: string;
     code: string;
+    is_headquarters?: boolean;
     [key: string]: unknown;
 };
 
@@ -27,7 +28,7 @@ export type Auth = {
     tenant: Tenant | null;
     branch: Branch | null;
     branches: Branch[];
-    scope: string;
+    is_hq: boolean;
     roles: string[];
     permissions: string[];
 };

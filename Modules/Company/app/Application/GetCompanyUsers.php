@@ -13,7 +13,7 @@ class GetCompanyUsers
      */
     public function execute(string $tenantId): array
     {
-        return CompanyUser::with(['user', 'companyUserRoles.role'])
+        return CompanyUser::with(['user', 'companyUserRoles.role', 'allowedBranches'])
             ->where('tenant_id', $tenantId)
             ->orderBy('created_at', 'desc')
             ->get()
@@ -23,8 +23,10 @@ class GetCompanyUsers
                 'name' => $membership->user?->name,
                 'email' => $membership->user?->email,
                 'company_role' => $membership->role,
-                'scope' => $membership->scope,
                 'branch_id' => $membership->branch_id,
+                'allowed_branch_ids' => $membership->allowedBranches
+                    ->pluck('branch_id')
+                    ->all(),
                 'is_default' => $membership->is_default,
                 'roles' => $membership->companyUserRoles
                     ->pluck('role.slug')

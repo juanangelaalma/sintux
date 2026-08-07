@@ -40,7 +40,7 @@ class HandleInertiaRequests extends Middleware
         $activeTenant = null;
         $activeBranch = null;
         $branches = collect();
-        $scope = 'all';
+        $isHq = false;
         $roles = [];
         $permissions = [];
 
@@ -48,17 +48,30 @@ class HandleInertiaRequests extends Middleware
             $activeTenant = tenant();
 
             $membership = $request->user()->companyUserFor((string) tenant('id'));
-            $scope = $membership->scope ?? 'all';
+
+            if ($membership && $membership->branch_id) {
+                $isHq = (bool) DB::table('branches')
+                    ->where('id', $membership->branch_id)
+                    ->value('is_headquarters');
+            }
 
             $branches = DB::table('branches')
                 ->where('is_active', true)
                 ->get();
 
+            if (! $isHq && $membership) {
+                $allowedBranchIds = $membership->allowedBranchIds();
+                $branches = $branches->whereIn('id', $allowedBranchIds);
+            }
+
             $activeBranchId = (int) session('active_branch_id');
 
-            if ($scope === 'branch' && $membership?->branch_id) {
-                $activeBranchId = (int) $membership->branch_id;
-                $branches = $branches->where('id', $activeBranchId);
+            if (! $branches->contains('id', $activeBranchId)) {
+                $activeBranchId = (int) ($membership?->branch_id ?? $branches->first()?->id ?? 0);
+
+                if ($activeBranchId) {
+                    session(['active_branch_id' => $activeBranchId]);
+                }
             }
 
             $activeBranch = $branches->firstWhere('id', $activeBranchId);
@@ -75,7 +88,7 @@ class HandleInertiaRequests extends Middleware
                 'tenant' => $activeTenant,
                 'branch' => $activeBranch,
                 'branches' => $branches->values(),
-                'scope' => $scope,
+                'is_hq' => $isHq,
                 'roles' => $roles,
                 'permissions' => $permissions,
             ],

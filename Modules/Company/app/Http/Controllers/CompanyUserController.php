@@ -34,7 +34,7 @@ class CompanyUserController extends Controller
             'branches' => DB::table('branches')
                 ->where('is_active', true)
                 ->orderBy('name')
-                ->get(['id', 'name', 'code']),
+                ->get(['id', 'name', 'code', 'is_headquarters']),
             'roles' => Role::orderBy('level')->orderBy('name')->get(['id', 'name', 'slug', 'level']),
             'canManageUsers' => auth()->user()->hasPermissionTo('company.user.manage'),
         ]);

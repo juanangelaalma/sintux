@@ -41,6 +41,14 @@ class CompanyUserManagementTest extends TestCase
     {
         [$tenantId, $branchId, $admin] = $this->createCompanyWithAdmin();
 
+        tenancy()->initialize($tenantId);
+        $branchBId = DB::table('branches')->insertGetId([
+            'name' => 'Branch B',
+            'code' => 'BRB',
+            'is_active' => true,
+        ]);
+        tenancy()->end();
+
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
 
         $this->actingAs($admin)->get(route('company.users.index'))->assertStatus(200);
@@ -51,8 +59,7 @@ class CompanyUserManagementTest extends TestCase
             'email' => 'staff@acme.test',
             'password' => 'secret-password',
             'company_role' => 'member',
-            'scope' => 'branch',
-            'branch_id' => $branchId,
+            'branch_id' => $branchBId,
             'roles' => [Role::where('slug', 'sales_admin')->value('id')],
         ])->assertRedirect(route('company.users.index'));
 
@@ -62,26 +69,25 @@ class CompanyUserManagementTest extends TestCase
         $membership = CompanyUser::where('user_id', $staff->id)->where('tenant_id', $tenantId)->first();
         $this->assertNotNull($membership);
         $this->assertSame('member', $membership->role);
-        $this->assertSame('branch', $membership->scope);
-        $this->assertSame($branchId, $membership->branch_id);
+        $this->assertSame($branchBId, $membership->branch_id);
 
         $this->assertDatabaseHas('company_user_roles', [
             'company_user_id' => $membership->id,
             'role_id' => Role::where('slug', 'sales_admin')->value('id'),
-            'branch_id' => $branchId,
+            'branch_id' => null,
         ]);
 
         // Update
         $this->actingAs($admin)->put(route('company.users.update', $membership->id), [
             'name' => 'Branch Staff Updated',
             'company_role' => 'admin',
-            'scope' => 'all',
+            'branch_id' => $branchId,
             'roles' => [],
         ])->assertRedirect(route('company.users.index'));
 
         $this->assertSame('Branch Staff Updated', $staff->fresh()->name);
         $this->assertSame('admin', $membership->fresh()->role);
-        $this->assertSame('all', $membership->fresh()->scope);
+        $this->assertSame($branchId, $membership->fresh()->branch_id);
         $this->assertDatabaseMissing('company_user_roles', ['company_user_id' => $membership->id]);
 
         // Delete
@@ -119,7 +125,6 @@ class CompanyUserManagementTest extends TestCase
                 'email' => 'forbidden@acme.test',
                 'password' => 'secret-password',
                 'company_role' => 'member',
-                'scope' => 'branch',
                 'branch_id' => $branchId,
             ])
             ->assertStatus(403);
@@ -135,6 +140,142 @@ class CompanyUserManagementTest extends TestCase
             ->assertStatus(403);
 
         $this->assertDatabaseHas('company_users', ['id' => $membershipId]);
+    }
+
+    public function test_user_can_be_assigned_to_multiple_allowed_branches(): void
+    {
+        [$tenantId, $hqBranchId, $admin] = $this->createCompanyWithAdmin();
+
+        tenancy()->initialize($tenantId);
+        $branchBId = DB::table('branches')->insertGetId([
+            'name' => 'Branch B',
+            'code' => 'BRB',
+            'is_active' => true,
+        ]);
+        tenancy()->end();
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $this->actingAs($admin)->post(route('company.users.store'), [
+            'name' => 'Multi Branch Staff',
+            'email' => 'multi@acme.test',
+            'password' => 'secret-password',
+            'company_role' => 'member',
+            'branch_id' => $branchBId,
+            'allowed_branch_ids' => [$hqBranchId],
+            'roles' => [Role::where('slug', 'sales_admin')->value('id')],
+        ])->assertRedirect(route('company.users.index'));
+
+        $staff = User::where('email', 'multi@acme.test')->first();
+        $this->assertNotNull($staff);
+
+        $membership = CompanyUser::where('user_id', $staff->id)->where('tenant_id', $tenantId)->first();
+        $this->assertNotNull($membership);
+        $this->assertSame($branchBId, $membership->branch_id);
+
+        $this->assertEqualsCanonicalizing(
+            [$branchBId, $hqBranchId],
+            $membership->allowedBranchIds(),
+        );
+
+        $this->assertDatabaseHas('company_user_roles', [
+            'company_user_id' => $membership->id,
+            'role_id' => Role::where('slug', 'sales_admin')->value('id'),
+            'branch_id' => null,
+        ]);
+    }
+
+    public function test_user_can_switch_to_allowed_branch_only(): void
+    {
+        [$tenantId, $hqBranchId, $admin] = $this->createCompanyWithAdmin();
+
+        tenancy()->initialize($tenantId);
+        $branchBId = DB::table('branches')->insertGetId([
+            'name' => 'Branch B',
+            'code' => 'BRB',
+            'is_active' => true,
+        ]);
+        $branchCId = DB::table('branches')->insertGetId([
+            'name' => 'Branch C',
+            'code' => 'BRC',
+            'is_active' => true,
+        ]);
+        tenancy()->end();
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $this->actingAs($admin)->post(route('company.users.store'), [
+            'name' => 'Scoped Staff',
+            'email' => 'scoped@acme.test',
+            'password' => 'secret-password',
+            'company_role' => 'member',
+            'branch_id' => $branchBId,
+            'allowed_branch_ids' => [$branchBId],
+        ])->assertRedirect(route('company.users.index'));
+
+        $staff = User::where('email', 'scoped@acme.test')->first();
+        $this->assertNotNull($staff);
+
+        $this->actingAs($staff)
+            ->post(route('company.branches.switch'), ['branch_id' => $branchBId])
+            ->assertRedirect();
+
+        $this->assertSame($branchBId, (int) session('active_branch_id'));
+
+        $this->actingAs($staff)
+            ->post(route('company.branches.switch'), ['branch_id' => $branchCId])
+            ->assertForbidden();
+    }
+
+    public function test_hq_user_cannot_switch_branch(): void
+    {
+        [$tenantId, $hqBranchId, $admin] = $this->createCompanyWithAdmin();
+
+        tenancy()->initialize($tenantId);
+        $branchBId = DB::table('branches')->insertGetId([
+            'name' => 'Branch B',
+            'code' => 'BRB',
+            'is_active' => true,
+        ]);
+        tenancy()->end();
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $this->actingAs($admin)
+            ->post(route('company.branches.switch'), ['branch_id' => $branchBId])
+            ->assertForbidden();
+    }
+
+    public function test_session_branch_is_sanitized_for_branch_scoped_user(): void
+    {
+        [$tenantId, $hqBranchId, $admin] = $this->createCompanyWithAdmin();
+
+        tenancy()->initialize($tenantId);
+        $branchBId = DB::table('branches')->insertGetId([
+            'name' => 'Branch B',
+            'code' => 'BRB',
+            'is_active' => true,
+        ]);
+        tenancy()->end();
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $this->actingAs($admin)->post(route('company.users.store'), [
+            'name' => 'Scoped Staff',
+            'email' => 'scoped2@acme.test',
+            'password' => 'secret-password',
+            'company_role' => 'member',
+            'branch_id' => $branchBId,
+            'allowed_branch_ids' => [$branchBId],
+        ])->assertRedirect(route('company.users.index'));
+
+        $staff = User::where('email', 'scoped2@acme.test')->first();
+
+        session(['active_branch_id' => $hqBranchId]);
+
+        $this->actingAs($staff)->get(route('company.users.index'))->assertOk();
+
+        $this->assertSame($branchBId, (int) session('active_branch_id'));
     }
 
     /**
@@ -194,7 +335,7 @@ class CompanyUserManagementTest extends TestCase
 
         CompanyUser::where('user_id', $member->id)
             ->where('tenant_id', $tenant->id)
-            ->update(['role' => 'member', 'scope' => 'branch', 'branch_id' => $branchId]);
+            ->update(['role' => 'member', 'branch_id' => $branchId]);
 
         return [$tenant->id, $branchId, $member];
     }
@@ -220,7 +361,6 @@ class CompanyUserManagementTest extends TestCase
             'user_id' => $user->id,
             'tenant_id' => $tenant->id,
             'branch_id' => $branchId,
-            'scope' => 'all',
             'role' => 'owner',
             'is_default' => true,
         ]);
