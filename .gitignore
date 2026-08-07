@@ -30,3 +30,6 @@ yarn-error.log
 /.vscode
 /.zed
 .pnpm-store
+
+# Graphify generated output and cache
+/graphify-out/
