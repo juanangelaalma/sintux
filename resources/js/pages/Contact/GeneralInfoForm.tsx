@@ -1,63 +1,59 @@
-import { router, useForm } from '@inertiajs/react';
-import React from 'react';
 import AddressMapPicker from '@/components/address/address-map-picker';
 import AddressSearch from '@/components/address/address-search';
-import FormActions from '@/components/ui/form-actions';
 import FormField from '@/components/ui/form-field';
+import SelectInput from '@/components/ui/select-input';
 import TextInput from '@/components/ui/text-input';
-import { isEmptyAddress } from '@/lib/nominatim';
 import type { AddressValue } from '@/lib/nominatim';
-import { toContactForm } from './types';
-import type { Contact, ContactForm as ContactFormData, ContactType } from './types';
+import { identityTypeOptions } from './types';
+import type { ContactForm } from './types';
 
-type ContactFormProps = {
-    type: ContactType;
-    mode: 'create' | 'edit';
-    contact?: Contact | null;
-};
-
-export default function ContactForm({ type, mode, contact = null }: ContactFormProps) {
-    const { data, setData, post, put, processing, errors } = useForm<ContactFormData>(
-        toContactForm(contact),
-    );
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (mode === 'create') {
-            post(`/company/contacts/${type}`);
-        } else if (contact) {
-            put(`/company/contacts/${type}/${contact.id}`);
-        }
-    };
-
-    const updateAddress = (
+type Props = {
+    data: ContactForm;
+    setData: <K extends keyof ContactForm>(key: K, value: ContactForm[K]) => void;
+    errors: Record<string, string | undefined>;
+    updateAddress: (
         key: 'billing_address' | 'shipping_address',
         patch: Partial<AddressValue>,
-    ) => {
-        setData(key, { ...data[key], ...patch });
-    };
+    ) => void;
+    handleSameAsBillingChange: (checked: boolean) => void;
+};
 
-    const handleSameAsBillingChange = (checked: boolean) => {
-        if (!checked && isEmptyAddress(data.shipping_address)) {
-            setData('shipping_address', { ...data.billing_address });
-        }
-
-        setData('shipping_same_as_billing', checked);
-    };
-
+export default function GeneralInfoForm({
+    data,
+    setData,
+    errors,
+    updateAddress,
+    handleSameAsBillingChange,
+}: Props) {
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
-            <FormField label="Name" error={errors.name}>
-                <TextInput
-                    type="text"
-                    required
-                    value={data.name}
-                    onChange={(e) => setData('name', e.target.value)}
-                />
-            </FormField>
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
+                Informasi Umum
+            </h3>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-4">
+                <FormField label="Identitas" error={errors.identity_type}>
+                    <SelectInput
+                        value={data.identity_type}
+                        onChange={(e) => setData('identity_type', e.target.value)}
+                    >
+                        <option value="">- Pilih Jenis Identitas -</option>
+                        {identityTypeOptions.map((option) => (
+                            <option key={option} value={option}>
+                                {option}
+                            </option>
+                        ))}
+                    </SelectInput>
+                </FormField>
+
+                <FormField label="Nomor Identitas" error={errors.identity_number}>
+                    <TextInput
+                        type="text"
+                        value={data.identity_number}
+                        onChange={(e) => setData('identity_number', e.target.value)}
+                    />
+                </FormField>
+
                 <FormField label="Email" error={errors.email}>
                     <TextInput
                         type="email"
@@ -66,37 +62,48 @@ export default function ContactForm({ type, mode, contact = null }: ContactFormP
                     />
                 </FormField>
 
-                <FormField label="Phone" error={errors.phone}>
+                <FormField label="Nama Perusahaan" error={errors.company_name}>
                     <TextInput
                         type="text"
-                        value={data.phone}
-                        onChange={(e) => setData('phone', e.target.value)}
+                        value={data.company_name}
+                        onChange={(e) => setData('company_name', e.target.value)}
+                    />
+                </FormField>
+
+                <FormField label="No Handphone" error={errors.mobile_phone}>
+                    <TextInput
+                        type="text"
+                        value={data.mobile_phone}
+                        onChange={(e) => setData('mobile_phone', e.target.value)}
+                    />
+                </FormField>
+
+                <FormField label="No Telephone" error={errors.telephone}>
+                    <TextInput
+                        type="text"
+                        value={data.telephone}
+                        onChange={(e) => setData('telephone', e.target.value)}
+                    />
+                </FormField>
+
+                <FormField label="No FAX" error={errors.fax}>
+                    <TextInput
+                        type="text"
+                        value={data.fax}
+                        onChange={(e) => setData('fax', e.target.value)}
+                    />
+                </FormField>
+
+                <FormField label="No NPWP" error={errors.npwp}>
+                    <TextInput
+                        type="text"
+                        value={data.npwp}
+                        onChange={(e) => setData('npwp', e.target.value)}
                     />
                 </FormField>
             </div>
 
-            <FormField label="Notes" error={errors.notes}>
-                <textarea
-                    value={data.notes}
-                    onChange={(e) => setData('notes', e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                    rows={2}
-                />
-            </FormField>
-
-            <FormField label="Status">
-                <label className="mt-2 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                    <input
-                        type="checkbox"
-                        checked={data.is_active}
-                        onChange={(e) => setData('is_active', e.target.checked)}
-                        className="rounded border-gray-300"
-                    />
-                    Active
-                </label>
-            </FormField>
-
-            <div className="border-t border-gray-200 pt-6 dark:border-gray-800">
+            <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-800">
                 <FormField label="Alamat">
                     <label className="mt-2 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                         <input
@@ -129,15 +136,7 @@ export default function ContactForm({ type, mode, contact = null }: ContactFormP
                     )}
                 </div>
             </div>
-
-            <div className="border-t border-gray-200 pt-4 dark:border-gray-800">
-                <FormActions
-                    onCancel={() => router.visit(`/company/contacts/${type}`)}
-                    submitLabel={mode === 'create' ? 'Create' : 'Update'}
-                    processing={processing}
-                />
-            </div>
-        </form>
+        </section>
     );
 }
 
@@ -165,7 +164,7 @@ function AddressSection({ title, prefix, value, errors, onChange }: AddressSecti
                 <AddressMapPicker value={value} onChange={onChange} />
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4">
+            <div className="mt-4">
                 <FormField label="Detail / Jalan" error={errors[`${prefix}.detail`]}>
                     <TextInput
                         type="text"

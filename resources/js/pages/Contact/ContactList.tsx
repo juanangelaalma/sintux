@@ -36,7 +36,7 @@ export default function ContactList({ contacts, type }: Props) {
         {
             key: 'phone',
             header: 'Phone',
-            render: (contact) => contact.phone ?? '-',
+            render: (contact) => contact.mobile_phone ?? contact.telephone ?? '-',
         },
         {
             key: 'status',

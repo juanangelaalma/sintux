@@ -13,11 +13,15 @@ class UpdateContact
     /**
      * Update a contact's details and sync its addresses.
      *
-     * @param  array{name?: string, email?: string|null, phone?: string|null, notes?: string|null, is_active?: bool, shipping_same_as_billing?: bool, billing_address?: array|null, shipping_address?: array|null}  $data
+     * @param  array<string, mixed>  $data
      */
     public function execute(int $contactId, array $data): Contact
     {
         $contact = Contact::findOrFail($contactId);
+
+        if ($contact->type !== 'customer') {
+            $data['tier_relation'] = null;
+        }
 
         $contact->update($data);
 

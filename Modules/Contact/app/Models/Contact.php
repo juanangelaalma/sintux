@@ -11,9 +11,21 @@ class Contact extends Model
     protected $fillable = [
         'type',
         'name',
+        'registered_at',
+        'tier_relation',
+        'identity_type',
+        'identity_number',
+        'company_name',
         'email',
-        'phone',
+        'mobile_phone',
+        'telephone',
+        'fax',
+        'npwp',
         'notes',
+        'bank_name',
+        'bank_branch',
+        'bank_account_name',
+        'bank_account_number',
         'is_active',
         'shipping_same_as_billing',
     ];
@@ -21,6 +33,7 @@ class Contact extends Model
     protected function casts(): array
     {
         return [
+            'registered_at' => 'date:Y-m-d',
             'is_active' => 'boolean',
             'shipping_same_as_billing' => 'boolean',
         ];

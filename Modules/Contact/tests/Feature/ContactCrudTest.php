@@ -47,8 +47,10 @@ class ContactCrudTest extends TestCase
         // 2. Create Customer with billing address (shipping same as billing)
         $this->actingAs($user)->post(route('company.contacts.store', 'customers'), [
             'name' => 'Acme Customer',
+            'registered_at' => '2026-08-01',
+            'tier_relation' => 'A',
             'email' => 'acme@customer.test',
-            'phone' => '123456',
+            'mobile_phone' => '123456',
             'notes' => 'Important customer',
             'is_active' => true,
             'shipping_same_as_billing' => true,
@@ -71,6 +73,9 @@ class ContactCrudTest extends TestCase
         $this->assertNotNull($customer);
         $this->assertSame('customer', $customer->type);
         $this->assertSame('Acme Customer', $customer->name);
+        $this->assertSame('A', $customer->tier_relation);
+        $this->assertSame('2026-08-01', $customer->registered_at);
+        $this->assertSame('123456', $customer->mobile_phone);
         $this->assertTrue((bool) $customer->is_active);
         $this->assertTrue((bool) $customer->shipping_same_as_billing);
 
@@ -119,6 +124,7 @@ class ContactCrudTest extends TestCase
         $this->actingAs($user)->post(route('company.contacts.store', 'suppliers'), [
             'name' => 'Billing Shop',
             'email' => 'billing@shop.test',
+            'registered_at' => '2026-08-01',
             'shipping_same_as_billing' => false,
             'billing_address' => [
                 'detail' => 'Jl. A No. 1',
@@ -181,6 +187,7 @@ class ContactCrudTest extends TestCase
         $this->actingAs($user)->post(route('company.contacts.store', 'customers'), [
             'name' => 'No Address Customer',
             'email' => 'noaddress@customer.test',
+            'registered_at' => '2026-08-01',
             'shipping_same_as_billing' => true,
             'billing_address' => [
                 'detail' => '',
@@ -209,11 +216,40 @@ class ContactCrudTest extends TestCase
 
         $this->actingAs($user)->post(route('company.contacts.store', 'customers'), [
             'name' => 'Bad Coord Customer',
+            'registered_at' => '2026-08-01',
             'billing_address' => [
                 'latitude' => 999,
                 'longitude' => 999,
             ],
         ])->assertSessionHasErrors(['billing_address.latitude', 'billing_address.longitude']);
+    }
+
+    public function test_tier_relation_only_persisted_for_customers(): void
+    {
+        [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
+
+        $this->actingAs($user)->post(route('company.contacts.store', 'suppliers'), [
+            'name' => 'Tier Supplier',
+            'email' => 'tier@supplier.test',
+            'registered_at' => '2026-08-01',
+            'tier_relation' => 'A',
+        ])->assertRedirect(route('company.contacts.index', 'suppliers'));
+
+        tenancy()->initialize($tenantId);
+        $supplier = DB::table('contacts')->where('email', 'tier@supplier.test')->first();
+        $this->assertNull($supplier->tier_relation);
+        tenancy()->end();
+
+        $this->actingAs($user)->put(route('company.contacts.update', ['type' => 'suppliers', 'id' => $supplier->id]), [
+            'tier_relation' => 'B',
+        ])->assertRedirect(route('company.contacts.index', 'suppliers'));
+
+        tenancy()->initialize($tenantId);
+        $updated = DB::table('contacts')->where('id', $supplier->id)->first();
+        $this->assertNull($updated->tier_relation);
+        tenancy()->end();
     }
 
     public function test_create_and_edit_pages_render(): void
@@ -229,6 +265,7 @@ class ContactCrudTest extends TestCase
         $this->actingAs($user)->post(route('company.contacts.store', 'customers'), [
             'name' => 'Edit Page Contact',
             'email' => 'editpage@customer.test',
+            'registered_at' => '2026-08-01',
         ])->assertRedirect(route('company.contacts.index', 'customers'));
 
         tenancy()->initialize($tenantId);
