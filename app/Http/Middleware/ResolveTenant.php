@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\CompanyUser;
+use App\Access\CompanyAccess;
 use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -43,7 +43,7 @@ class ResolveTenant
                     tenancy()->end();
                 }
 
-                session()->forget(['active_tenant_id', 'active_branch_id']);
+                session()->forget(['active_tenant_id', 'active_branch_id', 'branch_scope']);
             }
         }
 
@@ -57,61 +57,70 @@ class ResolveTenant
     }
 
     /**
-     * Ensure an active branch context exists once tenancy is initialized.
+     * Ensure a branch scope context exists once tenancy is initialized.
      */
     private function resolveBranchSession(?Authenticatable $user, string $tenantId): void
     {
         /** @var User|null $user */
-        $membership = $user?->companyUserFor($tenantId);
+        if (! $user) {
+            return;
+        }
 
+        $accessibleBranchIds = CompanyAccess::accessibleBranchIds($user, $tenantId);
+
+        if ($accessibleBranchIds === []) {
+            session()->forget(['active_branch_id', 'branch_scope']);
+
+            return;
+        }
+
+        $scope = (string) session('branch_scope');
         $activeBranchId = (int) session('active_branch_id');
 
-        if ($activeBranchId && $this->branchIsAccessible($membership, $activeBranchId)) {
-            return;
-        }
-
-        $branchId = $membership?->branch_id;
-
-        if ($branchId && $this->branchIsAccessible($membership, $branchId)) {
-            session(['active_branch_id' => $branchId]);
-
-            return;
-        }
-
-        $branchId = DB::table('branches')
-            ->where('is_active', true)
-            ->orderByDesc('is_headquarters')
-            ->value('id');
-
-        if ($branchId) {
-            session(['active_branch_id' => (int) $branchId]);
-        }
-    }
-
-    /**
-     * Determine whether a membership may use the given branch.
-     */
-    private function branchIsAccessible(?CompanyUser $membership, int $branchId): bool
-    {
-        if (! $membership) {
-            return false;
-        }
-
-        $isHq = false;
-        if ($membership->branch_id) {
+        if ($activeBranchId && in_array($activeBranchId, $accessibleBranchIds, true)) {
             $isHq = (bool) DB::table('branches')
-                ->where('id', $membership->branch_id)
-                ->where('is_active', true)
+                ->where('id', $activeBranchId)
                 ->value('is_headquarters');
+
+            if ($isHq) {
+                session(['branch_scope' => 'all']);
+
+                return;
+            }
+
+            if ($scope === 'all') {
+                session(['branch_scope' => 'all']);
+
+                return;
+            }
+
+            session(['branch_scope' => 'branch']);
+
+            return;
         }
 
-        if ($isHq) {
-            return DB::table('branches')
-                ->where('is_active', true)
-                ->where('id', $branchId)
-                ->exists();
+        $membership = $user->companyUserFor($tenantId);
+        $userBranchId = $membership?->branch_id && in_array($membership->branch_id, $accessibleBranchIds, true)
+            ? $membership->branch_id
+            : $accessibleBranchIds[0];
+
+        $isUserHq = (bool) DB::table('branches')
+            ->where('id', $userBranchId)
+            ->value('is_headquarters');
+
+        if ($isUserHq) {
+            session(['active_branch_id' => $userBranchId, 'branch_scope' => 'all']);
+
+            return;
         }
 
-        return in_array($branchId, $membership->allowedBranchIds(), true);
+        if ($scope !== 'branch' && count($accessibleBranchIds) > 1) {
+            session(['branch_scope' => 'all']);
+            session()->forget('active_branch_id');
+
+            return;
+        }
+
+        session(['active_branch_id' => $userBranchId, 'branch_scope' => 'branch']);
     }
 }

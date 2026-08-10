@@ -43,7 +43,11 @@ export default function UserDropdown() {
   const tenant = auth?.tenant;
   const branch = auth?.branch;
   const branches = auth?.branches ?? [];
-  const showBranchSwitcher = !auth?.is_hq && branches.length > 1;
+  const branchScope = auth?.branch_scope;
+  const isAllScope = branchScope === "all";
+  const hasHqBranch = auth?.is_hq || branches.some((b) => b.is_headquarters);
+  const showAllOption = !hasHqBranch && branches.length > 1;
+  const showBranchSwitcher = branches.length > 1;
 
   if (!user) {
     return null;
@@ -60,14 +64,42 @@ export default function UserDropdown() {
     setIsOpen(false);
   }
 
-  function handleSwitchBranch(branchId: number) {
-    if (branch?.id === branchId) {
+  function handleSwitchAll() {
+    if (isAllScope && !branch) {
       closeDropdown();
 
       return;
     }
 
-    router.post("/company/branches/switch", { branch_id: branchId }, {
+    router.post("/company/branches/switch", { scope: "all" }, {
+      preserveScroll: true,
+      onSuccess: closeDropdown,
+    });
+  }
+
+  function handleSwitchBranch(b: { id: number; is_headquarters?: boolean }) {
+    if (b.is_headquarters) {
+      if (isAllScope && branch?.id === b.id) {
+        closeDropdown();
+
+        return;
+      }
+
+      router.post("/company/branches/switch", { scope: "all", branch_id: b.id }, {
+        preserveScroll: true,
+        onSuccess: closeDropdown,
+      });
+
+      return;
+    }
+
+    if (!isAllScope && branch?.id === b.id) {
+      closeDropdown();
+
+      return;
+    }
+
+    router.post("/company/branches/switch", { scope: "branch", branch_id: b.id }, {
       preserveScroll: true,
       onSuccess: closeDropdown,
     });
@@ -90,7 +122,7 @@ export default function UserDropdown() {
           {(tenant?.name || branch?.name) && (
             <span className="block text-theme-xs leading-tight text-gray-500 dark:text-gray-400">
               {tenant?.name}
-              {branch?.name && ` | ${branch.name}`}
+              {branch?.name ? ` | ${branch.name}` : ""}
             </span>
           )}
         </span>
@@ -136,13 +168,44 @@ export default function UserDropdown() {
               Switch branch
             </span>
             <ul className="flex flex-col gap-1">
+              {showAllOption && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={handleSwitchAll}
+                    className={`${itemClasses} w-full justify-between ${
+                      isAllScope && !branch
+                        ? "bg-brand-50 text-brand-700 dark:bg-white/5 dark:text-brand-300"
+                        : ""
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <svg
+                        className="fill-gray-500 dark:fill-gray-400"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          clipRule="evenodd"
+                          d="M11.25 4.75C11.25 3.7835 10.4665 3 9.5 3H4C3.0335 3 2.25 3.7835 2.25 4.75V12C2.25 12.9665 3.0335 13.75 4 13.75H9.5C10.4665 13.75 11.25 12.9665 11.25 12V4.75ZM3.75 5C3.75 4.86193 3.86193 4.75 4 4.75H9.5C9.63807 4.75 9.75 4.86193 9.75 5V12C9.75 12.1381 9.63807 12.25 9.5 12.25H4C3.86193 12.25 3.75 12.1381 3.75 12V5ZM21.75 5C21.75 4.0335 20.9665 3.25 20 3.25H14.5C13.5335 3.25 12.75 4.0335 12.75 5V12C12.75 12.9665 13.5335 13.75 14.5 13.75H20C20.9665 13.75 21.75 12.9665 21.75 12V5ZM20 4.75C20.1381 4.75 20.25 4.86193 20.25 5V12C20.25 12.1381 20.1381 12.25 20 12.25H14.5C14.3619 12.25 14.25 12.1381 14.25 12V5C14.25 4.86193 14.3619 4.75 14.5 4.75H20ZM11.25 16C11.25 15.0335 10.4665 14.25 9.5 14.25H4C3.0335 14.25 2.25 15.0335 2.25 16V19.25C2.25 20.2165 3.0335 21 4 21H9.5C10.4665 21 11.25 20.2165 11.25 19.25V16ZM3.75 16.25C3.75 16.1119 3.86193 16 4 16H9.5C9.63807 16 9.75 16.1119 9.75 16.25V19.25C9.75 19.3881 9.63807 19.5 9.5 19.5H4C3.86193 19.5 3.75 19.3881 3.75 19.25V16.25ZM21.75 16C21.75 15.0335 20.9665 14.25 20 14.25H14.5C13.5335 14.25 12.75 15.0335 12.75 16V19.25C12.75 20.2165 13.5335 21 14.5 21H20C20.9665 21 21.75 20.2165 21.75 19.25V16ZM20 15.75C20.1381 15.75 20.25 15.8619 20.25 16V19.25C20.25 19.3881 20.1381 19.5 20 19.5H14.5C14.3619 19.5 14.25 19.3881 14.25 15.75H20Z"
+                        />
+                      </svg>
+                      Semua cabang
+                    </span>
+                  </button>
+                </li>
+              )}
               {branches.map((b) => (
                 <li key={b.id}>
                   <button
                     type="button"
-                    onClick={() => handleSwitchBranch(b.id)}
+                    onClick={() => handleSwitchBranch(b)}
                     className={`${itemClasses} w-full justify-between ${
-                      branch?.id === b.id
+                      (isAllScope && b.is_headquarters) || (!isAllScope && branch?.id === b.id)
                         ? "bg-brand-50 text-brand-700 dark:bg-white/5 dark:text-brand-300"
                         : ""
                     }`}

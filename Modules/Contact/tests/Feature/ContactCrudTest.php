@@ -46,6 +46,7 @@ class ContactCrudTest extends TestCase
 
         // 2. Create Customer with billing address (shipping same as billing)
         $this->actingAs($user)->post(route('company.contacts.store', 'customers'), [
+            'branch_id' => $branchId,
             'name' => 'Acme Customer',
             'registered_at' => '2026-08-01',
             'tier_relation' => 'A',
@@ -122,6 +123,7 @@ class ContactCrudTest extends TestCase
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
 
         $this->actingAs($user)->post(route('company.contacts.store', 'suppliers'), [
+            'branch_id' => $branchId,
             'name' => 'Billing Shop',
             'email' => 'billing@shop.test',
             'registered_at' => '2026-08-01',
@@ -185,6 +187,7 @@ class ContactCrudTest extends TestCase
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
 
         $this->actingAs($user)->post(route('company.contacts.store', 'customers'), [
+            'branch_id' => $branchId,
             'name' => 'No Address Customer',
             'email' => 'noaddress@customer.test',
             'registered_at' => '2026-08-01',
@@ -215,6 +218,7 @@ class ContactCrudTest extends TestCase
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
 
         $this->actingAs($user)->post(route('company.contacts.store', 'customers'), [
+            'branch_id' => $branchId,
             'name' => 'Bad Coord Customer',
             'registered_at' => '2026-08-01',
             'billing_address' => [
@@ -231,6 +235,7 @@ class ContactCrudTest extends TestCase
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
 
         $this->actingAs($user)->post(route('company.contacts.store', 'suppliers'), [
+            'branch_id' => $branchId,
             'name' => 'Tier Supplier',
             'email' => 'tier@supplier.test',
             'registered_at' => '2026-08-01',
@@ -263,6 +268,7 @@ class ContactCrudTest extends TestCase
             ->assertStatus(200);
 
         $this->actingAs($user)->post(route('company.contacts.store', 'customers'), [
+            'branch_id' => $branchId,
             'name' => 'Edit Page Contact',
             'email' => 'editpage@customer.test',
             'registered_at' => '2026-08-01',

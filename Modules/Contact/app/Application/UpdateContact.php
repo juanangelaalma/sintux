@@ -14,10 +14,17 @@ class UpdateContact
      * Update a contact's details and sync its addresses.
      *
      * @param  array<string, mixed>  $data
+     * @param  list<int>  $branchIds
      */
-    public function execute(int $contactId, array $data): Contact
+    public function execute(int $contactId, array $data, array $branchIds): Contact
     {
         $contact = Contact::findOrFail($contactId);
+
+        abort_unless(in_array($contact->branch_id, $branchIds, true), 403);
+
+        if (array_key_exists('branch_id', $data)) {
+            abort_unless(in_array((int) $data['branch_id'], $branchIds, true), 403);
+        }
 
         if ($contact->type !== 'customer') {
             $data['tier_relation'] = null;

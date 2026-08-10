@@ -2,6 +2,7 @@
 
 namespace Modules\Contact\Http\Requests;
 
+use App\Access\CompanyAccess;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateContactRequest extends FormRequest
@@ -20,6 +21,7 @@ class UpdateContactRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'branch_id' => ['sometimes', 'integer', $this->branchAccessibleRule()],
             'name' => ['sometimes', 'string', 'max:255'],
             'registered_at' => ['sometimes', 'date'],
             'tier_relation' => ['nullable', 'string', 'in:A,B,C,D,E,R'],
@@ -61,5 +63,19 @@ class UpdateContactRequest extends FormRequest
             "{$prefix}.latitude" => ['nullable', 'numeric', 'between:-90,90'],
             "{$prefix}.longitude" => ['nullable', 'numeric', 'between:-180,180'],
         ];
+    }
+
+    /**
+     * Closure that rejects branch ids outside the user's accessible branches.
+     */
+    private function branchAccessibleRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            $branchIds = CompanyAccess::accessibleBranchIds(auth()->user(), (string) tenant('id'));
+
+            if (! in_array((int) $value, $branchIds, true)) {
+                $fail('The selected branch is not accessible.');
+            }
+        };
     }
 }

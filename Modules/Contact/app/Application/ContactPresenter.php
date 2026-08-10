@@ -18,6 +18,7 @@ class ContactPresenter
 
         return [
             'id' => $contact->id,
+            'branch_id' => $contact->branch_id,
             'type' => $contact->type,
             'name' => $contact->name,
             'registered_at' => $contact->registered_at?->toDateString(),

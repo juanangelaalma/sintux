@@ -39,7 +39,6 @@ class AccessServiceProvider extends ServiceProvider
                 return CompanyAccess::can(
                     $user,
                     session('active_tenant_id'),
-                    session('active_branch_id'),
                     $slug,
                 );
             });

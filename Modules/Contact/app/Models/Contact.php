@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Contact extends Model
 {
     protected $fillable = [
+        'branch_id',
         'type',
         'name',
         'registered_at',
@@ -33,6 +34,7 @@ class Contact extends Model
     protected function casts(): array
     {
         return [
+            'branch_id' => 'integer',
             'registered_at' => 'date:Y-m-d',
             'is_active' => 'boolean',
             'shipping_same_as_billing' => 'boolean',

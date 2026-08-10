@@ -1,6 +1,7 @@
 import FormField from '@/components/ui/form-field';
 import SelectInput from '@/components/ui/select-input';
 import TextInput from '@/components/ui/text-input';
+import type { Branch } from '@/types';
 import { relationTypeOptions } from './types';
 import type { ContactForm, ContactType } from './types';
 
@@ -9,9 +10,20 @@ type Props = {
     data: ContactForm;
     setData: <K extends keyof ContactForm>(key: K, value: ContactForm[K]) => void;
     errors: Record<string, string | undefined>;
+    branches?: Branch[];
+    branchScope?: 'all' | 'branch' | null;
 };
 
-export default function ContactInfoForm({ type, data, setData, errors }: Props) {
+export default function ContactInfoForm({
+    type,
+    data,
+    setData,
+    errors,
+    branches = [],
+    branchScope,
+}: Props) {
+    const showBranchSelector = branchScope === 'all' && branches.length > 1;
+
     return (
         <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
@@ -19,6 +31,21 @@ export default function ContactInfoForm({ type, data, setData, errors }: Props) 
             </h3>
 
             <div className="space-y-4">
+                {showBranchSelector && (
+                    <FormField label="Branch" required error={errors.branch_id}>
+                        <SelectInput
+                            value={data.branch_id}
+                            onChange={(e) => setData('branch_id', Number(e.target.value))}
+                        >
+                            {branches.map((branch) => (
+                                <option key={branch.id} value={branch.id}>
+                                    {branch.name}
+                                </option>
+                            ))}
+                        </SelectInput>
+                    </FormField>
+                )}
+
                 <FormField label="Name" required error={errors.name}>
                     <TextInput
                         type="text"

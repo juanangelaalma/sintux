@@ -5,6 +5,7 @@ export type ContactType = 'customers' | 'suppliers' | 'employees';
 
 export type Contact = {
     id: number;
+    branch_id: number;
     type: string;
     name: string;
     registered_at: string | null;
@@ -29,6 +30,7 @@ export type Contact = {
 };
 
 export type ContactForm = {
+    branch_id: number;
     name: string;
     registered_at: string;
     tier_relation: string;
@@ -83,8 +85,9 @@ function today(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
-export function toContactForm(contact: Contact | null): ContactForm {
+export function toContactForm(contact: Contact | null, defaultBranchId = 0): ContactForm {
     return {
+        branch_id: contact?.branch_id ?? defaultBranchId,
         name: contact?.name ?? '',
         registered_at: contact?.registered_at ?? today(),
         tier_relation: contact?.tier_relation ?? '',

@@ -18,6 +18,7 @@ class CreateContact
     public function execute(string $type, array $data): Contact
     {
         $contact = Contact::create([
+            'branch_id' => $data['branch_id'],
             'type' => $type,
             'name' => $data['name'],
             'registered_at' => $data['registered_at'] ?? now()->toDateString(),

@@ -1,7 +1,8 @@
-import { router, useForm } from '@inertiajs/react';
+import { router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { isEmptyAddress } from '@/lib/nominatim';
 import type { AddressValue } from '@/lib/nominatim';
+import type { Auth, Branch } from '@/types';
 import { toContactForm } from './types';
 import type { Contact, ContactForm, ContactType } from './types';
 
@@ -9,11 +10,18 @@ type Options = {
     type: ContactType;
     mode: 'create' | 'edit';
     contact?: Contact | null;
+    branches?: Branch[];
 };
 
-export function useContactForm({ type, mode, contact = null }: Options) {
+export function useContactForm({ type, mode, contact = null, branches = [] }: Options) {
+    const { auth } = usePage<{ auth?: Auth }>().props;
+    const defaultBranchId =
+        auth?.branch_scope === 'branch'
+            ? auth.branch?.id
+            : branches[0]?.id;
+
     const { data, setData, post, put, processing, errors } = useForm<ContactForm>(
-        toContactForm(contact),
+        toContactForm(contact, defaultBranchId ?? 0),
     );
 
     const submit = (e: FormEvent) => {

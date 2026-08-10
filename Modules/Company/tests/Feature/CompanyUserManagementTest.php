@@ -227,7 +227,7 @@ class CompanyUserManagementTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_hq_user_cannot_switch_branch(): void
+    public function test_switching_to_hq_sets_all_scope(): void
     {
         [$tenantId, $hqBranchId, $admin] = $this->createCompanyWithAdmin();
 
@@ -239,11 +239,14 @@ class CompanyUserManagementTest extends TestCase
         ]);
         tenancy()->end();
 
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
 
         $this->actingAs($admin)
-            ->post(route('company.branches.switch'), ['branch_id' => $branchBId])
-            ->assertForbidden();
+            ->post(route('company.branches.switch'), ['branch_id' => $hqBranchId])
+            ->assertRedirect();
+
+        $this->assertSame('all', session('branch_scope'));
+        $this->assertSame($hqBranchId, (int) session('active_branch_id'));
     }
 
     public function test_session_branch_is_sanitized_for_branch_scoped_user(): void

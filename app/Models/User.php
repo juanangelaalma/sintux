@@ -80,17 +80,15 @@ class User extends Authenticatable
     }
 
     /**
-     * Check a permission against the active tenant + branch context.
+     * Check a permission against the active tenant + branch scope context.
      */
-    public function hasPermissionTo(string $permission, ?string $tenantId = null, ?int $branchId = null): bool
+    public function hasPermissionTo(string $permission, ?string $tenantId = null): bool
     {
         $tenantId ??= session('active_tenant_id');
-        $branchId ??= session('active_branch_id');
 
         return CompanyAccess::can(
             $this,
             $tenantId ? (string) $tenantId : null,
-            $branchId ? (int) $branchId : null,
             $permission,
         );
     }

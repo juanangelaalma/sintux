@@ -2,7 +2,10 @@
 
 namespace Modules\Contact\Http\Controllers;
 
+use App\Access\CompanyAccess;
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Modules\Contact\Application\CreateContact;
 use Modules\Contact\Application\DeleteContact;
@@ -29,6 +32,21 @@ class ContactController extends Controller
     ) {}
 
     /**
+     * Resolve the branch ids for data querying based on the active session context scope.
+     *
+     * @return list<int>
+     */
+    private function branchIds(): array
+    {
+        $tenantId = (string) tenant('id');
+        /** @var User $user */
+        $user = auth()->user();
+
+        return CompanyAccess::contextBranchIds($user, $tenantId)
+            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+    }
+
+    /**
      * Display a listing of contacts by type.
      */
     public function index(string $type)
@@ -39,7 +57,8 @@ class ContactController extends Controller
         $view = 'Contact/'.ucfirst($type).'/index';
 
         return Inertia::render($view, [
-            'contacts' => $this->getContacts->execute($dbType),
+            'contacts' => $this->getContacts->execute($dbType, $this->branchIds()),
+            'branches' => $this->accessibleBranches(),
             'type' => $type,
         ]);
     }
@@ -52,6 +71,7 @@ class ContactController extends Controller
         abort_unless(array_key_exists($type, self::TYPES), 404);
 
         return Inertia::render('Contact/create', [
+            'branches' => $this->accessibleBranches(),
             'type' => $type,
         ]);
     }
@@ -64,8 +84,9 @@ class ContactController extends Controller
         abort_unless(array_key_exists($type, self::TYPES), 404);
 
         return Inertia::render('Contact/edit', [
+            'branches' => $this->accessibleBranches(),
             'type' => $type,
-            'contact' => $this->getContact->execute($id),
+            'contact' => $this->getContact->execute($id, $this->branchIds()),
         ]);
     }
 
@@ -91,7 +112,7 @@ class ContactController extends Controller
     {
         abort_unless(array_key_exists($type, self::TYPES), 404);
 
-        $this->updateContact->execute($id, $request->validated());
+        $this->updateContact->execute($id, $request->validated(), $this->branchIds());
 
         return redirect()
             ->route('company.contacts.index', $type)
@@ -105,8 +126,33 @@ class ContactController extends Controller
     {
         abort_unless(array_key_exists($type, self::TYPES), 404);
 
-        $this->deleteContact->execute($id);
+        $this->deleteContact->execute($id, $this->branchIds());
 
         return redirect()->back()->with('success', 'Contact removed successfully.');
+    }
+
+    /**
+     * Active branches the authenticated member may access, for the UI.
+     *
+     * @return list<object>
+     */
+    private function accessibleBranches(): array
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        $branchIds = CompanyAccess::accessibleBranchIds($user, (string) tenant('id'));
+
+        return DB::table('branches')
+            ->whereIn('id', $branchIds)
+            ->orderByDesc('is_headquarters')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'is_headquarters'])
+            ->map(fn ($branch) => (object) [
+                'id' => (int) $branch->id,
+                'name' => $branch->name,
+                'code' => $branch->code,
+                'is_headquarters' => (bool) $branch->is_headquarters,
+            ])
+            ->all();
     }
 }
