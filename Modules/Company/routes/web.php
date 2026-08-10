@@ -1,12 +1,12 @@
 <?php
 
-use App\Http\Middleware\EnsureCompanyMember;
-use App\Http\Middleware\EnsureSuperadmin;
 use Illuminate\Support\Facades\Route;
 use Modules\Company\Http\Controllers\AdminRoleController;
 use Modules\Company\Http\Controllers\CompanyBranchController;
 use Modules\Company\Http\Controllers\CompanyController;
 use Modules\Company\Http\Controllers\CompanyUserController;
+use Modules\Company\Http\Middleware\EnsureCompanyMember;
+use Modules\Company\Http\Middleware\EnsureSuperadmin;
 
 Route::middleware(['auth', 'verified', EnsureSuperadmin::class])->group(function () {
     Route::resource('admin/companies', CompanyController::class)->except(['create', 'show', 'edit'])->names('admin.companies');

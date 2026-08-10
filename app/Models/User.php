@@ -3,7 +3,6 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Access\CompanyAccess;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -12,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Models\CompanyUser;
 use Stancl\Tenancy\Database\Concerns\CentralConnection;
 
 /**
@@ -80,17 +81,15 @@ class User extends Authenticatable
     }
 
     /**
-     * Check a permission against the active tenant + branch context.
+     * Check a permission against the active tenant + branch scope context.
      */
-    public function hasPermissionTo(string $permission, ?string $tenantId = null, ?int $branchId = null): bool
+    public function hasPermissionTo(string $permission, ?string $tenantId = null): bool
     {
         $tenantId ??= session('active_tenant_id');
-        $branchId ??= session('active_branch_id');
 
         return CompanyAccess::can(
             $this,
             $tenantId ? (string) $tenantId : null,
-            $branchId ? (int) $branchId : null,
             $permission,
         );
     }

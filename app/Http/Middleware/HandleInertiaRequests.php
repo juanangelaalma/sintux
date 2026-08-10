@@ -2,10 +2,10 @@
 
 namespace App\Http\Middleware;
 
-use App\Access\CompanyAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
+use Modules\Company\Access\CompanyAccess;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -38,6 +38,7 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $activeTenant = null;
+        $branchScope = null;
         $activeBranch = null;
         $branches = collect();
         $isHq = false;
@@ -46,8 +47,9 @@ class HandleInertiaRequests extends Middleware
 
         if (tenancy()->initialized && $request->user()) {
             $activeTenant = tenant();
+            $tenantId = (string) tenant('id');
 
-            $membership = $request->user()->companyUserFor((string) tenant('id'));
+            $membership = $request->user()->companyUserFor($tenantId);
 
             if ($membership && $membership->branch_id) {
                 $isHq = (bool) DB::table('branches')
@@ -55,29 +57,36 @@ class HandleInertiaRequests extends Middleware
                     ->value('is_headquarters');
             }
 
+            $accessibleBranchIds = CompanyAccess::accessibleBranchIds($request->user(), $tenantId);
+
             $branches = DB::table('branches')
-                ->where('is_active', true)
+                ->whereIn('id', $accessibleBranchIds)
+                ->orderBy('id')
                 ->get();
 
-            if (! $isHq && $membership) {
-                $allowedBranchIds = $membership->allowedBranchIds();
-                $branches = $branches->whereIn('id', $allowedBranchIds);
+            $branchScope = (string) session('branch_scope');
+
+            if ($branchScope !== 'all' && $branchScope !== 'branch') {
+                $branchScope = $isHq || count($accessibleBranchIds) > 1 ? 'all' : 'branch';
+                session(['branch_scope' => $branchScope]);
             }
 
-            $activeBranchId = (int) session('active_branch_id');
+            if ($branchScope === 'branch') {
+                $activeBranchId = (int) session('active_branch_id');
 
-            if (! $branches->contains('id', $activeBranchId)) {
-                $activeBranchId = (int) ($membership?->branch_id ?? $branches->first()?->id ?? 0);
-
-                if ($activeBranchId) {
+                if (! in_array($activeBranchId, $accessibleBranchIds, true)) {
+                    $activeBranchId = $accessibleBranchIds[0] ?? 0;
                     session(['active_branch_id' => $activeBranchId]);
                 }
+
+                $activeBranch = $branches->firstWhere('id', $activeBranchId);
+                $permissionBranchIds = $activeBranchId ? [$activeBranchId] : [];
+            } else {
+                $permissionBranchIds = $accessibleBranchIds;
             }
 
-            $activeBranch = $branches->firstWhere('id', $activeBranchId);
-
-            $roles = CompanyAccess::rolesFor($request->user(), (string) tenant('id'));
-            $permissions = CompanyAccess::permissionsFor($request->user(), (string) tenant('id'), $activeBranchId ?: null);
+            $roles = CompanyAccess::rolesFor($request->user(), $tenantId);
+            $permissions = CompanyAccess::permissionsFor($request->user(), $tenantId, $permissionBranchIds);
         }
 
         return [
@@ -86,6 +95,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'tenant' => $activeTenant,
+                'branch_scope' => $branchScope,
                 'branch' => $activeBranch,
                 'branches' => $branches->values(),
                 'is_hq' => $isHq,

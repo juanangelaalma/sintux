@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -5,12 +6,19 @@ type ModalProps = {
     title: ReactNode;
     description?: ReactNode;
     children: ReactNode;
-    maxWidth?: 'md' | 'lg' | '2xl';
+    maxWidth?: 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
     onClose?: () => void;
     className?: string;
 };
 
-const widths = { md: 'max-w-md', lg: 'max-w-lg', '2xl': 'max-w-2xl' };
+const widths = {
+    md: 'max-w-md',
+    lg: 'max-w-lg',
+    xl: 'max-w-xl',
+    '2xl': 'max-w-2xl',
+    '3xl': 'max-w-3xl',
+    '4xl': 'max-w-4xl',
+};
 
 export default function Modal({
     title,
@@ -20,11 +28,29 @@ export default function Modal({
     onClose,
     className,
 }: ModalProps) {
+    useEffect(() => {
+        if (!onClose) {
+            return;
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [onClose]);
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4">
             <div
                 className={cn(
-                    'w-full rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900',
+                    'max-h-[calc(100vh-2rem)] w-full overflow-y-auto rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900',
                     widths[maxWidth],
                     className,
                 )}

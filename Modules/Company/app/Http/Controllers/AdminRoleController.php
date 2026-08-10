@@ -3,10 +3,10 @@
 namespace Modules\Company\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Permission;
-use App\Models\Role;
 use Inertia\Inertia;
 use Modules\Company\Http\Requests\UpdateRolePermissionsRequest;
+use Modules\Company\Models\Permission;
+use Modules\Company\Models\Role;
 
 class AdminRoleController extends Controller
 {

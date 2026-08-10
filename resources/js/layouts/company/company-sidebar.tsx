@@ -4,6 +4,7 @@ import { useSidebar } from "@/context/SidebarContext";
 import {
   BoxIcon,
   GridIcon,
+  GroupIcon,
   HorizontaLDots,
   UserIcon,
 } from "@/icons";
@@ -33,6 +34,15 @@ const companyNavItems: NavItem[] = [
     name: "Branches",
     path: "/company/branches",
     permission: "company.branch.manage",
+  },
+  {
+    icon: <GroupIcon />,
+    name: "Contact",
+    subItems: [
+      { name: "Customer", path: "/company/contacts/customers" },
+      { name: "Supplier", path: "/company/contacts/suppliers" },
+      { name: "Employee", path: "/company/contacts/employees" },
+    ],
   },
 ];
 
@@ -100,31 +110,73 @@ const CompanySidebar: React.FC = () => {
       {items.map((nav, index) => (
         <li key={nav.name}>
           {nav.subItems ? (
-            <button
-              onClick={() => handleSubmenuToggle(index, menuType)}
-              className={`menu-item group ${
-                openSubmenu?.type === menuType && openSubmenu?.index === index
-                  ? "menu-item-active"
-                  : "menu-item-inactive"
-              } cursor-pointer ${
-                !isExpanded && !isHovered
-                  ? "lg:justify-center"
-                  : "lg:justify-start"
-              }`}
-            >
-              <span
-                className={`menu-item-icon-size  ${
+            <>
+              <button
+                onClick={() => handleSubmenuToggle(index, menuType)}
+                className={`menu-item group ${
                   openSubmenu?.type === menuType && openSubmenu?.index === index
-                    ? "menu-item-icon-active"
-                    : "menu-item-icon-inactive"
+                    ? "menu-item-active"
+                    : "menu-item-inactive"
+                } cursor-pointer ${
+                  !isExpanded && !isHovered
+                    ? "lg:justify-center"
+                    : "lg:justify-start"
                 }`}
               >
-                {nav.icon}
-              </span>
-              {(isExpanded || isHovered || isMobileOpen) && (
-                <span className="menu-item-text">{nav.name}</span>
-              )}
-            </button>
+                <span
+                  className={`menu-item-icon-size  ${
+                    openSubmenu?.type === menuType && openSubmenu?.index === index
+                      ? "menu-item-icon-active"
+                      : "menu-item-icon-inactive"
+                  }`}
+                >
+                  {nav.icon}
+                </span>
+                {(isExpanded || isHovered || isMobileOpen) && (
+                  <>
+                    <span className="menu-item-text">{nav.name}</span>
+                    <svg
+                      className={`ml-auto size-4 transition-transform duration-200 ${
+                        openSubmenu?.type === menuType && openSubmenu?.index === index
+                          ? "rotate-180"
+                          : ""
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </>
+                )}
+              </button>
+
+              {openSubmenu?.type === menuType &&
+                openSubmenu?.index === index &&
+                (isExpanded || isHovered || isMobileOpen) && (
+                  <ul className="mt-2 flex flex-col gap-2 pl-9">
+                    {nav.subItems.map((sub) => (
+                      <li key={sub.name}>
+                        <Link
+                          href={sub.path}
+                          className={`block py-1 text-sm font-medium transition-colors ${
+                            isActive(sub.path)
+                              ? "text-brand-500"
+                              : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                          }`}
+                        >
+                          {sub.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+            </>
           ) : (
             nav.path && (
               <Link

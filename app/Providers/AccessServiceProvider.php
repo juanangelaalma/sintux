@@ -2,12 +2,12 @@
 
 namespace App\Providers;
 
-use App\Access\CompanyAccess;
-use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
+use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Models\Permission;
 
 class AccessServiceProvider extends ServiceProvider
 {
@@ -39,7 +39,6 @@ class AccessServiceProvider extends ServiceProvider
                 return CompanyAccess::can(
                     $user,
                     session('active_tenant_id'),
-                    session('active_branch_id'),
                     $slug,
                 );
             });

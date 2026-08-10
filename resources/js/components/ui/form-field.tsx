@@ -6,6 +6,7 @@ type FormFieldProps = {
     label: ReactNode;
     labelAction?: ReactNode;
     htmlFor?: string;
+    required?: boolean;
     error?: string;
     children: ReactNode;
     className?: string;
@@ -16,6 +17,7 @@ export default function FormField({
     label,
     labelAction,
     htmlFor,
+    required,
     error,
     children,
     className,
@@ -36,6 +38,11 @@ export default function FormField({
                     )}
                 >
                     {label}
+                    {required && (
+                        <span className="ml-1 text-red-500" aria-hidden="true">
+                            *
+                        </span>
+                    )}
                 </label>
                 {labelAction}
             </div>

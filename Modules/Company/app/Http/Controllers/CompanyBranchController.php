@@ -5,7 +5,9 @@ namespace Modules\Company\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use Modules\Company\Access\CompanyAccess;
 use Modules\Company\Http\Requests\StoreCompanyBranchRequest;
 use Modules\Company\Http\Requests\UpdateCompanyBranchRequest;
 use Modules\Company\Models\Branch;
@@ -46,26 +48,44 @@ class CompanyBranchController extends Controller
 
     /**
      * Switch the active branch context for the authenticated member.
+     *
+     * Payload: { scope: 'all' } or { scope: 'branch', branch_id } / { branch_id }.
      */
     public function switchBranch(Request $request)
     {
+        $user = $request->user();
+        $tenantId = (string) tenant('id');
+
+        abort_unless($user && $user->companyUserFor($tenantId), 403);
+
         $validated = $request->validate([
-            'branch_id' => ['required', 'integer', 'exists:branches,id'],
+            'scope' => ['nullable', Rule::in(['all', 'branch'])],
+            'branch_id' => ['nullable', 'integer'],
         ]);
 
-        $membership = auth()->user()?->companyUserFor((string) tenant('id'));
+        $scope = $validated['scope'] ?? null;
+        $branchId = isset($validated['branch_id']) ? (int) $validated['branch_id'] : null;
 
-        abort_unless($membership && $membership->branch_id, 403);
+        if ($scope === 'all' && ! $branchId) {
+            session(['branch_scope' => 'all']);
+            session()->forget('active_branch_id');
 
-        $isHq = DB::table('branches')
-            ->where('id', $membership->branch_id)
+            return redirect()->back();
+        }
+
+        abort_unless($branchId !== null, 422);
+
+        $accessibleBranchIds = CompanyAccess::accessibleBranchIds($user, $tenantId);
+        abort_unless(in_array($branchId, $accessibleBranchIds, true), 403);
+
+        $isHq = (bool) DB::table('branches')
+            ->where('id', $branchId)
             ->value('is_headquarters');
 
-        abort_if($isHq, 403);
-
-        abort_unless(in_array((int) $validated['branch_id'], $membership->allowedBranchIds(), true), 403);
-
-        session(['active_branch_id' => (int) $validated['branch_id']]);
+        session([
+            'active_branch_id' => $branchId,
+            'branch_scope' => ($scope === 'all' || $isHq) ? 'all' : 'branch',
+        ]);
 
         return redirect()->back();
     }

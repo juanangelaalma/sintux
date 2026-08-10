@@ -2,11 +2,11 @@
 
 namespace Modules\Company\Http\Requests;
 
-use App\Models\Role;
 use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Company\Models\Role;
 
 class StoreCompanyUserRequest extends FormRequest
 {

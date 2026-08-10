@@ -26,6 +26,7 @@ export type Branch = {
 export type Auth = {
     user: User;
     tenant: Tenant | null;
+    branch_scope: 'all' | 'branch' | null;
     branch: Branch | null;
     branches: Branch[];
     is_hq: boolean;
