@@ -2,12 +2,12 @@
 
 namespace Modules\Company\Http\Controllers;
 
-use App\Access\CompanyAccess;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use Modules\Company\Access\CompanyAccess;
 use Modules\Company\Http\Requests\StoreCompanyBranchRequest;
 use Modules\Company\Http\Requests\UpdateCompanyBranchRequest;
 use Modules\Company\Models\Branch;

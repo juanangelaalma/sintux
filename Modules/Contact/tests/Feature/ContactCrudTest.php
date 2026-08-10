@@ -2,10 +2,10 @@
 
 namespace Modules\Contact\Tests\Feature;
 
-use App\Models\CompanyUser;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
 
 class ContactCrudTest extends TestCase
@@ -309,14 +309,15 @@ class ContactCrudTest extends TestCase
      */
     private function createCompanyWithMember(): array
     {
+        $id = uniqid('contact_');
         $tenant = Tenant::create([
-            'id' => 'contact-test-tenant',
+            'id' => $id,
             'name' => 'Contact Test Corp',
-            'schema_name' => self::SCHEMA_NAME,
+            'schema_name' => 'sch_'.$id,
             'is_active' => true,
         ]);
 
-        [$branchId, $member] = $this->provision($tenant, 'member@acme.test');
+        [$branchId, $member] = $this->provision($tenant, 'member_'.$id.'@acme.test');
 
         return [$tenant->id, $branchId, $member];
     }
@@ -324,13 +325,12 @@ class ContactCrudTest extends TestCase
     private function provision(Tenant $tenant, string $email): array
     {
         tenancy()->initialize($tenant);
-        $branchId = DB::table('branches')->insertGetId([
+        $existingHq = DB::table('branches')->where('code', 'HQ')->value('id');
+        $branchId = $existingHq ? (int) $existingHq : DB::table('branches')->insertGetId([
             'name' => 'HQ Branch',
             'code' => 'HQ',
             'is_headquarters' => true,
         ]);
-        // Migrate tenant schema
-        $this->artisan('tenants:migrate');
         tenancy()->end();
 
         $user = User::factory()->create(['email' => $email, 'role' => 'user']);

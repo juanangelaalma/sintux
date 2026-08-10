@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace Modules\Company\Http\Controllers;
 
-use App\Access\CompanyAccess;
-use App\Application\GetDashboard;
+use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\GetDashboard;
 
 class DashboardController extends Controller
 {

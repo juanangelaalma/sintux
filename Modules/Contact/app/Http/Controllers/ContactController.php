@@ -2,11 +2,11 @@
 
 namespace Modules\Contact\Http\Controllers;
 
-use App\Access\CompanyAccess;
-use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Modules\Company\Access\CompanyAccess;
 use Modules\Contact\Application\CreateContact;
 use Modules\Contact\Application\DeleteContact;
 use Modules\Contact\Application\GetContact;

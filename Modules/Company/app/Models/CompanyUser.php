@@ -1,7 +1,9 @@
 <?php
 
-namespace App\Models;
+namespace Modules\Company\Models;
 
+use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;

@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Middleware;
+namespace Modules\Company\Http\Middleware;
 
-use App\Access\CompanyAccess;
 use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Access\CompanyAccess;
 use Symfony\Component\HttpFoundation\Response;
 
 class ResolveTenant

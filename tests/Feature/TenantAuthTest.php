@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\CompanyUser;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
 
 class TenantAuthTest extends TestCase

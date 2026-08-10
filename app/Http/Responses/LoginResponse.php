@@ -2,8 +2,8 @@
 
 namespace App\Http\Responses;
 
-use App\Models\CompanyUser;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
+use Modules\Company\Models\CompanyUser;
 
 class LoginResponse implements LoginResponseContract
 {

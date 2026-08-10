@@ -2,11 +2,11 @@
 
 namespace Modules\Company\Application;
 
-use App\Models\CompanyUser;
-use App\Models\CompanyUserBranch;
-use App\Models\CompanyUserRole;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Models\CompanyUser;
+use Modules\Company\Models\CompanyUserBranch;
+use Modules\Company\Models\CompanyUserRole;
 
 class CreateCompanyUser
 {

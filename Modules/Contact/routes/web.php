@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Middleware\EnsureCompanyMember;
 use Illuminate\Support\Facades\Route;
+use Modules\Company\Http\Middleware\EnsureCompanyMember;
 use Modules\Contact\Http\Controllers\ContactController;
 
 Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(function () {

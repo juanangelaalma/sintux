@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Access;
+namespace Modules\Company\Access;
 
-use App\Models\CompanyUser;
-use App\Models\Permission;
-use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Models\CompanyUser;
+use Modules\Company\Models\Permission;
+use Modules\Company\Models\Role;
 
 class CompanyAccess
 {

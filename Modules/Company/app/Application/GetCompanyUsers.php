@@ -2,7 +2,7 @@
 
 namespace Modules\Company\Application;
 
-use App\Models\CompanyUser;
+use Modules\Company\Models\CompanyUser;
 
 class GetCompanyUsers
 {

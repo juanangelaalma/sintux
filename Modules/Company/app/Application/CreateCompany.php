@@ -2,11 +2,13 @@
 
 namespace Modules\Company\Application;
 
-use App\Models\CompanyUser;
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Company\Application\Exceptions\CompanyCreationFailed;
+use Modules\Company\Models\CompanyUser;
 
 class CreateCompany
 {
@@ -40,7 +42,6 @@ class CreateCompany
                 'user_id' => $admin->id,
                 'tenant_id' => $tenant->id,
                 'role' => 'owner',
-                'scope' => 'all',
                 'is_default' => true,
             ]);
 
@@ -69,17 +70,26 @@ class CreateCompany
 
     private function createHeadquartersBranch(Tenant $tenant): void
     {
+        // Ensure tenant migrations have executed synchronously before querying tenant tables
+        Artisan::call('tenants:migrate', ['--tenants' => [$tenant->id]]);
+
         tenancy()->initialize($tenant);
 
         try {
-            DB::table('branches')->insert([
-                'name' => 'Headquarters',
-                'code' => 'HQ',
-                'is_headquarters' => true,
-                'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            if (Schema::hasTable('branches')) {
+                $existing = DB::table('branches')->where('code', 'HQ')->first();
+
+                if (! $existing) {
+                    DB::table('branches')->insert([
+                        'name' => 'Headquarters',
+                        'code' => 'HQ',
+                        'is_headquarters' => true,
+                        'is_active' => true,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
         } finally {
             tenancy()->end();
         }

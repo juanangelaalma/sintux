@@ -2,13 +2,13 @@
 
 namespace Modules\Company\Tests\Feature;
 
-use App\Models\CompanyUser;
-use App\Models\CompanyUserRole;
-use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Models\CompanyUser;
+use Modules\Company\Models\CompanyUserRole;
+use Modules\Company\Models\Role;
 use Tests\TestCase;
 
 class CompanyBranchCrudTest extends TestCase
@@ -229,7 +229,8 @@ class CompanyBranchCrudTest extends TestCase
     private function provision(Tenant $tenant, string $email): array
     {
         tenancy()->initialize($tenant);
-        $branchId = DB::table('branches')->insertGetId([
+        $existingHq = DB::table('branches')->where('code', 'HQ')->value('id');
+        $branchId = $existingHq ? (int) $existingHq : DB::table('branches')->insertGetId([
             'name' => 'HQ Branch',
             'code' => 'HQ',
             'is_headquarters' => true,

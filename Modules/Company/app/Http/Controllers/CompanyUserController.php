@@ -3,7 +3,6 @@
 namespace Modules\Company\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Modules\Company\Application\CreateCompanyUser;
@@ -12,6 +11,7 @@ use Modules\Company\Application\GetCompanyUsers;
 use Modules\Company\Application\UpdateCompanyUser;
 use Modules\Company\Http\Requests\StoreCompanyUserRequest;
 use Modules\Company\Http\Requests\UpdateCompanyUserRequest;
+use Modules\Company\Models\Role;
 
 class CompanyUserController extends Controller
 {

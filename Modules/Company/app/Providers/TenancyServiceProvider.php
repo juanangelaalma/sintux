@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Providers;
+namespace Modules\Company\Providers;
 
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\Event;

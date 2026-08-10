@@ -2,10 +2,10 @@
 
 namespace App\Http\Middleware;
 
-use App\Access\CompanyAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
+use Modules\Company\Access\CompanyAccess;
 
 class HandleInertiaRequests extends Middleware
 {

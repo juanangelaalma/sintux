@@ -2,7 +2,7 @@
 
 namespace Modules\Company\Application;
 
-use App\Models\CompanyUser;
+use Modules\Company\Models\CompanyUser;
 use RuntimeException;
 
 class DeleteCompanyUser

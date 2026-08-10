@@ -2,11 +2,11 @@
 
 namespace Modules\Contact\Tests\Feature;
 
-use App\Models\CompanyUser;
-use App\Models\CompanyUserBranch;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Models\CompanyUser;
+use Modules\Company\Models\CompanyUserBranch;
 use Tests\TestCase;
 
 class ContactBranchScopeTest extends TestCase
@@ -177,28 +177,29 @@ class ContactBranchScopeTest extends TestCase
      */
     private function createTenantWithBranches(): array
     {
+        $id = uniqid('scope_');
         $tenant = Tenant::create([
-            'id' => 'contact-scope-tenant',
+            'id' => $id,
             'name' => 'Scope Test Corp',
-            'schema_name' => self::SCHEMA_NAME,
+            'schema_name' => 'sch_'.$id,
             'is_active' => true,
         ]);
 
         tenancy()->initialize($tenant);
-        $hqId = DB::table('branches')->insertGetId([
+        $existingHq = DB::table('branches')->where('code', 'HQ')->value('id');
+        $hqId = $existingHq ? (int) $existingHq : DB::table('branches')->insertGetId([
             'name' => 'HQ Branch',
             'code' => 'HQ',
             'is_headquarters' => true,
         ]);
-        $branchA = DB::table('branches')->insertGetId([
+        $branchA = (int) (DB::table('branches')->where('code', 'A')->value('id') ?? DB::table('branches')->insertGetId([
             'name' => 'Branch A',
             'code' => 'A',
-        ]);
-        $branchB = DB::table('branches')->insertGetId([
+        ]));
+        $branchB = (int) (DB::table('branches')->where('code', 'B')->value('id') ?? DB::table('branches')->insertGetId([
             'name' => 'Branch B',
             'code' => 'B',
-        ]);
-        $this->artisan('tenants:migrate');
+        ]));
         tenancy()->end();
 
         return [$tenant, $hqId, $branchA, $branchB];

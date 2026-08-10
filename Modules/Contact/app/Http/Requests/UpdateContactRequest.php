@@ -2,8 +2,8 @@
 
 namespace Modules\Contact\Http\Requests;
 
-use App\Access\CompanyAccess;
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Company\Access\CompanyAccess;
 
 class UpdateContactRequest extends FormRequest
 {

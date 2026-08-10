@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\DashboardController;
-use App\Http\Middleware\EnsureCompanyUser;
-use App\Http\Middleware\EnsureSuperadmin;
 use Illuminate\Support\Facades\Route;
+use Modules\Company\Http\Controllers\DashboardController;
+use Modules\Company\Http\Middleware\EnsureCompanyUser;
+use Modules\Company\Http\Middleware\EnsureSuperadmin;
 
 Route::redirect('/', '/login')->name('home');
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Application;
+namespace Modules\Company\Application;
 
 use Modules\Company\Models\Branch;
 use Modules\Contact\Application\ContactBranchCounts;

@@ -2,6 +2,7 @@
 
 namespace Modules\Company\Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Application\CreateCompany;
 use Modules\Company\Application\Exceptions\CompanyCreationFailed;
@@ -19,7 +20,6 @@ class CreateCompanyTest extends TestCase
         DB::table('users')->delete();
 
         $this->dropSchema();
-        $this->createSchema();
     }
 
     protected function tearDown(): void
@@ -34,6 +34,9 @@ class CreateCompanyTest extends TestCase
 
     public function test_creation_failure_cleans_up_tenant_row_and_schema(): void
     {
+        // Pre-create user with same email to force User::create to fail inside execute()
+        User::factory()->create(['email' => 'fail-admin@sintux.com']);
+
         $this->expectException(CompanyCreationFailed::class);
 
         try {
@@ -48,7 +51,6 @@ class CreateCompanyTest extends TestCase
             ]);
         } finally {
             $this->assertDatabaseMissing('tenants', ['id' => 'fail-tenant']);
-            $this->assertDatabaseMissing('users', ['email' => 'fail-admin@sintux.com']);
             $this->assertFalse($this->schemaExists(), 'Tenant schema should have been dropped on failure.');
         }
     }

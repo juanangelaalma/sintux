@@ -2,13 +2,13 @@
 
 namespace Modules\Company\Tests\Feature;
 
-use App\Models\CompanyUser;
-use App\Models\CompanyUserRole;
-use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Models\CompanyUser;
+use Modules\Company\Models\CompanyUserRole;
+use Modules\Company\Models\Role;
 use Tests\TestCase;
 
 class CompanyUserManagementTest extends TestCase
@@ -147,11 +147,11 @@ class CompanyUserManagementTest extends TestCase
         [$tenantId, $hqBranchId, $admin] = $this->createCompanyWithAdmin();
 
         tenancy()->initialize($tenantId);
-        $branchBId = DB::table('branches')->insertGetId([
+        $branchBId = (int) (DB::table('branches')->where('code', 'BRB')->value('id') ?? DB::table('branches')->insertGetId([
             'name' => 'Branch B',
             'code' => 'BRB',
             'is_active' => true,
-        ]);
+        ]));
         tenancy()->end();
 
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
@@ -190,16 +190,16 @@ class CompanyUserManagementTest extends TestCase
         [$tenantId, $hqBranchId, $admin] = $this->createCompanyWithAdmin();
 
         tenancy()->initialize($tenantId);
-        $branchBId = DB::table('branches')->insertGetId([
+        $branchBId = (int) (DB::table('branches')->where('code', 'BRB')->value('id') ?? DB::table('branches')->insertGetId([
             'name' => 'Branch B',
             'code' => 'BRB',
             'is_active' => true,
-        ]);
-        $branchCId = DB::table('branches')->insertGetId([
+        ]));
+        $branchCId = (int) (DB::table('branches')->where('code', 'BRC')->value('id') ?? DB::table('branches')->insertGetId([
             'name' => 'Branch C',
             'code' => 'BRC',
             'is_active' => true,
-        ]);
+        ]));
         tenancy()->end();
 
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
@@ -232,11 +232,11 @@ class CompanyUserManagementTest extends TestCase
         [$tenantId, $hqBranchId, $admin] = $this->createCompanyWithAdmin();
 
         tenancy()->initialize($tenantId);
-        $branchBId = DB::table('branches')->insertGetId([
+        $branchBId = (int) (DB::table('branches')->where('code', 'BRB')->value('id') ?? DB::table('branches')->insertGetId([
             'name' => 'Branch B',
             'code' => 'BRB',
             'is_active' => true,
-        ]);
+        ]));
         tenancy()->end();
 
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
@@ -254,11 +254,11 @@ class CompanyUserManagementTest extends TestCase
         [$tenantId, $hqBranchId, $admin] = $this->createCompanyWithAdmin();
 
         tenancy()->initialize($tenantId);
-        $branchBId = DB::table('branches')->insertGetId([
+        $branchBId = (int) (DB::table('branches')->where('code', 'BRB')->value('id') ?? DB::table('branches')->insertGetId([
             'name' => 'Branch B',
             'code' => 'BRB',
             'is_active' => true,
-        ]);
+        ]));
         tenancy()->end();
 
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
@@ -286,14 +286,15 @@ class CompanyUserManagementTest extends TestCase
      */
     private function createCompanyWithAdmin(): array
     {
+        $id = uniqid('user_mgmt_');
         $tenant = Tenant::create([
-            'id' => 'user-mgmt-tenant',
+            'id' => $id,
             'name' => 'User Mgmt Corp',
-            'schema_name' => self::SCHEMA_NAME,
+            'schema_name' => 'sch_'.$id,
             'is_active' => true,
         ]);
 
-        [$branchId, $admin] = $this->provision($tenant, 'admin@acme.test');
+        [$branchId, $admin] = $this->provision($tenant, 'admin_'.$id.'@acme.test');
 
         $membership = CompanyUser::where('user_id', $admin->id)->where('tenant_id', $tenant->id)->first();
         CompanyUserRole::create([
@@ -310,14 +311,15 @@ class CompanyUserManagementTest extends TestCase
      */
     private function createCompanyWithOwner(): array
     {
+        $id = uniqid('owner_');
         $tenant = Tenant::create([
-            'id' => 'owner-tenant',
+            'id' => $id,
             'name' => 'Owner Corp',
-            'schema_name' => self::SCHEMA_NAME,
+            'schema_name' => 'sch_'.$id,
             'is_active' => true,
         ]);
 
-        [$branchId, $owner] = $this->provision($tenant, 'owner@acme.test');
+        [$branchId, $owner] = $this->provision($tenant, 'owner_'.$id.'@acme.test');
 
         return [$tenant->id, $branchId, $owner];
     }
@@ -327,14 +329,15 @@ class CompanyUserManagementTest extends TestCase
      */
     private function createCompanyWithMember(): array
     {
+        $id = uniqid('member_');
         $tenant = Tenant::create([
-            'id' => 'member-tenant',
+            'id' => $id,
             'name' => 'Member Corp',
-            'schema_name' => self::SCHEMA_NAME,
+            'schema_name' => 'sch_'.$id,
             'is_active' => true,
         ]);
 
-        [$branchId, $member] = $this->provision($tenant, 'member@acme.test');
+        [$branchId, $member] = $this->provision($tenant, 'member_'.$id.'@acme.test');
 
         CompanyUser::where('user_id', $member->id)
             ->where('tenant_id', $tenant->id)
@@ -351,7 +354,8 @@ class CompanyUserManagementTest extends TestCase
     private function provision(Tenant $tenant, string $email): array
     {
         tenancy()->initialize($tenant);
-        $branchId = DB::table('branches')->insertGetId([
+        $existingHq = DB::table('branches')->where('code', 'HQ')->value('id');
+        $branchId = $existingHq ? (int) $existingHq : DB::table('branches')->insertGetId([
             'name' => 'HQ Branch',
             'code' => 'HQ',
             'is_headquarters' => true,
