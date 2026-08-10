@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Stancl\Tenancy\Database\Concerns\CentralConnection;
 
@@ -94,12 +93,15 @@ class CompanyUser extends Model
             return [];
         }
 
-        return $this->allowedBranches()
-            ->pluck('branch_id')
-            ->push($this->branch_id)
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
+        return array_values(
+            $this->allowedBranches()
+                ->pluck('branch_id')
+                ->push($this->branch_id)
+                ->filter()
+                ->unique()
+                ->values()
+                ->map(fn ($id): int => (int) $id)
+                ->all(),
+        );
     }
 }

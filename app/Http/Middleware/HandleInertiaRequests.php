@@ -67,7 +67,7 @@ class HandleInertiaRequests extends Middleware
             $activeBranchId = (int) session('active_branch_id');
 
             if (! $branches->contains('id', $activeBranchId)) {
-                $activeBranchId = (int) ($membership?->branch_id ?? $branches->first()?->id ?? 0);
+                $activeBranchId = (int) ($membership->branch_id ?? $branches->first()->id ?? 0);
 
                 if ($activeBranchId) {
                     session(['active_branch_id' => $activeBranchId]);

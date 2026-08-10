@@ -36,7 +36,7 @@ class ContactController extends Controller
         abort_unless(array_key_exists($type, self::TYPES), 404);
 
         $dbType = self::TYPES[$type];
-        $view = 'Contact/' . ucfirst($type) . '/index';
+        $view = 'Contact/'.ucfirst($type).'/index';
 
         return Inertia::render($view, [
             'contacts' => $this->getContacts->execute($dbType),
