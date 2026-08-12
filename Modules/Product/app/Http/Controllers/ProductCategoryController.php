@@ -24,43 +24,43 @@ class ProductCategoryController extends Controller
 
     public function index()
     {
-        $filters = request()->only(['search', 'is_active']);
-        $categories = $this->getCategories->execute($filters);
+        if (request()->wantsJson()) {
+            return response()->json($this->getCategories->all());
+        }
 
-        return Inertia::render('Product/Categories/index', [
-            'categories' => $categories,
-            'filters' => $filters,
-        ]);
+        return redirect('/product?tab=master&sub=categories');
     }
 
     public function create()
     {
-        return Inertia::render('Product/Categories/create');
+        return redirect('/product?tab=master&sub=categories');
     }
 
     public function store(StoreCategoryRequest $request)
     {
-        $this->createCategory->execute($request->validated());
+        $category = $this->createCategory->execute($request->validated());
 
-        return redirect()->route('product.categories.index')
-            ->with('success', 'Category created successfully.');
+        if ($request->wantsJson()) {
+            return response()->json($category, 201);
+        }
+
+        return redirect()->back()->with('success', 'Kategori berhasil ditambahkan.');
     }
 
     public function edit(int $id)
     {
-        $category = $this->getCategory->execute($id);
-
-        return Inertia::render('Product/Categories/edit', [
-            'category' => $category,
-        ]);
+        return redirect('/product?tab=master&sub=categories');
     }
 
     public function update(UpdateCategoryRequest $request, int $id)
     {
-        $this->updateCategory->execute($id, $request->validated());
+        $category = $this->updateCategory->execute($id, $request->validated());
 
-        return redirect()->route('product.categories.index')
-            ->with('success', 'Category updated successfully.');
+        if ($request->wantsJson()) {
+            return response()->json($category);
+        }
+
+        return redirect()->back()->with('success', 'Kategori berhasil diperbarui.');
     }
 
     public function destroy(int $id)
@@ -68,9 +68,9 @@ class ProductCategoryController extends Controller
         $deleted = $this->deleteCategory->execute($id);
 
         if (! $deleted) {
-            return redirect()->back()->with('error', 'Cannot delete category still used by products.');
+            return redirect()->back()->with('error', 'Kategori tidak dapat dihapus karena masih digunakan produk.');
         }
 
-        return redirect()->back()->with('success', 'Category deleted successfully.');
+        return redirect()->back()->with('success', 'Kategori berhasil dihapus.');
     }
 }

@@ -54,13 +54,13 @@ class ProductCategoryCrudTest extends TestCase
         // 1. Get List (Empty)
         $this->actingAs($user)
             ->get(route('product.categories.index'))
-            ->assertStatus(200);
+            ->assertRedirect();
 
         // 2. Create Category
         $this->actingAs($user)->post(route('product.categories.store'), [
             'name' => 'Electronics',
             'is_active' => true,
-        ])->assertRedirect(route('product.categories.index'));
+        ])->assertRedirect();
 
         // Verify in Tenant DB
         tenancy()->initialize($tenantId);
@@ -74,7 +74,7 @@ class ProductCategoryCrudTest extends TestCase
         $this->actingAs($user)->put(route('product.categories.update', ['category' => $category->id]), [
             'name' => 'Electronics Updated',
             'is_active' => false,
-        ])->assertRedirect(route('product.categories.index'));
+        ])->assertRedirect();
 
         tenancy()->initialize($tenantId);
         $categoryUpdated = DB::table('product_categories')->where('id', $category->id)->first();
@@ -99,11 +99,11 @@ class ProductCategoryCrudTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('product.categories.create'))
-            ->assertStatus(200);
+            ->assertRedirect();
 
         $this->actingAs($user)->post(route('product.categories.store'), [
             'name' => 'Test Category',
-        ])->assertRedirect(route('product.categories.index'));
+        ])->assertRedirect();
 
         tenancy()->initialize($tenantId);
         $category = DB::table('product_categories')->where('name', 'Test Category')->first();
@@ -111,7 +111,7 @@ class ProductCategoryCrudTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('product.categories.edit', ['category' => $category->id]))
-            ->assertStatus(200);
+            ->assertRedirect();
     }
 
     public function test_unique_name_validation(): void
@@ -165,7 +165,7 @@ class ProductCategoryCrudTest extends TestCase
 
         $this->actingAs($user)->delete(route('product.categories.destroy', ['category' => $categoryId]))
             ->assertRedirect()
-            ->assertSessionHas('error', 'Cannot delete category still used by products.');
+            ->assertSessionHas('error', 'Kategori tidak dapat dihapus karena masih digunakan produk.');
 
         tenancy()->initialize($tenantId);
         $this->assertDatabaseHas('product_categories', ['id' => $categoryId]);
