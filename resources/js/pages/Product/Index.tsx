@@ -28,6 +28,8 @@ type Props = {
     warehouses: any[];
     stockBalances: any;
     stockRequests: any;
+    stockAdjustments?: any;
+    stockTransfers?: any;
 };
 
 export default function ProductIndex({
@@ -42,6 +44,8 @@ export default function ProductIndex({
     warehouses,
     stockBalances,
     stockRequests,
+    stockAdjustments,
+    stockTransfers,
 }: Props) {
     const handleTabChange = (tab: string, defaultSub: string) => {
         router.get('/product', { tab, sub: defaultSub }, { preserveState: true });
@@ -126,6 +130,9 @@ export default function ProductIndex({
                             warehouses={warehouses}
                             stockBalances={stockBalances}
                             stockRequests={stockRequests}
+                            stockAdjustments={stockAdjustments}
+                            stockTransfers={stockTransfers}
+                            filters={filters}
                         />
                     )}
 

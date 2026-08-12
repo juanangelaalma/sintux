@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Company\Http\Middleware\EnsureCompanyMember;
 use Modules\Warehouse\Http\Controllers\StockAdjustmentController;
 use Modules\Warehouse\Http\Controllers\StockBalanceController;
+use Modules\Warehouse\Http\Controllers\StockMovementController;
 use Modules\Warehouse\Http\Controllers\StockRequestController;
 use Modules\Warehouse\Http\Controllers\StockTransferController;
 use Modules\Warehouse\Http\Controllers\WarehouseController;
@@ -15,6 +16,12 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
 
         Route::get('stock-balances', [StockBalanceController::class, 'index'])
             ->name('stock-balances.index');
+
+        Route::get('stock-movements', [StockMovementController::class, 'index'])
+            ->name('stock-movements.index');
+
+        Route::get('stock-layers/{warehouse}/{product_variant}', [StockMovementController::class, 'layers'])
+            ->name('stock-layers.index');
 
         Route::resource('stock-requests', StockRequestController::class)
             ->only(['index', 'create', 'store', 'show'])
