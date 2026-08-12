@@ -298,14 +298,12 @@ class StockAdjustmentTest extends TestCase
         ]);
 
         $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Category '.$suffix, 'is_active' => true]);
-        $brandId = DB::table('brands')->insertGetId(['name' => 'Brand '.$suffix, 'is_active' => true]);
         $uomId = DB::table('uoms')->insertGetId(['name' => 'Pcs '.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
 
         $productId = DB::table('products')->insertGetId([
             'code' => 'PROD-'.$suffix,
             'name' => 'Product '.$suffix,
             'category_id' => $categoryId,
-            'brand_id' => $brandId,
             'uom_id' => $uomId,
             'is_active' => true,
         ]);

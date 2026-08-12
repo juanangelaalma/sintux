@@ -23,7 +23,6 @@ type Props = {
     filters: Record<string, any>;
     products: any;
     categories: any[];
-    brands: any[];
     uoms: any[];
     warehouses: any[];
     stockBalances: any;
@@ -39,7 +38,6 @@ export default function ProductIndex({
     filters,
     products,
     categories,
-    brands,
     uoms,
     warehouses,
     stockBalances,
@@ -59,7 +57,7 @@ export default function ProductIndex({
                 {/* Header & Quick Action */}
                 <PageHeader
                     title="Produk"
-                    description="Manajemen katalog barang, varian, lokasi gudang, persediaan stok, dan pengajuan transfer."
+                    description="Manajemen katalog barang, persediaan stok, HPP, paket bundle, dan pengajuan transfer."
                     actions={<ProductActionsDropdown />}
                 />
 
@@ -118,7 +116,6 @@ export default function ProductIndex({
                         <ItemsTab
                             products={products}
                             categories={categories}
-                            brands={brands}
                             uoms={uoms}
                             filters={filters}
                         />
@@ -141,7 +138,6 @@ export default function ProductIndex({
                             subTab={subTab}
                             categories={categories}
                             uoms={uoms}
-                            brands={brands}
                         />
                     )}
                 </div>

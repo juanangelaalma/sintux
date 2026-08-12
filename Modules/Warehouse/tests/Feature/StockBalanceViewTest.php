@@ -71,11 +71,6 @@ class StockBalanceViewTest extends TestCase
             'is_active' => true,
         ]);
 
-        $brandId = DB::table('brands')->insertGetId([
-            'name' => 'Samsung-' . $suffix,
-            'is_active' => true,
-        ]);
-
         $uomId = DB::table('uoms')->insertGetId([
             'name' => 'Piece-' . $suffix,
             'code' => 'PCS-' . $suffix,
@@ -86,7 +81,6 @@ class StockBalanceViewTest extends TestCase
             'code' => 'LAPTOP-' . $suffix,
             'name' => 'Laptop Pro-' . $suffix,
             'category_id' => $categoryId,
-            'brand_id' => $brandId,
             'uom_id' => $uomId,
             'is_active' => true,
         ]);

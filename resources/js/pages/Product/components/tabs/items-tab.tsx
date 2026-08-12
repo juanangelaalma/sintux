@@ -7,24 +7,18 @@ import SelectInput from '@/components/ui/select-input';
 import TextInput from '@/components/ui/text-input';
 
 type Category = { id: number; name: string };
-type Brand = { id: number; name: string };
 type Uom = { id: number; name: string; code: string };
-
-type ProductVariant = {
-    id: number;
-    sku: string;
-    variant_name: string;
-    is_active: boolean;
-};
 
 type Product = {
     id: number;
     code: string;
     name: string;
+    barcode?: string | null;
+    product_type?: 'single' | 'bundle';
+    selling_price?: number;
+    purchase_price?: number;
     category?: Category;
-    brand?: Brand;
     uom?: Uom;
-    variants?: ProductVariant[];
     is_active: boolean;
 };
 
@@ -39,30 +33,28 @@ type Paginated<T> = {
 type Props = {
     products: Paginated<Product>;
     categories: Category[];
-    brands: Brand[];
     uoms: Uom[];
     filters: {
         search?: string;
         category_id?: string;
-        brand_id?: string;
+        product_type?: string;
     };
 };
 
 export const ItemsTab: React.FC<Props> = ({
     products,
     categories,
-    brands,
     filters,
 }) => {
     const [search, setSearch] = useState(filters.search ?? '');
     const [categoryId, setCategoryId] = useState(filters.category_id ?? '');
-    const [brandId, setBrandId] = useState(filters.brand_id ?? '');
+    const [productType, setProductType] = useState(filters.product_type ?? '');
 
     const applySearch = (e: React.FormEvent) => {
         e.preventDefault();
         router.get(
             '/product',
-            { tab: 'items', search, category_id: categoryId, brand_id: brandId },
+            { tab: 'items', search, category_id: categoryId, product_type: productType },
             { preserveState: true },
         );
     };
@@ -70,7 +62,7 @@ export const ItemsTab: React.FC<Props> = ({
     const changePage = (page: number) => {
         router.get(
             '/product',
-            { tab: 'items', search, category_id: categoryId, brand_id: brandId, page },
+            { tab: 'items', search, category_id: categoryId, product_type: productType, page },
             { preserveState: true },
         );
     };
@@ -93,9 +85,9 @@ export const ItemsTab: React.FC<Props> = ({
                     >
                         {product.name}
                     </Link>
-                    {product.variants && product.variants.length > 0 && (
-                        <div className="text-xs text-slate-500 mt-0.5">
-                            {product.variants.length} varian ({product.variants.map((v) => v.variant_name).join(', ')})
+                    {product.barcode && (
+                        <div className="text-xs text-slate-500 font-mono">
+                            Barcode: {product.barcode}
                         </div>
                     )}
                 </div>
@@ -103,8 +95,22 @@ export const ItemsTab: React.FC<Props> = ({
         },
         {
             key: 'code',
-            header: 'Kode Produk',
+            header: 'Kode / SKU',
             render: (product) => <span className="font-mono text-xs font-semibold">{product.code}</span>,
+        },
+        {
+            key: 'type',
+            header: 'Tipe Produk',
+            render: (product) =>
+                product.product_type === 'bundle' ? (
+                    <span className="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20">
+                        BUNDLE
+                    </span>
+                ) : (
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                        SINGLE
+                    </span>
+                ),
         },
         {
             key: 'category',
@@ -112,14 +118,18 @@ export const ItemsTab: React.FC<Props> = ({
             render: (product) => product.category?.name ?? '-',
         },
         {
-            key: 'brand',
-            header: 'Brand',
-            render: (product) => product.brand?.name ?? '-',
+            key: 'uom',
+            header: 'Satuan',
+            render: (product) => (product.uom ? `${product.uom.name} (${product.uom.code})` : '-'),
         },
         {
-            key: 'uom',
-            header: 'Satuan (UOM)',
-            render: (product) => product.uom ? `${product.uom.name} (${product.uom.code})` : '-',
+            key: 'selling_price',
+            header: 'Harga Jual',
+            align: 'right',
+            render: (product) =>
+                product.selling_price
+                    ? `Rp ${Number(product.selling_price).toLocaleString('id-ID')}`
+                    : '-',
         },
         {
             key: 'status',
@@ -162,7 +172,7 @@ export const ItemsTab: React.FC<Props> = ({
                 <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
                     <div className="w-full sm:w-72">
                         <TextInput
-                            placeholder="Cari produk / kode..."
+                            placeholder="Cari nama, SKU, barcode..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
@@ -182,15 +192,12 @@ export const ItemsTab: React.FC<Props> = ({
                     </div>
                     <div className="w-full sm:w-48">
                         <SelectInput
-                            value={brandId}
-                            onChange={(e) => setBrandId(e.target.value)}
+                            value={productType}
+                            onChange={(e) => setProductType(e.target.value)}
                         >
-                            <option value="">Semua Brand</option>
-                            {brands.map((b) => (
-                                <option key={b.id} value={b.id}>
-                                    {b.name}
-                                </option>
-                            ))}
+                            <option value="">Semua Tipe</option>
+                            <option value="single">Single</option>
+                            <option value="bundle">Bundle</option>
                         </SelectInput>
                     </div>
                 </div>

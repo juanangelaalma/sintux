@@ -5,7 +5,6 @@ namespace Modules\Product\Http\Controllers;
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
 use Modules\Company\Access\CompanyAccess;
-use Modules\Product\Application\Brand\GetBrands;
 use Modules\Product\Application\Category\GetCategories;
 use Modules\Product\Application\Product\GetProducts;
 use Modules\Product\Application\Product\GetProductStats;
@@ -22,7 +21,6 @@ class ProductHubController extends Controller
         private readonly GetProductStats $getProductStats,
         private readonly GetProducts $getProducts,
         private readonly GetCategories $getCategories,
-        private readonly GetBrands $getBrands,
         private readonly GetUoms $getUoms,
         private readonly GetWarehouses $getWarehouses,
         private readonly GetStockBalances $getStockBalances,
@@ -39,10 +37,10 @@ class ProductHubController extends Controller
             ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
 
         $activeTab = request('tab', 'items'); // 'items' | 'gudang' | 'master'
-        $subTab = request('sub', 'products'); // 'products' | 'warehouses' | 'balances' | 'requests' | 'adjustments' | 'transfers' | 'categories' | 'uoms' | 'brands'
+        $subTab = request('sub', 'products'); // 'products' | 'warehouses' | 'balances' | 'requests' | 'adjustments' | 'transfers' | 'categories' | 'uoms'
 
         $stats = $this->getProductStats->execute($branchIds);
-        $filters = request()->only(['search', 'category_id', 'brand_id', 'status', 'warehouse_id', 'type']);
+        $filters = request()->only(['search', 'category_id', 'product_type', 'status', 'warehouse_id', 'type']);
 
         $products = $this->getProducts->execute($filters);
         $warehouses = $this->getWarehouses->all($branchIds);
@@ -58,7 +56,6 @@ class ProductHubController extends Controller
             'filters' => $filters,
             'products' => $products,
             'categories' => $this->getCategories->all(),
-            'brands' => $this->getBrands->all(),
             'uoms' => $this->getUoms->all(),
             'warehouses' => $warehouses,
             'stockBalances' => $stockBalances,

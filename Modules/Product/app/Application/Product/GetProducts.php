@@ -10,15 +10,16 @@ class GetProducts
     {
         $query = Product::with([
             'category',
-            'brand',
             'uom',
             'variants' => fn ($q) => $q->where('is_active', true),
+            'bundleItems.itemProduct',
         ]);
 
         if (! empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {
                 $q->where('code', 'like', '%'.$filters['search'].'%')
-                    ->orWhere('name', 'like', '%'.$filters['search'].'%');
+                    ->orWhere('name', 'like', '%'.$filters['search'].'%')
+                    ->orWhere('barcode', 'like', '%'.$filters['search'].'%');
             });
         }
 
@@ -26,8 +27,8 @@ class GetProducts
             $query->where('category_id', $filters['category_id']);
         }
 
-        if (! empty($filters['brand_id'])) {
-            $query->where('brand_id', $filters['brand_id']);
+        if (! empty($filters['product_type'])) {
+            $query->where('product_type', $filters['product_type']);
         }
 
         if (isset($filters['is_active'])) {

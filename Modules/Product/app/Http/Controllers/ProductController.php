@@ -4,7 +4,6 @@ namespace Modules\Product\Http\Controllers;
 
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
-use Modules\Product\Application\Brand\GetBrands;
 use Modules\Product\Application\Category\GetCategories;
 use Modules\Product\Application\Product\CreateProduct;
 use Modules\Product\Application\Product\DeleteProduct;
@@ -22,7 +21,6 @@ class ProductController extends Controller
         private readonly GetProducts $getProducts,
         private readonly GetProduct $getProduct,
         private readonly GetCategories $getCategories,
-        private readonly GetBrands $getBrands,
         private readonly GetUoms $getUoms,
         private readonly GetVariants $getVariants,
         private readonly CreateProduct $createProduct,
@@ -32,13 +30,12 @@ class ProductController extends Controller
 
     public function index()
     {
-        $filters = request()->only(['search', 'category_id', 'brand_id', 'is_active']);
+        $filters = request()->only(['search', 'category_id', 'product_type', 'is_active']);
         $products = $this->getProducts->execute($filters);
 
         return Inertia::render('Product/Products/index', [
             'products' => $products,
             'categories' => $this->getCategories->all(),
-            'brands' => $this->getBrands->all(),
             'uoms' => $this->getUoms->all(),
             'filters' => $filters,
         ]);
@@ -46,10 +43,13 @@ class ProductController extends Controller
 
     public function create()
     {
+        // Get all single products for bundle selection
+        $allProducts = $this->getProducts->execute(['is_active' => true]);
+
         return Inertia::render('Product/Products/create', [
             'categories' => $this->getCategories->all(),
-            'brands' => $this->getBrands->all(),
             'uoms' => $this->getUoms->all(),
+            'availableProducts' => $allProducts['data'] ?? [],
         ]);
     }
 
@@ -65,13 +65,17 @@ class ProductController extends Controller
     {
         $product = $this->getProduct->execute($id);
         $variants = $this->getVariants->execute($id);
+        $allProducts = $this->getProducts->execute(['is_active' => true]);
 
         return Inertia::render('Product/Products/edit', [
             'product' => $product,
             'variants' => $variants,
             'categories' => $this->getCategories->all(false),
-            'brands' => $this->getBrands->all(false),
             'uoms' => $this->getUoms->all(false),
+            'availableProducts' => array_values(array_filter(
+                $allProducts['data'] ?? [],
+                fn ($p) => $p['id'] !== $id
+            )),
         ]);
     }
 
@@ -88,7 +92,7 @@ class ProductController extends Controller
         $deleted = $this->deleteProduct->execute($id);
 
         if (! $deleted) {
-            return redirect()->back()->with('error', 'Cannot delete product with active variants.');
+            return redirect()->back()->with('error', 'Cannot delete product.');
         }
 
         return redirect()->back()->with('success', 'Product deleted successfully.');
