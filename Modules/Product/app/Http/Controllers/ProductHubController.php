@@ -1,0 +1,62 @@
+<?php
+
+namespace Modules\Product\Http\Controllers;
+
+use Illuminate\Routing\Controller;
+use Inertia\Inertia;
+use Modules\Company\Access\CompanyAccess;
+use Modules\Product\Application\Brand\GetBrands;
+use Modules\Product\Application\Category\GetCategories;
+use Modules\Product\Application\Product\GetProducts;
+use Modules\Product\Application\Product\GetProductStats;
+use Modules\Product\Application\Uom\GetUoms;
+use Modules\Warehouse\Application\StockBalance\GetStockBalances;
+use Modules\Warehouse\Application\StockRequest\GetStockRequests;
+use Modules\Warehouse\Application\Warehouse\GetWarehouses;
+
+class ProductHubController extends Controller
+{
+    public function __construct(
+        private readonly GetProductStats $getProductStats,
+        private readonly GetProducts $getProducts,
+        private readonly GetCategories $getCategories,
+        private readonly GetBrands $getBrands,
+        private readonly GetUoms $getUoms,
+        private readonly GetWarehouses $getWarehouses,
+        private readonly GetStockBalances $getStockBalances,
+        private readonly GetStockRequests $getStockRequests,
+    ) {}
+
+    public function index()
+    {
+        $user = request()->user();
+        $tenantId = (string) session('active_tenant_id');
+        $branchIds = CompanyAccess::contextBranchIds($user, $tenantId)
+            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+
+        $activeTab = request('tab', 'items'); // 'items' | 'gudang' | 'master'
+        $subTab = request('sub', 'products'); // 'products' | 'warehouses' | 'balances' | 'requests' | 'categories' | 'uoms' | 'brands'
+
+        $stats = $this->getProductStats->execute($branchIds);
+        $filters = request()->only(['search', 'category_id', 'brand_id', 'status', 'warehouse_id']);
+
+        $products = $this->getProducts->execute($filters);
+        $warehouses = $this->getWarehouses->all($branchIds);
+        $stockBalances = $this->getStockBalances->execute($branchIds, $filters);
+        $stockRequests = $this->getStockRequests->execute($branchIds, $filters);
+
+        return Inertia::render('Product/Index', [
+            'stats' => $stats,
+            'activeTab' => $activeTab,
+            'subTab' => $subTab,
+            'filters' => $filters,
+            'products' => $products,
+            'categories' => $this->getCategories->all(),
+            'brands' => $this->getBrands->all(),
+            'uoms' => $this->getUoms->all(),
+            'warehouses' => $warehouses,
+            'stockBalances' => $stockBalances,
+            'stockRequests' => $stockRequests,
+        ]);
+    }
+}
