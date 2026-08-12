@@ -4,6 +4,7 @@ namespace Modules\Product\Tests\Feature;
 
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
@@ -106,10 +107,37 @@ class UomCrudTest extends TestCase
         ])->assertSessionHasErrors(['code']);
     }
 
+    public function test_cannot_delete_uom_still_used_by_products(): void
+    {
+        [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
+
+        tenancy()->initialize($tenantId);
+        $suffix = uniqid();
+        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
+        DB::table('products')->insert([
+            'code' => 'PROD-'.$suffix,
+            'name' => 'Product using uom',
+            'category_id' => DB::table('product_categories')->insertGetId(['name' => 'Cat-'.$suffix, 'is_active' => true]),
+            'uom_id' => $uomId,
+            'is_active' => true,
+        ]);
+        tenancy()->end();
+
+        $this->actingAs($user)->delete(route('product.uoms.destroy', ['uom' => $uomId]))
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Cannot delete UOM still used by products.');
+
+        tenancy()->initialize($tenantId);
+        $this->assertDatabaseHas('uoms', ['id' => $uomId]);
+        tenancy()->end();
+    }
+
     private function createCompanyWithMember(): array
     {
         $id = uniqid('uom_');
-        $schemaName = 'sch_' . $id;
+        $schemaName = 'sch_'.$id;
         $this->activeSchemaName = $schemaName;
 
         $tenant = Tenant::create([
@@ -119,9 +147,9 @@ class UomCrudTest extends TestCase
             'is_active' => true,
         ]);
 
-        \Illuminate\Support\Facades\Artisan::call('tenants:migrate', ['--tenants' => [$tenant->id]]);
+        Artisan::call('tenants:migrate', ['--tenants' => [$tenant->id]]);
 
-        [$branchId, $member] = $this->provision($tenant, 'member_' . $id . '@acme.test');
+        [$branchId, $member] = $this->provision($tenant, 'member_'.$id.'@acme.test');
 
         return [$tenant->id, $branchId, $member];
     }
@@ -153,7 +181,7 @@ class UomCrudTest extends TestCase
     private function dropSchema(string $schemaName): void
     {
         try {
-            DB::statement('DROP SCHEMA IF EXISTS "' . $schemaName . '" CASCADE');
+            DB::statement('DROP SCHEMA IF EXISTS "'.$schemaName.'" CASCADE');
         } catch (\Exception $e) {
         }
     }

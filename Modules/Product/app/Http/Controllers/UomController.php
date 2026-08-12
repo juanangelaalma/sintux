@@ -65,7 +65,11 @@ class UomController extends Controller
 
     public function destroy(int $id)
     {
-        $this->deleteUom->execute($id);
+        $deleted = $this->deleteUom->execute($id);
+
+        if (! $deleted) {
+            return redirect()->back()->with('error', 'Cannot delete UOM still used by products.');
+        }
 
         return redirect()->back()->with('success', 'UOM deleted successfully.');
     }

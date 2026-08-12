@@ -104,7 +104,7 @@ export default function ProductIndex({
                                         : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                                 }`}
                             >
-                                Aturan Harga
+                                Master Data
                             </button>
                         </nav>
                     </div>

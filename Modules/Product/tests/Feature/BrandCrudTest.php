@@ -100,10 +100,40 @@ class BrandCrudTest extends TestCase
         ])->assertSessionHasErrors(['name']);
     }
 
+    public function test_cannot_delete_brand_still_used_by_products(): void
+    {
+        [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
+
+        tenancy()->initialize($tenantId);
+        $suffix = uniqid();
+        $brandId = DB::table('brands')->insertGetId(['name' => 'Brand-'.$suffix, 'is_active' => true]);
+        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Cat-'.$suffix, 'is_active' => true]);
+        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
+        DB::table('products')->insert([
+            'code' => 'PROD-'.$suffix,
+            'name' => 'Product using brand',
+            'category_id' => $categoryId,
+            'brand_id' => $brandId,
+            'uom_id' => $uomId,
+            'is_active' => true,
+        ]);
+        tenancy()->end();
+
+        $this->actingAs($user)->delete(route('product.brands.destroy', ['brand' => $brandId]))
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Cannot delete brand still used by products.');
+
+        tenancy()->initialize($tenantId);
+        $this->assertDatabaseHas('brands', ['id' => $brandId]);
+        tenancy()->end();
+    }
+
     private function createCompanyWithMember(): array
     {
         $id = uniqid('brand_');
-        $schemaName = 'sch_' . $id;
+        $schemaName = 'sch_'.$id;
         $this->activeSchemaName = $schemaName;
 
         $tenant = Tenant::create([
@@ -113,7 +143,7 @@ class BrandCrudTest extends TestCase
             'is_active' => true,
         ]);
 
-        [$branchId, $member] = $this->provision($tenant, 'member_' . $id . '@acme.test');
+        [$branchId, $member] = $this->provision($tenant, 'member_'.$id.'@acme.test');
 
         return [$tenant->id, $branchId, $member];
     }
@@ -146,7 +176,7 @@ class BrandCrudTest extends TestCase
     {
         try {
             (new \PDO('pgsql:host=127.0.0.1;port=5432;dbname=testing;user=root;password='))
-                ->exec('DROP SCHEMA IF EXISTS "' . $schemaName . '" CASCADE');
+                ->exec('DROP SCHEMA IF EXISTS "'.$schemaName.'" CASCADE');
         } catch (\Exception $e) {
         }
     }
@@ -165,7 +195,7 @@ class BrandCrudTest extends TestCase
                 "SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'sch\\_brand\\_%' ESCAPE '\\'"
             );
             foreach ($stmt->fetchAll(\PDO::FETCH_COLUMN) as $schemaName) {
-                $pdo->exec('DROP SCHEMA IF EXISTS "' . $schemaName . '" CASCADE');
+                $pdo->exec('DROP SCHEMA IF EXISTS "'.$schemaName.'" CASCADE');
             }
         } catch (\Exception $e) {
         }

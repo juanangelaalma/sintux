@@ -65,7 +65,11 @@ class ProductCategoryController extends Controller
 
     public function destroy(int $id)
     {
-        $this->deleteCategory->execute($id);
+        $deleted = $this->deleteCategory->execute($id);
+
+        if (! $deleted) {
+            return redirect()->back()->with('error', 'Cannot delete category still used by products.');
+        }
 
         return redirect()->back()->with('success', 'Category deleted successfully.');
     }

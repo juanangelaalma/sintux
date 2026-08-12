@@ -40,4 +40,16 @@ class GetStockRequests
 
         return $query->orderByDesc('id')->paginate($perPage)->withQueryString();
     }
+
+    /**
+     * Count pending stock requests scoped to branch access.
+     *
+     * @param  list<int>  $accessibleBranchIds
+     */
+    public function pendingCountByBranchIds(array $accessibleBranchIds): int
+    {
+        return StockRequest::whereHas('requestingWarehouse', function ($q) use ($accessibleBranchIds) {
+            $q->whereIn('branch_id', $accessibleBranchIds);
+        })->where('status', 'pending')->count();
+    }
 }

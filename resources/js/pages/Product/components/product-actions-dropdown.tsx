@@ -70,7 +70,7 @@ export const ProductActionsDropdown: React.FC = () => {
                     </Link>
 
                     <Link
-                        href="#"
+                        href="/warehouse/stock-transfers"
                         className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-200 dark:hover:bg-gray-700"
                     >
                         <svg className="size-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -28,6 +28,10 @@ export default function Index({ brands, filters }: Props) {
         }
     };
 
+    const changePage = (page: number) => {
+        router.get('/product/brands', { ...filters, page }, { preserveState: true });
+    };
+
     const columns: DataTableColumn<Brand>[] = [
         {
             key: 'name',
@@ -93,6 +97,13 @@ export default function Index({ brands, filters }: Props) {
                     rows={brands.data}
                     getRowKey={(brand) => brand.id}
                     emptyMessage={`Belum ada ${brandLabels.plural.toLowerCase()}. Klik "Tambah ${brandLabels.singular}" untuk membuat.`}
+                    pagination={{
+                        currentPage: brands.current_page,
+                        lastPage: brands.last_page,
+                        total: brands.total,
+                        perPage: brands.per_page,
+                    }}
+                    onPageChange={changePage}
                 />
             </div>
         </CompanyLayout>

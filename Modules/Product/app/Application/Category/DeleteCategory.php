@@ -2,6 +2,7 @@
 
 namespace Modules\Product\Application\Category;
 
+use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductCategory;
 
 class DeleteCategory
@@ -11,6 +12,10 @@ class DeleteCategory
         $category = ProductCategory::find($id);
 
         if (! $category) {
+            return false;
+        }
+
+        if (Product::withTrashed()->where('category_id', $id)->exists()) {
             return false;
         }
 

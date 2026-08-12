@@ -48,4 +48,24 @@ class GetWarehouses
             ])
             ->all();
     }
+
+    /**
+     * @param  list<int>  $branchIds
+     * @return list<int>
+     */
+    public function warehouseIdsByBranches(array $branchIds): array
+    {
+        return Warehouse::whereIn('branch_id', $branchIds)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * @param  list<int>  $branchIds
+     */
+    public function countByBranchIds(array $branchIds): int
+    {
+        return Warehouse::whereIn('branch_id', $branchIds)->count();
+    }
 }

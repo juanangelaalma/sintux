@@ -8,20 +8,25 @@ class GetProducts
 {
     public function execute(array $filters = []): array
     {
-        $query = Product::with(['category', 'brand', 'uom']);
+        $query = Product::with([
+            'category',
+            'brand',
+            'uom',
+            'variants' => fn ($q) => $q->where('is_active', true),
+        ]);
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {
-                $q->where('code', 'like', '%' . $filters['search'] . '%')
-                  ->orWhere('name', 'like', '%' . $filters['search'] . '%');
+                $q->where('code', 'like', '%'.$filters['search'].'%')
+                    ->orWhere('name', 'like', '%'.$filters['search'].'%');
             });
         }
 
-        if (!empty($filters['category_id'])) {
+        if (! empty($filters['category_id'])) {
             $query->where('category_id', $filters['category_id']);
         }
 
-        if (!empty($filters['brand_id'])) {
+        if (! empty($filters['brand_id'])) {
             $query->where('brand_id', $filters['brand_id']);
         }
 

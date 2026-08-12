@@ -28,6 +28,10 @@ export default function Index({ uoms, filters }: Props) {
         }
     };
 
+    const changePage = (page: number) => {
+        router.get('/product/uoms', { ...filters, page }, { preserveState: true });
+    };
+
     const columns: DataTableColumn<Uom>[] = [
         {
             key: 'name',
@@ -98,6 +102,13 @@ export default function Index({ uoms, filters }: Props) {
                     rows={uoms.data}
                     getRowKey={(uom) => uom.id}
                     emptyMessage={`Belum ada ${uomLabels.plural.toLowerCase()}. Klik "Tambah ${uomLabels.singular}" untuk membuat.`}
+                    pagination={{
+                        currentPage: uoms.current_page,
+                        lastPage: uoms.last_page,
+                        total: uoms.total,
+                        perPage: uoms.per_page,
+                    }}
+                    onPageChange={changePage}
                 />
             </div>
         </CompanyLayout>

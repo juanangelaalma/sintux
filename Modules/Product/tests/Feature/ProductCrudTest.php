@@ -4,6 +4,7 @@ namespace Modules\Product\Tests\Feature;
 
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
@@ -54,16 +55,16 @@ class ProductCrudTest extends TestCase
         tenancy()->initialize($tenantId);
         $suffix = uniqid();
         $categoryId = DB::table('product_categories')->insertGetId([
-            'name' => 'Electronics-' . $suffix,
+            'name' => 'Electronics-'.$suffix,
             'is_active' => true,
         ]);
         $brandId = DB::table('brands')->insertGetId([
-            'name' => 'Samsung-' . $suffix,
+            'name' => 'Samsung-'.$suffix,
             'is_active' => true,
         ]);
         $uomId = DB::table('uoms')->insertGetId([
-            'name' => 'Piece-' . $suffix,
-            'code' => 'PCS-' . $suffix,
+            'name' => 'Piece-'.$suffix,
+            'code' => 'PCS-'.$suffix,
             'is_active' => true,
         ]);
         tenancy()->end();
@@ -73,7 +74,7 @@ class ProductCrudTest extends TestCase
             ->assertStatus(200);
 
         // Create Product
-        $codeLaptop = 'LAPTOP-' . $suffix;
+        $codeLaptop = 'LAPTOP-'.$suffix;
         $this->actingAs($user)->post(route('product.products.store'), [
             'code' => $codeLaptop,
             'name' => 'Laptop Pro',
@@ -131,9 +132,9 @@ class ProductCrudTest extends TestCase
 
         tenancy()->initialize($tenantId);
         $suffix = uniqid();
-        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Cat-' . $suffix, 'is_active' => true]);
-        $brandId = DB::table('brands')->insertGetId(['name' => 'Brand-' . $suffix, 'is_active' => true]);
-        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-' . $suffix, 'code' => 'PCS-' . $suffix, 'is_active' => true]);
+        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Cat-'.$suffix, 'is_active' => true]);
+        $brandId = DB::table('brands')->insertGetId(['name' => 'Brand-'.$suffix, 'is_active' => true]);
+        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
         tenancy()->end();
 
         // Create first product
@@ -178,11 +179,11 @@ class ProductCrudTest extends TestCase
 
         tenancy()->initialize($tenantId);
         $suffix = uniqid();
-        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Cat-' . $suffix, 'is_active' => true]);
-        $brandId = DB::table('brands')->insertGetId(['name' => 'Brand-' . $suffix, 'is_active' => true]);
-        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-' . $suffix, 'code' => 'PCS-' . $suffix, 'is_active' => true]);
+        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Cat-'.$suffix, 'is_active' => true]);
+        $brandId = DB::table('brands')->insertGetId(['name' => 'Brand-'.$suffix, 'is_active' => true]);
+        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
         $productId = DB::table('products')->insertGetId([
-            'code' => 'PROD-001-' . $suffix,
+            'code' => 'PROD-001-'.$suffix,
             'name' => 'Product with variant',
             'category_id' => $categoryId,
             'brand_id' => $brandId,
@@ -191,7 +192,7 @@ class ProductCrudTest extends TestCase
         ]);
         DB::table('product_variants')->insert([
             'product_id' => $productId,
-            'sku' => 'VAR-001-' . $suffix,
+            'sku' => 'VAR-001-'.$suffix,
             'variant_name' => 'Variant 1',
             'is_active' => true,
         ]);
@@ -215,9 +216,9 @@ class ProductCrudTest extends TestCase
 
         tenancy()->initialize($tenantId);
         $suffix = uniqid();
-        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Electronics-' . $suffix, 'is_active' => true]);
-        $brandId = DB::table('brands')->insertGetId(['name' => 'Samsung-' . $suffix, 'is_active' => true]);
-        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-' . $suffix, 'code' => 'PCS-' . $suffix, 'is_active' => true]);
+        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Electronics-'.$suffix, 'is_active' => true]);
+        $brandId = DB::table('brands')->insertGetId(['name' => 'Samsung-'.$suffix, 'is_active' => true]);
+        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
         tenancy()->end();
 
         // Create multiple products
@@ -252,7 +253,7 @@ class ProductCrudTest extends TestCase
     private function createCompanyWithMember(): array
     {
         $id = uniqid('prod_');
-        $schemaName = 'sch_' . $id;
+        $schemaName = 'sch_'.$id;
         $this->activeSchemaName = $schemaName;
 
         $tenant = Tenant::create([
@@ -262,9 +263,9 @@ class ProductCrudTest extends TestCase
             'is_active' => true,
         ]);
 
-        \Illuminate\Support\Facades\Artisan::call('tenants:migrate', ['--tenants' => [$tenant->id]]);
+        Artisan::call('tenants:migrate', ['--tenants' => [$tenant->id]]);
 
-        [$branchId, $member] = $this->provision($tenant, 'member_' . $id . '@acme.test');
+        [$branchId, $member] = $this->provision($tenant, 'member_'.$id.'@acme.test');
 
         return [$tenant->id, $branchId, $member];
     }
@@ -296,7 +297,7 @@ class ProductCrudTest extends TestCase
     private function dropSchema(string $schemaName): void
     {
         try {
-            DB::statement('DROP SCHEMA IF EXISTS "' . $schemaName . '" CASCADE');
+            DB::statement('DROP SCHEMA IF EXISTS "'.$schemaName.'" CASCADE');
         } catch (\Exception $e) {
         }
     }
