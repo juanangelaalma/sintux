@@ -32,4 +32,4 @@ yarn-error.log
 .pnpm-store
 
 # Graphify generated output and cache
-/graphify-out/
+graphify-out/

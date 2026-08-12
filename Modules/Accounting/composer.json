@@ -1,0 +1,15 @@
+{
+    "name": "nwidart/accounting",
+    "description": "Accounting module",
+    "autoload": {
+        "psr-4": {
+            "Modules\\Accounting\\": "app/",
+            "Modules\\Accounting\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Accounting\\Tests\\": "tests/"
+        }
+    }
+}
