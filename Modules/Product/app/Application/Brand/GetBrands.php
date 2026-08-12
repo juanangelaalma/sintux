@@ -10,8 +10,8 @@ class GetBrands
     {
         $query = Brand::query();
 
-        if (!empty($filters['search'])) {
-            $query->where('name', 'like', '%' . $filters['search'] . '%');
+        if (! empty($filters['search'])) {
+            $query->where('name', 'like', '%'.$filters['search'].'%');
         }
 
         if (isset($filters['is_active'])) {

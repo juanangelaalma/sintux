@@ -67,6 +67,14 @@ export const ItemsTab: React.FC<Props> = ({
         );
     };
 
+    const changePage = (page: number) => {
+        router.get(
+            '/product',
+            { tab: 'items', search, category_id: categoryId, brand_id: brandId, page },
+            { preserveState: true },
+        );
+    };
+
     const handleDelete = (product: Product) => {
         if (confirm(`Hapus produk ${product.name}?`)) {
             router.delete(`/product/products/${product.id}`);
@@ -205,6 +213,13 @@ export const ItemsTab: React.FC<Props> = ({
                 rows={products.data}
                 getRowKey={(row) => row.id}
                 emptyMessage="Belum ada data produk."
+                pagination={{
+                    currentPage: products.current_page,
+                    lastPage: products.last_page,
+                    total: products.total,
+                    perPage: products.per_page,
+                }}
+                onPageChange={changePage}
             />
         </div>
     );

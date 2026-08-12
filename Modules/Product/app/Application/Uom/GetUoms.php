@@ -10,10 +10,10 @@ class GetUoms
     {
         $query = Uom::query();
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {
-                $q->where('name', 'like', '%' . $filters['search'] . '%')
-                  ->orWhere('code', 'like', '%' . $filters['search'] . '%');
+                $q->where('name', 'like', '%'.$filters['search'].'%')
+                    ->orWhere('code', 'like', '%'.$filters['search'].'%');
             });
         }
 

@@ -2,12 +2,12 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Company\Http\Middleware\EnsureCompanyMember;
-use Modules\Product\Http\Controllers\ProductCategoryController;
-use Modules\Product\Http\Controllers\UomController;
 use Modules\Product\Http\Controllers\BrandController;
+use Modules\Product\Http\Controllers\ProductCategoryController;
 use Modules\Product\Http\Controllers\ProductController;
 use Modules\Product\Http\Controllers\ProductHubController;
 use Modules\Product\Http\Controllers\ProductVariantController;
+use Modules\Product\Http\Controllers\UomController;
 
 Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(function () {
     Route::prefix('product')->name('product.')->group(function () {
@@ -22,7 +22,8 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
                 'edit' => 'categories.edit',
                 'update' => 'categories.update',
                 'destroy' => 'categories.destroy',
-            ]);
+            ])
+            ->except(['show']);
 
         // UOMs
         Route::resource('uoms', UomController::class)
@@ -34,7 +35,8 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
                 'edit' => 'uoms.edit',
                 'update' => 'uoms.update',
                 'destroy' => 'uoms.destroy',
-            ]);
+            ])
+            ->except(['show']);
 
         // Brands
         Route::resource('brands', BrandController::class)
@@ -46,7 +48,8 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
                 'edit' => 'brands.edit',
                 'update' => 'brands.update',
                 'destroy' => 'brands.destroy',
-            ]);
+            ])
+            ->except(['show']);
 
         // Products
         Route::resource('products', ProductController::class)
@@ -58,7 +61,8 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
                 'edit' => 'products.edit',
                 'update' => 'products.update',
                 'destroy' => 'products.destroy',
-            ]);
+            ])
+            ->except(['show']);
 
         // Variants (nested under products)
         Route::prefix('products/{product}')->name('products.')->group(function () {

@@ -4,6 +4,7 @@ namespace Modules\Product\Tests\Feature;
 
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
@@ -52,11 +53,12 @@ class ProductVariantCrudTest extends TestCase
 
         // Setup: Create product
         tenancy()->initialize($tenantId);
-        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Electronics', 'is_active' => true]);
-        $brandId = DB::table('brands')->insertGetId(['name' => 'Samsung', 'is_active' => true]);
-        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece', 'code' => 'PCS', 'is_active' => true]);
+        $suffix = uniqid();
+        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Electronics-'.$suffix, 'is_active' => true]);
+        $brandId = DB::table('brands')->insertGetId(['name' => 'Samsung-'.$suffix, 'is_active' => true]);
+        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
         $productId = DB::table('products')->insertGetId([
-            'code' => 'LAPTOP-001',
+            'code' => 'LAPTOP-'.$suffix,
             'name' => 'Laptop Pro',
             'category_id' => $categoryId,
             'brand_id' => $brandId,
@@ -68,18 +70,20 @@ class ProductVariantCrudTest extends TestCase
         // Create Variant
         $this->actingAs($user)->post(route('product.products.variants.store', ['product' => $productId]), [
             'product_id' => $productId,
-            'sku' => 'LAPTOP-001-BLK-16',
+            'sku' => 'LAPTOP-'.$suffix.'-BLK-16',
             'variant_name' => 'Black / 16GB',
             'attributes' => ['color' => 'Black', 'ram' => '16GB'],
             'is_active' => true,
         ])->assertRedirect();
 
         tenancy()->initialize($tenantId);
-        $variant = DB::table('product_variants')->where('sku', 'LAPTOP-001-BLK-16')->first();
+        $variant = DB::table('product_variants')->where('sku', 'LAPTOP-'.$suffix.'-BLK-16')->first();
         $this->assertNotNull($variant);
-        $this->assertSame('LAPTOP-001-BLK-16', $variant->sku);
+        $this->assertSame('LAPTOP-'.$suffix.'-BLK-16', $variant->sku);
         $this->assertSame('Black / 16GB', $variant->variant_name);
-        $this->assertSame(json_encode(['color' => 'Black', 'ram' => '16GB']), $variant->attributes);
+        $variantAttrs = json_decode($variant->attributes, true);
+        $this->assertSame('Black', $variantAttrs['color']);
+        $this->assertSame('16GB', $variantAttrs['ram']);
         $this->assertTrue((bool) $variant->is_active);
         $variantId = $variant->id;
         tenancy()->end();
@@ -87,7 +91,7 @@ class ProductVariantCrudTest extends TestCase
         // Update Variant
         $this->actingAs($user)->put(route('product.products.variants.update', ['product' => $productId, 'variant' => $variantId]), [
             'product_id' => $productId,
-            'sku' => 'LAPTOP-001-SLV-32',
+            'sku' => 'LAPTOP-'.$suffix.'-SLV-32',
             'variant_name' => 'Silver / 32GB',
             'attributes' => ['color' => 'Silver', 'ram' => '32GB'],
             'is_active' => false,
@@ -95,9 +99,11 @@ class ProductVariantCrudTest extends TestCase
 
         tenancy()->initialize($tenantId);
         $variantUpdated = DB::table('product_variants')->where('id', $variantId)->first();
-        $this->assertSame('LAPTOP-001-SLV-32', $variantUpdated->sku);
+        $this->assertSame('LAPTOP-'.$suffix.'-SLV-32', $variantUpdated->sku);
         $this->assertSame('Silver / 32GB', $variantUpdated->variant_name);
-        $this->assertSame(json_encode(['color' => 'Silver', 'ram' => '32GB']), $variantUpdated->attributes);
+        $variantUpdatedAttrs = json_decode($variantUpdated->attributes, true);
+        $this->assertSame('Silver', $variantUpdatedAttrs['color']);
+        $this->assertSame('32GB', $variantUpdatedAttrs['ram']);
         $this->assertFalse((bool) $variantUpdated->is_active);
         tenancy()->end();
 
@@ -106,7 +112,9 @@ class ProductVariantCrudTest extends TestCase
             ->assertRedirect();
 
         tenancy()->initialize($tenantId);
-        $this->assertDatabaseMissing('product_variants', ['id' => $variantId]);
+        $deletedVariant = DB::table('product_variants')->where('id', $variantId)->first();
+        $this->assertNotNull($deletedVariant);
+        $this->assertNotNull($deletedVariant->deleted_at);
         tenancy()->end();
     }
 
@@ -118,11 +126,11 @@ class ProductVariantCrudTest extends TestCase
 
         tenancy()->initialize($tenantId);
         $suffix = uniqid();
-        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Electronics-' . $suffix, 'is_active' => true]);
-        $brandId = DB::table('brands')->insertGetId(['name' => 'Samsung-' . $suffix, 'is_active' => true]);
-        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-' . $suffix, 'code' => 'PCS-' . $suffix, 'is_active' => true]);
+        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Electronics-'.$suffix, 'is_active' => true]);
+        $brandId = DB::table('brands')->insertGetId(['name' => 'Samsung-'.$suffix, 'is_active' => true]);
+        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
         $productId = DB::table('products')->insertGetId([
-            'code' => 'LAPTOP-' . $suffix,
+            'code' => 'LAPTOP-'.$suffix,
             'name' => 'Laptop Pro',
             'category_id' => $categoryId,
             'brand_id' => $brandId,
@@ -134,12 +142,12 @@ class ProductVariantCrudTest extends TestCase
         // Create first variant
         $this->actingAs($user)->post(route('product.products.variants.store', ['product' => $productId]), [
             'product_id' => $productId,
-            'sku' => 'SAME-SKU',
+            'sku' => 'SAME-SKU-'.$suffix,
             'variant_name' => 'Variant 1',
         ])->assertRedirect();
 
         tenancy()->initialize($tenantId);
-        $variant1 = DB::table('product_variants')->where('sku', 'SAME-SKU')->first();
+        $variant1 = DB::table('product_variants')->where('sku', 'SAME-SKU-'.$suffix)->first();
         $variant1Id = $variant1->id;
         tenancy()->end();
 
@@ -150,12 +158,12 @@ class ProductVariantCrudTest extends TestCase
         // Create second variant with same SKU (should work because of partial unique index)
         $this->actingAs($user)->post(route('product.products.variants.store', ['product' => $productId]), [
             'product_id' => $productId,
-            'sku' => 'SAME-SKU',
+            'sku' => 'SAME-SKU-'.$suffix,
             'variant_name' => 'Variant 2',
         ])->assertRedirect();
 
         tenancy()->initialize($tenantId);
-        $variant2 = DB::table('product_variants')->where('sku', 'SAME-SKU')->where('id', '!=', $variant1Id)->first();
+        $variant2 = DB::table('product_variants')->where('sku', 'SAME-SKU-'.$suffix)->where('id', '!=', $variant1Id)->first();
         $this->assertNotNull($variant2);
         $this->assertSame('Variant 2', $variant2->variant_name);
         tenancy()->end();
@@ -169,11 +177,11 @@ class ProductVariantCrudTest extends TestCase
 
         tenancy()->initialize($tenantId);
         $suffix = uniqid();
-        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Electronics-' . $suffix, 'is_active' => true]);
-        $brandId = DB::table('brands')->insertGetId(['name' => 'Samsung-' . $suffix, 'is_active' => true]);
-        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-' . $suffix, 'code' => 'PCS-' . $suffix, 'is_active' => true]);
+        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Electronics-'.$suffix, 'is_active' => true]);
+        $brandId = DB::table('brands')->insertGetId(['name' => 'Samsung-'.$suffix, 'is_active' => true]);
+        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
         $productId = DB::table('products')->insertGetId([
-            'code' => 'LAPTOP-' . $suffix,
+            'code' => 'LAPTOP-'.$suffix,
             'name' => 'Laptop Pro',
             'category_id' => $categoryId,
             'brand_id' => $brandId,
@@ -202,7 +210,7 @@ class ProductVariantCrudTest extends TestCase
     private function createCompanyWithMember(): array
     {
         $id = uniqid('var_');
-        $schemaName = 'sch_' . $id;
+        $schemaName = 'sch_'.$id;
         $this->activeSchemaName = $schemaName;
 
         $tenant = Tenant::create([
@@ -212,9 +220,9 @@ class ProductVariantCrudTest extends TestCase
             'is_active' => true,
         ]);
 
-        \Illuminate\Support\Facades\Artisan::call('tenants:migrate', ['--tenants' => [$tenant->id]]);
+        Artisan::call('tenants:migrate', ['--tenants' => [$tenant->id]]);
 
-        [$branchId, $member] = $this->provision($tenant, 'member_' . $id . '@acme.test');
+        [$branchId, $member] = $this->provision($tenant, 'member_'.$id.'@acme.test');
 
         return [$tenant->id, $branchId, $member];
     }
@@ -246,7 +254,7 @@ class ProductVariantCrudTest extends TestCase
     private function dropSchema(string $schemaName): void
     {
         try {
-            DB::statement('DROP SCHEMA IF EXISTS "' . $schemaName . '" CASCADE');
+            DB::statement('DROP SCHEMA IF EXISTS "'.$schemaName.'" CASCADE');
         } catch (\Exception $e) {
         }
     }

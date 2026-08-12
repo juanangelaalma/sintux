@@ -65,7 +65,11 @@ class BrandController extends Controller
 
     public function destroy(int $id)
     {
-        $this->deleteBrand->execute($id);
+        $deleted = $this->deleteBrand->execute($id);
+
+        if (! $deleted) {
+            return redirect()->back()->with('error', 'Cannot delete brand still used by products.');
+        }
 
         return redirect()->back()->with('success', 'Brand deleted successfully.');
     }

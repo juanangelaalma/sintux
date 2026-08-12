@@ -45,6 +45,10 @@ export default function Index({ products, categories, brands, uoms, filters }: P
         router.get('/product/products', patch, { preserveState: true });
     };
 
+    const changePage = (page: number) => {
+        router.get('/product/products', { ...filters, page }, { preserveState: true });
+    };
+
     const columns: DataTableColumn<Product>[] = [
         {
             key: 'code',
@@ -174,6 +178,13 @@ export default function Index({ products, categories, brands, uoms, filters }: P
                     rows={products.data}
                     getRowKey={(product) => product.id}
                     emptyMessage={`Belum ada ${productLabels.plural.toLowerCase()}. Klik "Tambah ${productLabels.singular}" untuk membuat.`}
+                    pagination={{
+                        currentPage: products.current_page,
+                        lastPage: products.last_page,
+                        total: products.total,
+                        perPage: products.per_page,
+                    }}
+                    onPageChange={changePage}
                 />
             </div>
         </CompanyLayout>

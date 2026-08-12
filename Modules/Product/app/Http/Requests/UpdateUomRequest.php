@@ -17,7 +17,7 @@ class UpdateUomRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50', 'unique:uoms,code,' . $uomId],
+            'code' => ['required', 'string', 'max:50', 'unique:uoms,code,'.$uomId],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

@@ -16,7 +16,7 @@ class UpdateCategoryRequest extends FormRequest
         $categoryId = $this->route('category');
 
         return [
-            'name' => ['required', 'string', 'max:255', 'unique:product_categories,name,' . $categoryId],
+            'name' => ['required', 'string', 'max:255', 'unique:product_categories,name,'.$categoryId],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

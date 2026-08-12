@@ -28,6 +28,10 @@ export default function Index({ categories, filters }: Props) {
         }
     };
 
+    const changePage = (page: number) => {
+        router.get('/product/categories', { ...filters, page }, { preserveState: true });
+    };
+
     const columns: DataTableColumn<ProductCategory>[] = [
         {
             key: 'name',
@@ -93,6 +97,13 @@ export default function Index({ categories, filters }: Props) {
                     rows={categories.data}
                     getRowKey={(category) => category.id}
                     emptyMessage={`Belum ada ${categoryLabels.plural.toLowerCase()}. Klik "Tambah ${categoryLabels.singular}" untuk membuat.`}
+                    pagination={{
+                        currentPage: categories.current_page,
+                        lastPage: categories.last_page,
+                        total: categories.total,
+                        perPage: categories.per_page,
+                    }}
+                    onPageChange={changePage}
                 />
             </div>
         </CompanyLayout>

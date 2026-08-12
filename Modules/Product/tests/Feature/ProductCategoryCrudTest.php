@@ -4,6 +4,7 @@ namespace Modules\Product\Tests\Feature;
 
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
@@ -144,13 +145,40 @@ class ProductCategoryCrudTest extends TestCase
             ->assertStatus(403);
     }
 
+    public function test_cannot_delete_category_still_used_by_products(): void
+    {
+        [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
+
+        tenancy()->initialize($tenantId);
+        $suffix = uniqid();
+        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Cat-'.$suffix, 'is_active' => true]);
+        DB::table('products')->insert([
+            'code' => 'PROD-'.$suffix,
+            'name' => 'Product using category',
+            'category_id' => $categoryId,
+            'uom_id' => DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]),
+            'is_active' => true,
+        ]);
+        tenancy()->end();
+
+        $this->actingAs($user)->delete(route('product.categories.destroy', ['category' => $categoryId]))
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Cannot delete category still used by products.');
+
+        tenancy()->initialize($tenantId);
+        $this->assertDatabaseHas('product_categories', ['id' => $categoryId]);
+        tenancy()->end();
+    }
+
     /**
      * @return array{0: string, 1: int, 2: User}
      */
     private function createCompanyWithMember(): array
     {
         $id = uniqid('product_cat_');
-        $schemaName = 'sch_' . $id;
+        $schemaName = 'sch_'.$id;
         $this->activeSchemaName = $schemaName;
 
         $tenant = Tenant::create([
@@ -160,9 +188,9 @@ class ProductCategoryCrudTest extends TestCase
             'is_active' => true,
         ]);
 
-        \Illuminate\Support\Facades\Artisan::call('tenants:migrate', ['--tenants' => [$tenant->id]]);
+        Artisan::call('tenants:migrate', ['--tenants' => [$tenant->id]]);
 
-        [$branchId, $member] = $this->provision($tenant, 'member_' . $id . '@acme.test');
+        [$branchId, $member] = $this->provision($tenant, 'member_'.$id.'@acme.test');
 
         return [$tenant->id, $branchId, $member];
     }
@@ -194,7 +222,7 @@ class ProductCategoryCrudTest extends TestCase
     private function dropSchema(string $schemaName): void
     {
         try {
-            DB::statement('DROP SCHEMA IF EXISTS "' . $schemaName . '" CASCADE');
+            DB::statement('DROP SCHEMA IF EXISTS "'.$schemaName.'" CASCADE');
         } catch (\Exception $e) {
         }
     }

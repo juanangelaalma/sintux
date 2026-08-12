@@ -10,10 +10,10 @@ class GetVariants
     {
         $query = ProductVariant::where('product_id', $productId);
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {
-                $q->where('sku', 'like', '%' . $filters['search'] . '%')
-                  ->orWhere('variant_name', 'like', '%' . $filters['search'] . '%');
+                $q->where('sku', 'like', '%'.$filters['search'].'%')
+                    ->orWhere('variant_name', 'like', '%'.$filters['search'].'%');
             });
         }
 
