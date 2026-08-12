@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Company\Http\Middleware\EnsureCompanyMember;
+use Modules\Warehouse\Http\Controllers\StockAdjustmentController;
 use Modules\Warehouse\Http\Controllers\StockBalanceController;
 use Modules\Warehouse\Http\Controllers\StockRequestController;
 use Modules\Warehouse\Http\Controllers\StockTransferController;
@@ -28,5 +29,15 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
 
         Route::post('stock-transfers/{stock_transfer}/ship', [StockTransferController::class, 'ship'])
             ->name('stock-transfers.ship');
+
+        Route::post('stock-transfers/{stock_transfer}/receive', [StockTransferController::class, 'receive'])
+            ->name('stock-transfers.receive');
+
+        Route::resource('adjustments', StockAdjustmentController::class)
+            ->only(['index', 'create', 'store', 'show'])
+            ->parameters(['adjustments' => 'adjustment']);
+
+        Route::post('adjustments/{adjustment}/post', [StockAdjustmentController::class, 'post'])
+            ->name('adjustments.post');
     });
 });

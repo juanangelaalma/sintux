@@ -8,6 +8,7 @@ use Inertia\Inertia;
 use Modules\Company\Access\CompanyAccess;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransfers;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
+use Modules\Warehouse\Application\StockTransfer\ReceiveStockTransfer;
 use Modules\Warehouse\Application\StockTransfer\ShipStockTransfer;
 use Modules\Warehouse\Services\InsufficientStockException;
 
@@ -17,6 +18,7 @@ class StockTransferController extends Controller
         private readonly GetStockTransfers $getStockTransfers,
         private readonly GetStockTransferDetail $getStockTransferDetail,
         private readonly ShipStockTransfer $shipStockTransfer,
+        private readonly ReceiveStockTransfer $receiveStockTransfer,
     ) {}
 
     public function index()
@@ -86,6 +88,34 @@ class StockTransferController extends Controller
                     'stock_transfer' => $e->getMessage(),
                 ])
                 ->withInput();
+        } catch (ValidationException $e) {
+            return back()
+                ->withErrors($e->errors())
+                ->withInput();
+        }
+    }
+
+    public function receive(int $id)
+    {
+        $user = request()->user();
+
+        abort_unless(
+            $user && $user->can('warehouse.stock.transfer'),
+            403
+        );
+
+        try {
+            $this->receiveStockTransfer->execute(
+                $id,
+                (int) $user->id
+            );
+
+            return redirect()
+                ->route('warehouse.stock-transfers.show', $id)
+                ->with(
+                    'success',
+                    'Stock transfer berhasil diterima (status: received).'
+                );
         } catch (ValidationException $e) {
             return back()
                 ->withErrors($e->errors())

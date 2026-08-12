@@ -15,6 +15,8 @@ export default function StockTransferShow({ stockTransfer }: Props) {
     const { errors } = usePage().props;
     const [isShipping, setIsShipping] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [isReceiving, setIsReceiving] = useState(false);
+    const [showReceiveModal, setShowReceiveModal] = useState(false);
 
     const handleShip = () => {
         setIsShipping(true);
@@ -25,6 +27,20 @@ export default function StockTransferShow({ stockTransfer }: Props) {
                 onFinish: () => {
                     setIsShipping(false);
                     setShowConfirmModal(false);
+                },
+            }
+        );
+    };
+
+    const handleReceive = () => {
+        setIsReceiving(true);
+        router.post(
+            `/warehouse/stock-transfers/${stockTransfer.id}/receive`,
+            {},
+            {
+                onFinish: () => {
+                    setIsReceiving(false);
+                    setShowReceiveModal(false);
                 },
             }
         );
@@ -68,6 +84,14 @@ export default function StockTransferShow({ stockTransfer }: Props) {
                                     onClick={() => setShowConfirmModal(true)}
                                 >
                                     Kirim Stock Transfer
+                                </Button>
+                            )}
+                            {stockTransfer.status === 'shipped' && (
+                                <Button
+                                    variant="primary"
+                                    onClick={() => setShowReceiveModal(true)}
+                                >
+                                    Terima Stock Transfer
                                 </Button>
                             )}
                         </div>
@@ -142,6 +166,19 @@ export default function StockTransferShow({ stockTransfer }: Props) {
                     </div>
                 )}
 
+                {stockTransfer.received_at && (
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 text-xs text-emerald-900 flex items-center justify-between">
+                        <div>
+                            <span className="font-semibold">Diterima oleh:</span>{' '}
+                            {stockTransfer.received_by_user?.name ?? `User #${stockTransfer.received_by}`}
+                        </div>
+                        <div>
+                            <span className="font-semibold">Tanggal Terima:</span>{' '}
+                            {new Date(stockTransfer.received_at).toLocaleString('id-ID')}
+                        </div>
+                    </div>
+                )}
+
                 {/* Item List & FIFO Breakdown */}
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
                     <h3 className="text-base font-bold text-slate-900">
@@ -202,34 +239,68 @@ export default function StockTransferShow({ stockTransfer }: Props) {
             </div>
 
             {/* Confirmation Modal */}
-            <Modal show={showConfirmModal} onClose={() => setShowConfirmModal(false)}>
-                <div className="p-6 space-y-4">
-                    <h3 className="text-lg font-bold text-slate-900">
-                        Konfirmasi Pengiriman Stok
-                    </h3>
-                    <p className="text-sm text-slate-600">
-                        Apakah Anda yakin ingin memproses pengiriman stock transfer ini?
-                        Stok di gudang asal akan langsung berkurang menggunakan perhitungan FIFO Costing.
-                    </p>
+            {showConfirmModal && (
+                <Modal
+                    title="Konfirmasi Pengiriman Stok"
+                    onClose={() => setShowConfirmModal(false)}
+                >
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600">
+                            Apakah Anda yakin ingin memproses pengiriman stock transfer ini?
+                            Stok di gudang asal akan langsung berkurang menggunakan perhitungan FIFO Costing.
+                        </p>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                        <Button
-                            variant="secondary"
-                            onClick={() => setShowConfirmModal(false)}
-                            disabled={isShipping}
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            variant="primary"
-                            onClick={handleShip}
-                            disabled={isShipping}
-                        >
-                            {isShipping ? 'Memproses...' : 'Ya, Kirim Sekarang'}
-                        </Button>
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                            <Button
+                                variant="secondary"
+                                onClick={() => setShowConfirmModal(false)}
+                                disabled={isShipping}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={handleShip}
+                                disabled={isShipping}
+                            >
+                                {isShipping ? 'Memproses...' : 'Ya, Kirim Sekarang'}
+                            </Button>
+                        </div>
                     </div>
-                </div>
-            </Modal>
+                </Modal>
+            )}
+
+            {/* Receive Confirmation Modal */}
+            {showReceiveModal && (
+                <Modal
+                    title="Konfirmasi Penerimaan Stok"
+                    onClose={() => setShowReceiveModal(false)}
+                >
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600">
+                            Apakah Anda yakin ingin menerima stock transfer ini? Stok akan
+                            tercatat di gudang tujuan sesuai rincian FIFO dari pengiriman.
+                        </p>
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                            <Button
+                                variant="secondary"
+                                onClick={() => setShowReceiveModal(false)}
+                                disabled={isReceiving}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={handleReceive}
+                                disabled={isReceiving}
+                            >
+                                {isReceiving ? 'Memproses...' : 'Ya, Terima Sekarang'}
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </CompanyLayout>
     );
 }
