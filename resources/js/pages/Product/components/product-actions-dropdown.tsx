@@ -39,6 +39,10 @@ export const ProductActionsDropdown: React.FC = () => {
                         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Aksi Cepat</p>
                     </div>
 
+                    <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Produk</p>
+                    </div>
+
                     <Link
                         href="/product/products/create"
                         className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-200 dark:hover:bg-gray-700"
@@ -48,6 +52,10 @@ export const ProductActionsDropdown: React.FC = () => {
                         </svg>
                         <span>Tambah Produk Baru</span>
                     </Link>
+
+                    <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Gudang</p>
+                    </div>
 
                     <Link
                         href="/warehouse/warehouses/create"
@@ -90,20 +98,6 @@ export const ProductActionsDropdown: React.FC = () => {
                     </Link>
 
                     <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
-
-                    <Link
-                        href="/product?tab=master&sub=categories"
-                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                        <span>Atur Kategori Produk</span>
-                    </Link>
-
-                    <Link
-                        href="/product?tab=master&sub=uoms"
-                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                        <span>Atur Satuan (UOM)</span>
-                    </Link>
                 </div>
             )}
         </div>

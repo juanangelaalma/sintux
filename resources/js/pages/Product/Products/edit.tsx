@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import CompanyLayout from '@/layouts/company/company-layout';
 import Button from '@/components/ui/button';
@@ -26,6 +26,9 @@ export default function Edit({ product, categories, uoms, availableProducts = []
     const [activeFormTab, setActiveFormTab] = useState<'pricing' | 'bundle'>(
         product.product_type === 'bundle' ? 'bundle' : 'pricing'
     );
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [imageError, setImageError] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const form = useForm<ProductForm>({
         code: product.code ?? '',
@@ -54,6 +57,67 @@ export default function Edit({ product, categories, uoms, availableProducts = []
                 quantity: Number(i.quantity),
             })) ?? [],
     });
+
+    const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setImageError(null);
+
+        // Security Validation 1: Extension check
+        const filename = file.name.toLowerCase();
+        const validExtensions = ['.jpg', '.jpeg', '.png'];
+        const isValidExtension = validExtensions.some((ext) => filename.endsWith(ext));
+
+        // Security Validation 2: Strict MIME type check
+        const validMimeTypes = ['image/jpeg', 'image/png'];
+        const isValidMime = validMimeTypes.includes(file.type);
+
+        if (!isValidExtension || !isValidMime) {
+            setImageError('Format file tidak diizinkan! Hanya diperbolehkan berkas gambar JPG (.jpg, .jpeg) dan PNG (.png).');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
+        // Security Validation 3: File size check (Max 5MB)
+        const maxSizeInBytes = 5 * 1024 * 1024;
+        if (file.size > maxSizeInBytes) {
+            setImageError('Ukuran berkas melebihi batas maksimal 5 MB.');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
+        setUploadingImage(true);
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '';
+
+        try {
+            const response = await fetch('/product/products/upload-image', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const message = data.errors?.image?.[0] ?? data.message ?? 'Gagal mengunggah gambar.';
+                setImageError(message);
+            } else if (data.url) {
+                form.setData('image_path', data.url);
+            }
+        } catch (err) {
+            setImageError('Terjadi kesalahan saat mengunggah berkas.');
+        } finally {
+            setUploadingImage(false);
+        }
+    };
 
     const handleAddBundleItem = (selectedProductId: number) => {
         if (!selectedProductId) return;
@@ -111,6 +175,15 @@ export default function Edit({ product, categories, uoms, availableProducts = []
                 </div>
 
                 <form onSubmit={submit} className="space-y-6">
+                    {/* Hidden File Input */}
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageSelect}
+                        accept="image/jpeg,image/png"
+                        className="hidden"
+                    />
+
                     {/* Top Main Information Form & Image Upload */}
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                         <div className="lg:col-span-2 space-y-4">
@@ -247,18 +320,60 @@ export default function Edit({ product, categories, uoms, availableProducts = []
                         </div>
 
                         {/* Image Upload Box Right */}
-                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl p-6 bg-slate-50/50 text-center">
-                            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                <svg className="size-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                            </div>
-                            <span className="text-xs font-semibold text-indigo-600 cursor-pointer hover:underline mb-1">
-                                Pilih gambar produk
-                            </span>
-                            <span className="text-[11px] text-slate-400">
-                                Format file JPG atau PNG (maks. 5MB)
-                            </span>
+                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl p-6 bg-slate-50/50 text-center relative min-h-[220px]">
+                            {form.data.image_path ? (
+                                <div className="space-y-3 w-full flex flex-col items-center">
+                                    <div className="w-32 h-32 rounded-lg overflow-hidden border border-slate-200 shadow-sm relative group bg-white">
+                                        <img
+                                            src={form.data.image_path}
+                                            alt="Gambar Produk"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="text-xs font-semibold text-indigo-600 hover:underline"
+                                        >
+                                            Ganti gambar
+                                        </button>
+                                        <span className="text-slate-300">•</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => form.setData('image_path', '')}
+                                            className="text-xs font-semibold text-rose-600 hover:underline"
+                                        >
+                                            Hapus
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center">
+                                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                                        <svg className="size-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploadingImage}
+                                        className="text-xs font-semibold text-indigo-600 hover:underline mb-1 disabled:opacity-50"
+                                    >
+                                        {uploadingImage ? 'Mengunggah gambar...' : 'Pilih gambar produk'}
+                                    </button>
+                                    <span className="text-[11px] text-slate-400">
+                                        Format file JPG atau PNG (maks. 5MB)
+                                    </span>
+                                </div>
+                            )}
+
+                            {imageError && (
+                                <span className="mt-2 text-xs text-rose-500 font-medium block">
+                                    {imageError}
+                                </span>
+                            )}
                         </div>
                     </div>
 
@@ -597,7 +712,7 @@ export default function Edit({ product, categories, uoms, availableProducts = []
                                 Batalkan
                             </Button>
                         </Link>
-                        <Button variant="primary" type="submit" disabled={form.processing}>
+                        <Button variant="primary" type="submit" disabled={form.processing || uploadingImage}>
                             {form.processing ? 'Menyimpan...' : 'Simpan'}
                         </Button>
                     </div>

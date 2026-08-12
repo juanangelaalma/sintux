@@ -3,6 +3,7 @@
 namespace Modules\Product\Http\Controllers;
 
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Modules\Product\Application\Category\GetCategories;
 use Modules\Product\Application\Product\CreateProduct;
@@ -14,6 +15,7 @@ use Modules\Product\Application\Uom\GetUoms;
 use Modules\Product\Application\Variant\GetVariants;
 use Modules\Product\Http\Requests\StoreProductRequest;
 use Modules\Product\Http\Requests\UpdateProductRequest;
+use Modules\Product\Http\Requests\UploadProductImageRequest;
 
 class ProductController extends Controller
 {
@@ -96,5 +98,23 @@ class ProductController extends Controller
         }
 
         return redirect()->back()->with('success', 'Product deleted successfully.');
+    }
+
+    /**
+     * Securely handle product image upload.
+     */
+    public function uploadImage(UploadProductImageRequest $request)
+    {
+        $file = $request->file('image');
+
+        // Store file securely with hashed unique filename in 'public/products/images'
+        $path = $file->store('products/images', 'public');
+        $url = Storage::url($path);
+
+        return response()->json([
+            'success' => true,
+            'path' => $path,
+            'url' => $url,
+        ]);
     }
 }

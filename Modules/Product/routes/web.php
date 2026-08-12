@@ -38,6 +38,9 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
             ->except(['show']);
 
         // Products
+        Route::post('products/upload-image', [ProductController::class, 'uploadImage'])
+            ->name('products.upload-image');
+
         Route::resource('products', ProductController::class)
             ->parameters(['products' => 'product'])
             ->names([

@@ -108,30 +108,6 @@ export default function ProductIndex({
                     </nav>
                 </div>
 
-                {/* Blue Feedback Banner (Matching Image 1) */}
-                {showBanner && (
-                    <div className="rounded-xl bg-indigo-50/90 border border-indigo-100 p-3.5 flex items-center justify-between text-xs text-indigo-900 shadow-sm">
-                        <div className="flex items-center gap-2">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-[10px]">
-                                i
-                            </span>
-                            <span>
-                                Bagaimana pendapat Anda untuk tampilan baru halaman produk?{' '}
-                                <span className="font-semibold underline cursor-pointer hover:text-indigo-700">
-                                    Beri masukan
-                                </span>
-                            </span>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setShowBanner(false)}
-                            className="text-indigo-400 hover:text-indigo-600 text-sm font-bold"
-                        >
-                            &times;
-                        </button>
-                    </div>
-                )}
-
                 {/* Main Content Areas */}
                 {activeTab === 'items' && (
                     <div className="space-y-6">
