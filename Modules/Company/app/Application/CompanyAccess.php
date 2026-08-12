@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Company\Access;
+namespace Modules\Company\Application;
 
 use App\Models\Tenant;
 use App\Models\User;
@@ -20,13 +20,47 @@ class CompanyAccess
     private static array $accessibleBranchIds = [];
 
     /**
+     * Resolve the default membership values needed to initialize tenant context.
+     *
+     * @return array{tenant_id: string, branch_id: int|null}|null
+     */
+    public static function defaultMembership(User $user): ?array
+    {
+        $membership = CompanyUser::query()
+            ->where('user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->first();
+
+        if (! $membership) {
+            return null;
+        }
+
+        return [
+            'tenant_id' => (string) $membership->tenant_id,
+            'branch_id' => $membership->branch_id ? (int) $membership->branch_id : null,
+        ];
+    }
+
+    public static function hasMembership(User $user, string $tenantId): bool
+    {
+        return self::membershipFor($user, $tenantId) !== null;
+    }
+
+    public static function membershipBranchId(User $user, string $tenantId): ?int
+    {
+        $branchId = self::membershipFor($user, $tenantId)?->branch_id;
+
+        return $branchId ? (int) $branchId : null;
+    }
+
+    /**
      * Resolve the effective role slugs for a user inside a tenant.
      *
      * @return list<string>
      */
     public static function rolesFor(User $user, string $tenantId): array
     {
-        $companyUser = $user->companyUserFor($tenantId);
+        $companyUser = self::membershipFor($user, $tenantId);
 
         if (! $companyUser) {
             return [];
@@ -52,7 +86,7 @@ class CompanyAccess
             return self::$accessibleBranchIds[$cacheKey];
         }
 
-        $companyUser = $user->companyUserFor($tenantId);
+        $companyUser = self::membershipFor($user, $tenantId);
 
         if (! $companyUser) {
             return self::$accessibleBranchIds[$cacheKey] = [];
@@ -93,6 +127,29 @@ class CompanyAccess
     }
 
     /**
+     * Active branches the user may access, as a public read projection.
+     *
+     * @return list<object{id: int, name: string, code: string, is_headquarters: bool}>
+     */
+    public static function accessibleBranches(User $user, string $tenantId): array
+    {
+        return array_values(
+            DB::table('branches')
+                ->whereIn('id', self::accessibleBranchIds($user, $tenantId))
+                ->orderByDesc('is_headquarters')
+                ->orderBy('name')
+                ->get(['id', 'name', 'code', 'is_headquarters'])
+                ->map(static fn ($branch): object => (object) [
+                    'id' => (int) $branch->id,
+                    'name' => (string) $branch->name,
+                    'code' => (string) $branch->code,
+                    'is_headquarters' => (bool) $branch->is_headquarters,
+                ])
+                ->all(),
+        );
+    }
+
+    /**
      * Resolve the effective permission slugs for a user inside a tenant.
      *
      * When multiple branch ids are given, the union of permissions granted on
@@ -104,7 +161,7 @@ class CompanyAccess
      */
     public static function permissionsFor(User $user, string $tenantId, ?array $branchIds): array
     {
-        $companyUser = $user->companyUserFor($tenantId);
+        $companyUser = self::membershipFor($user, $tenantId);
 
         if (! $companyUser) {
             return [];
@@ -160,6 +217,14 @@ class CompanyAccess
         }
 
         return self::accessibleBranchIds($user, $tenantId);
+    }
+
+    private static function membershipFor(User $user, string $tenantId): ?CompanyUser
+    {
+        return CompanyUser::query()
+            ->where('user_id', $user->id)
+            ->where('tenant_id', $tenantId)
+            ->first();
     }
 
     /**

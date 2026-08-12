@@ -4,6 +4,7 @@ namespace Modules\Company\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Modules\Company\Application\CompanyAccess;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureCompanyMember
@@ -27,7 +28,7 @@ class EnsureCompanyMember
             return redirect()->route('dashboard');
         }
 
-        if (! $user || ! $user->companyUserFor($tenantId)) {
+        if (! $user || ! CompanyAccess::hasMembership($user, (string) $tenantId)) {
             abort(403);
         }
 

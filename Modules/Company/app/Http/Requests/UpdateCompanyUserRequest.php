@@ -4,6 +4,7 @@ namespace Modules\Company\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Company\Application\CompanyAccess;
 
 class UpdateCompanyUserRequest extends FormRequest
 {
@@ -12,7 +13,8 @@ class UpdateCompanyUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user() && $this->user()->hasPermissionTo('company.user.manage');
+        return $this->user()
+            && CompanyAccess::can($this->user(), (string) tenant('id'), 'company.user.manage');
     }
 
     /**

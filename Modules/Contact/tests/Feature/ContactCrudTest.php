@@ -5,7 +5,8 @@ namespace Modules\Contact\Tests\Feature;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Modules\Company\Models\CompanyUser;
+use Modules\Company\Application\CreateCompanyUser;
+use Modules\Company\Tests\Support\CompanyTestFixture;
 use Tests\TestCase;
 
 class ContactCrudTest extends TestCase
@@ -16,7 +17,7 @@ class ContactCrudTest extends TestCase
     {
         parent::setUp();
 
-        DB::table('company_users')->delete();
+        CompanyTestFixture::resetMemberships();
         DB::table('tenants')->delete();
         DB::table('users')->delete();
 
@@ -319,28 +320,27 @@ class ContactCrudTest extends TestCase
 
         [$branchId, $member] = $this->provision($tenant, 'member_'.$id.'@acme.test');
 
-        return [$tenant->id, $branchId, $member];
+        return [(string) $tenant->id, $branchId, $member];
     }
 
+    /**
+     * @return array{0: int, 1: User}
+     */
     private function provision(Tenant $tenant, string $email): array
     {
-        tenancy()->initialize($tenant);
-        $existingHq = DB::table('branches')->where('code', 'HQ')->value('id');
-        $branchId = $existingHq ? (int) $existingHq : DB::table('branches')->insertGetId([
+        $branchId = CompanyTestFixture::branch($tenant, [
             'name' => 'HQ Branch',
             'code' => 'HQ',
             'is_headquarters' => true,
         ]);
-        tenancy()->end();
 
-        $user = User::factory()->create(['email' => $email, 'role' => 'user']);
-
-        CompanyUser::create([
-            'user_id' => $user->id,
-            'tenant_id' => $tenant->id,
+        $user = app(CreateCompanyUser::class)->execute((string) $tenant->id, [
+            'name' => 'Contact Test Member',
+            'email' => $email,
+            'password' => 'password',
+            'company_role' => 'member',
             'branch_id' => $branchId,
-            'role' => 'member',
-            'is_default' => true,
+            'scope' => 'branch',
         ]);
 
         return [$branchId, $user];

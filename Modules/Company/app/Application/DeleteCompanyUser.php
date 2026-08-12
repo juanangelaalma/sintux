@@ -22,7 +22,7 @@ class DeleteCompanyUser
         $user = $membership->user;
         $membership->delete();
 
-        if ($user && $user->companyUsers()->count() === 0 && $user->role !== 'superadmin') {
+        if ($user && CompanyUser::where('user_id', $user->id)->doesntExist() && $user->role !== 'superadmin') {
             $user->delete();
         }
     }

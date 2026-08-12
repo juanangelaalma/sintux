@@ -5,7 +5,7 @@ namespace Modules\Company\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Company\Application\GetDashboard;
 
 class DashboardController extends Controller

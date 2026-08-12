@@ -394,6 +394,43 @@ Database
 
 Never bypass the module boundary.
 
+## Enforced Dependency Rules
+
+Treat each module as having an internal implementation and a deliberately small public surface.
+
+Production code in `Modules/<Consumer>` may depend on another module only through:
+
+* `Modules/<Owner>/Application/...` classes intended for cross-module use.
+* Published domain/application events.
+* Explicit integration entry points such as the owning module's service provider or middleware alias.
+
+Production code must NOT import another module's:
+
+```text
+Http/
+Models/
+Domain/ internals
+Infrastructure/
+Access/ or other non-Application implementation folders
+```
+
+It must also not query another module's tables directly. Moving a class behind an interface is not sufficient if the consumer still owns knowledge of the other module's model or schema.
+
+### Middleware and route ownership
+
+* A module owns its controllers, routes, middleware implementations, and middleware aliases.
+* A consuming module uses an owner-published middleware alias such as `'company.member'`; it must not import the other module's middleware class.
+* Cross-cutting middleware may apply to every module through a global Laravel middleware group. Its implementation remains owned by one module or central infrastructure, and other modules consume the initialized context rather than calling that middleware themselves.
+* Module-specific routes belong in that module's route files, not in root `routes/web.php` or another module's route files.
+
+### `app/`, bootstrap, and tests are not boundary loopholes
+
+* Code under `app/` must use module Application APIs rather than module models, tables, HTTP classes, or infrastructure.
+* Composition roots such as `bootstrap/app.php`, provider registration, and the root database seeder may reference a module's explicit integration entry point (for example its service provider, middleware configuration method, or module seeder). They must not wire individual internal classes when the module can own that wiring.
+* Cross-module feature tests follow the same dependency rule. Prefer a public Application use case or an explicitly published module test fixture over another module's models and tables.
+
+Before adding any `use Modules\OtherModule\...` import, verify that the target is a public Application API, published event, or explicit composition-root integration point. If it is not, stop and add or reuse the smallest owner-provided API instead.
+
 ---
 
 # 9. Prefer Use-Case-Specific Cross-Module APIs
@@ -641,6 +678,13 @@ tenant_123.products
 or manually constructing tenant-specific database/schema names.
 
 Tenant resolution and database/schema switching belong to the tenancy infrastructure.
+
+The HTTP tenant resolver is cross-cutting infrastructure:
+
+* Register it once in the global middleware pipeline.
+* Every module route using the global `web` group receives the initialized tenant context automatically.
+* Business modules such as Contact, Sales, Inventory, and Accounting must consume the current tenant connection; they must not invoke the resolver or initialize tenancy themselves.
+* Routes outside that pipeline (for example stateless API routes), queue jobs, commands, and scheduled tasks need an explicit tenancy-infrastructure entry point appropriate to that execution context.
 
 ---
 
@@ -1094,6 +1138,10 @@ AI agents should NOT:
 * Bypass module boundaries for convenience.
 * Access another module's Eloquent models directly.
 * Access another module's infrastructure directly.
+* Import another module's controllers, requests, or middleware implementation.
+* Query another module's tables directly, including for page props or validation.
+* Put a module's routes in root route files instead of the owning module.
+* Treat `app/`, bootstrap files, seeders, or tests as an automatic exemption from module boundaries.
 * Put business rules inside React.
 * Put business rules inside controllers.
 * Manually switch tenant databases inside business modules.

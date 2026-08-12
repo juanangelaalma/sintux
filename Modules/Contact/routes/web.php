@@ -1,10 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Company\Http\Middleware\EnsureCompanyMember;
 use Modules\Contact\Http\Controllers\ContactController;
 
-Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(function () {
+Route::middleware(['auth', 'verified', 'company.member'])->group(function () {
     Route::get('company/contacts/{type}/create', [ContactController::class, 'create'])->name('company.contacts.create');
     Route::get('company/contacts/{type}', [ContactController::class, 'index'])->name('company.contacts.index');
     Route::post('company/contacts/{type}', [ContactController::class, 'store'])->name('company.contacts.store');

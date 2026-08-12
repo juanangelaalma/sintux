@@ -5,6 +5,7 @@ namespace Modules\Company\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Company\Application\CreateCompanyUser;
 use Modules\Company\Application\DeleteCompanyUser;
 use Modules\Company\Application\GetCompanyUsers;
@@ -36,7 +37,7 @@ class CompanyUserController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'code', 'is_headquarters']),
             'roles' => Role::orderBy('level')->orderBy('name')->get(['id', 'name', 'slug', 'level']),
-            'canManageUsers' => auth()->user()->hasPermissionTo('company.user.manage'),
+            'canManageUsers' => CompanyAccess::can(auth()->user(), $tenantId, 'company.user.manage'),
         ]);
     }
 
@@ -65,7 +66,7 @@ class CompanyUserController extends Controller
      */
     public function destroy(int $user)
     {
-        abort_unless(auth()->user()->hasPermissionTo('company.user.manage'), 403);
+        abort_unless(CompanyAccess::can(auth()->user(), (string) tenant('id'), 'company.user.manage'), 403);
 
         $this->deleteCompanyUser->execute($user);
 

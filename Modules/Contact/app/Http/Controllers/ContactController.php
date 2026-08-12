@@ -4,9 +4,8 @@ namespace Modules\Contact\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Contact\Application\CreateContact;
 use Modules\Contact\Application\DeleteContact;
 use Modules\Contact\Application\GetContact;
@@ -140,19 +139,7 @@ class ContactController extends Controller
     {
         /** @var User $user */
         $user = auth()->user();
-        $branchIds = CompanyAccess::accessibleBranchIds($user, (string) tenant('id'));
 
-        return DB::table('branches')
-            ->whereIn('id', $branchIds)
-            ->orderByDesc('is_headquarters')
-            ->orderBy('name')
-            ->get(['id', 'name', 'code', 'is_headquarters'])
-            ->map(fn ($branch) => (object) [
-                'id' => (int) $branch->id,
-                'name' => $branch->name,
-                'code' => $branch->code,
-                'is_headquarters' => (bool) $branch->is_headquarters,
-            ])
-            ->all();
+        return CompanyAccess::accessibleBranches($user, (string) tenant('id'));
     }
 }
