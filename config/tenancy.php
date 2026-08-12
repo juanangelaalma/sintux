@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Modules\Accounting\Database\Seeders\ChartOfAccountsSeeder;
 use Stancl\Tenancy\Bootstrappers\CacheTenancyBootstrapper;
 use Stancl\Tenancy\Bootstrappers\DatabaseTenancyBootstrapper;
 use Stancl\Tenancy\Bootstrappers\FilesystemTenancyBootstrapper;
@@ -182,7 +183,10 @@ return [
      */
     'migration_parameters' => [
         '--force' => true, // This needs to be true to run migrations in production.
-        '--path' => [database_path('migrations/tenant')],
+        '--path' => [
+            database_path('migrations/tenant'),
+            base_path('Modules/Accounting/database/migrations/tenant'),
+        ],
         '--realpath' => true,
     ],
 
@@ -190,7 +194,7 @@ return [
      * Parameters used by the tenants:seed command.
      */
     'seeder_parameters' => [
-        '--class' => 'DatabaseSeeder', // root seeder class
+        '--class' => ChartOfAccountsSeeder::class,
         // '--force' => true, // This needs to be true to seed tenant databases in production
     ],
 ];

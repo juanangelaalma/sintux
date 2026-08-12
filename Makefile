@@ -88,6 +88,10 @@ tenant-make-migration: ## Create tenant migration  (make tenant-make-migration N
 tenant-migrate: ## Run migrations for all tenants
 	$(ARTISAN) tenants:migrate
 
+.PHONY: tenant-seed
+tenant-seed: ## Run seeders for all tenants
+	$(ARTISAN) tenants:seed
+
 # ── Modules (nwidart/laravel-modules) ─────────
 .PHONY: module-make
 module-make: ## Create a new module  (make module-make M=ModuleName)

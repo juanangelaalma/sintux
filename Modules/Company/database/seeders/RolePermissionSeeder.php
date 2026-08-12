@@ -39,6 +39,8 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'View Finance Transactions', 'slug' => 'finance.transaction.view', 'module' => 'finance'],
             ['name' => 'Manage Finance Transactions', 'slug' => 'finance.transaction.manage', 'module' => 'finance'],
             ['name' => 'View Fiscal Reports', 'slug' => 'fiscal.report.view', 'module' => 'fiscal'],
+            ['name' => 'View Chart of Accounts', 'slug' => 'accounting.account.view', 'module' => 'accounting'],
+            ['name' => 'Manage Chart of Accounts', 'slug' => 'accounting.account.manage', 'module' => 'accounting'],
             ['name' => 'View Accounting Journals', 'slug' => 'accounting.journal.view', 'module' => 'accounting'],
             ['name' => 'Manage Accounting Journals', 'slug' => 'accounting.journal.manage', 'module' => 'accounting'],
         ];
@@ -54,6 +56,8 @@ class RolePermissionSeeder extends Seeder
                 'warehouse.stock.view',
                 'finance.transaction.view',
                 'fiscal.report.view',
+                'accounting.account.view',
+                'accounting.account.manage',
                 'accounting.journal.view',
             ],
             'member' => ['dashboard.view'],
@@ -61,7 +65,7 @@ class RolePermissionSeeder extends Seeder
             'warehouse_admin' => ['dashboard.view', 'warehouse.stock.view', 'warehouse.stock.manage'],
             'finance' => ['dashboard.view', 'finance.transaction.view', 'finance.transaction.manage', 'fiscal.report.view'],
             'fiscal' => ['dashboard.view', 'fiscal.report.view'],
-            'accounting' => ['dashboard.view', 'accounting.journal.view', 'accounting.journal.manage', 'finance.transaction.view'],
+            'accounting' => ['dashboard.view', 'accounting.account.view', 'accounting.account.manage', 'accounting.journal.view', 'accounting.journal.manage', 'finance.transaction.view'],
             'cashier' => ['dashboard.view', 'sales.order.view', 'sales.order.create'],
             'inventory_staff' => ['dashboard.view', 'warehouse.stock.view'],
         ];
