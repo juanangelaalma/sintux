@@ -7,7 +7,7 @@ use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 use Symfony\Component\HttpFoundation\Response;
 
 class ResolveTenant
@@ -26,10 +26,10 @@ class ResolveTenant
         $tenantId = session('active_tenant_id');
 
         if (! $tenantId && auth()->check()) {
-            $defaultTenant = auth()->user()->defaultCompany();
+            $defaultTenant = CompanyAccess::defaultMembership(auth()->user());
 
             if ($defaultTenant) {
-                $tenantId = $defaultTenant->tenant_id;
+                $tenantId = $defaultTenant['tenant_id'];
                 session(['active_tenant_id' => $tenantId]);
             }
         }
@@ -99,9 +99,9 @@ class ResolveTenant
             return;
         }
 
-        $membership = $user->companyUserFor($tenantId);
-        $userBranchId = $membership?->branch_id && in_array($membership->branch_id, $accessibleBranchIds, true)
-            ? $membership->branch_id
+        $membershipBranchId = CompanyAccess::membershipBranchId($user, $tenantId);
+        $userBranchId = $membershipBranchId && in_array($membershipBranchId, $accessibleBranchIds, true)
+            ? $membershipBranchId
             : $accessibleBranchIds[0];
 
         $isUserHq = (bool) DB::table('branches')

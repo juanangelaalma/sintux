@@ -5,10 +5,17 @@ use Modules\Company\Http\Controllers\AdminRoleController;
 use Modules\Company\Http\Controllers\CompanyBranchController;
 use Modules\Company\Http\Controllers\CompanyController;
 use Modules\Company\Http\Controllers\CompanyUserController;
+use Modules\Company\Http\Controllers\DashboardController;
 use Modules\Company\Http\Middleware\EnsureCompanyMember;
+use Modules\Company\Http\Middleware\EnsureCompanyUser;
 use Modules\Company\Http\Middleware\EnsureSuperadmin;
 
+Route::middleware(['auth', 'verified', EnsureCompanyUser::class])->group(function () {
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
+});
+
 Route::middleware(['auth', 'verified', EnsureSuperadmin::class])->group(function () {
+    Route::inertia('admin/dashboard', 'admin/dashboard')->name('admin.dashboard');
     Route::resource('admin/companies', CompanyController::class)->except(['create', 'show', 'edit'])->names('admin.companies');
 
     Route::get('admin/roles', [AdminRoleController::class, 'index'])->name('admin.roles.index');

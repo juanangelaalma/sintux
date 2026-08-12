@@ -15,7 +15,7 @@ class CreateCompanyUser
      *
      * @param  array{name: string, email: string, password: string, company_role: string, scope: string, branch_id?: int|null, allowed_branch_ids?: array<int, int>, roles?: array<int, int>}  $data
      */
-    public function execute(string $tenantId, array $data): CompanyUser
+    public function execute(string $tenantId, array $data): User
     {
         $user = User::create([
             'name' => $data['name'],
@@ -28,14 +28,14 @@ class CreateCompanyUser
             'user_id' => $user->id,
             'tenant_id' => $tenantId,
             'branch_id' => $data['branch_id'] ?? null,
-            'role' => $data['company_role'] ?? 'member',
+            'role' => $data['company_role'],
             'is_default' => false,
         ]);
 
         $this->assignBranches($membership, $data['allowed_branch_ids'] ?? []);
         $this->assignRoles($membership, $data['roles'] ?? []);
 
-        return $membership;
+        return $user;
     }
 
     /**

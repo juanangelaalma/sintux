@@ -3,7 +3,7 @@
 namespace Modules\Contact\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 
 class UpdateContactRequest extends FormRequest
 {

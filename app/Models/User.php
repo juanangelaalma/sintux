@@ -7,12 +7,9 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
-use Modules\Company\Access\CompanyAccess;
-use Modules\Company\Models\CompanyUser;
 use Stancl\Tenancy\Database\Concerns\CentralConnection;
 
 /**
@@ -46,51 +43,5 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
-    }
-
-    /**
-     * Get user companies memberships.
-     *
-     * @return HasMany<CompanyUser, $this>
-     */
-    public function companyUsers(): HasMany
-    {
-        return $this->hasMany(CompanyUser::class, 'user_id');
-    }
-
-    /**
-     * Resolve the default company membership for this user.
-     */
-    public function defaultCompany(): ?CompanyUser
-    {
-        return $this->companyUsers()
-            ->where('is_default', true)
-            ->first()
-            ?? $this->companyUsers()
-                ->first();
-    }
-
-    /**
-     * Resolve the user's membership for a given tenant.
-     */
-    public function companyUserFor(string $tenantId): ?CompanyUser
-    {
-        return $this->companyUsers()
-            ->where('tenant_id', $tenantId)
-            ->first();
-    }
-
-    /**
-     * Check a permission against the active tenant + branch scope context.
-     */
-    public function hasPermissionTo(string $permission, ?string $tenantId = null): bool
-    {
-        $tenantId ??= session('active_tenant_id');
-
-        return CompanyAccess::can(
-            $this,
-            $tenantId ? (string) $tenantId : null,
-            $permission,
-        );
     }
 }

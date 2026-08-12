@@ -3,9 +3,8 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -49,20 +48,18 @@ class HandleInertiaRequests extends Middleware
             $activeTenant = tenant();
             $tenantId = (string) tenant('id');
 
-            $membership = $request->user()->companyUserFor($tenantId);
+            $membershipBranchId = CompanyAccess::membershipBranchId($request->user(), $tenantId);
+            $branches = collect(CompanyAccess::accessibleBranches($request->user(), $tenantId))
+                ->sortBy('id')
+                ->values();
 
-            if ($membership && $membership->branch_id) {
-                $isHq = (bool) DB::table('branches')
-                    ->where('id', $membership->branch_id)
-                    ->value('is_headquarters');
+            if ($membershipBranchId) {
+                $isHq = (bool) $branches
+                    ->firstWhere('id', $membershipBranchId)
+                    ?->is_headquarters;
             }
 
             $accessibleBranchIds = CompanyAccess::accessibleBranchIds($request->user(), $tenantId);
-
-            $branches = DB::table('branches')
-                ->whereIn('id', $accessibleBranchIds)
-                ->orderBy('id')
-                ->get();
 
             $branchScope = (string) session('branch_scope');
 

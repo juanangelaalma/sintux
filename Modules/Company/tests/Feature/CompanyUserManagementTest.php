@@ -4,8 +4,8 @@ namespace Modules\Company\Tests\Feature;
 
 use App\Models\Tenant;
 use App\Models\User;
-use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Models\CompanyUser;
 use Modules\Company\Models\CompanyUserRole;
 use Modules\Company\Models\Role;

@@ -6,6 +6,7 @@ use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Company\Models\Role;
 
 class StoreCompanyUserRequest extends FormRequest
@@ -15,7 +16,8 @@ class StoreCompanyUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user() && $this->user()->hasPermissionTo('company.user.manage');
+        return $this->user()
+            && CompanyAccess::can($this->user(), (string) tenant('id'), 'company.user.manage');
     }
 
     /**

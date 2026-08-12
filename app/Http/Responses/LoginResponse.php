@@ -3,7 +3,7 @@
 namespace App\Http\Responses;
 
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
-use Modules\Company\Models\CompanyUser;
+use Modules\Company\Application\CompanyAccess;
 
 class LoginResponse implements LoginResponseContract
 {
@@ -15,15 +15,13 @@ class LoginResponse implements LoginResponseContract
             return redirect()->route('admin.dashboard');
         }
 
-        // Cari tenant default
-        /** @var CompanyUser|null $defaultTenant */
-        $defaultTenant = $user->defaultCompany();
+        $defaultTenant = CompanyAccess::defaultMembership($user);
 
         if ($defaultTenant) {
-            session(['active_tenant_id' => $defaultTenant->tenant_id]);
+            session(['active_tenant_id' => $defaultTenant['tenant_id']]);
 
-            if ($defaultTenant->branch_id) {
-                session(['active_branch_id' => $defaultTenant->branch_id]);
+            if ($defaultTenant['branch_id']) {
+                session(['active_branch_id' => $defaultTenant['branch_id']]);
             }
         }
 

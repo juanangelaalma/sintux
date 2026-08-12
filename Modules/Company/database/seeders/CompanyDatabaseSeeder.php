@@ -11,6 +11,6 @@ class CompanyDatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // $this->call([]);
+        $this->call(RolePermissionSeeder::class);
     }
 }

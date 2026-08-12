@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Company\Http\Requests\StoreCompanyBranchRequest;
 use Modules\Company\Http\Requests\UpdateCompanyBranchRequest;
 use Modules\Company\Models\Branch;
@@ -19,7 +19,7 @@ class CompanyBranchController extends Controller
      */
     public function index()
     {
-        abort_unless(auth()->user()->hasPermissionTo('company.branch.manage'), 403);
+        abort_unless(CompanyAccess::can(auth()->user(), (string) tenant('id'), 'company.branch.manage'), 403);
 
         return Inertia::render('Company/Branches/index', [
             'branches' => Branch::orderByDesc('is_headquarters')->orderBy('name')->get(),
@@ -56,7 +56,7 @@ class CompanyBranchController extends Controller
         $user = $request->user();
         $tenantId = (string) tenant('id');
 
-        abort_unless($user && $user->companyUserFor($tenantId), 403);
+        abort_unless($user && CompanyAccess::hasMembership($user, $tenantId), 403);
 
         $validated = $request->validate([
             'scope' => ['nullable', Rule::in(['all', 'branch'])],

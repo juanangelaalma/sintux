@@ -5,6 +5,7 @@ namespace Modules\Company\Http\Requests;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Company\Application\CompanyAccess;
 
 class UpdateCompanyBranchRequest extends FormRequest
 {
@@ -13,7 +14,8 @@ class UpdateCompanyBranchRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user() && $this->user()->hasPermissionTo('company.branch.manage');
+        return $this->user()
+            && CompanyAccess::can($this->user(), (string) tenant('id'), 'company.branch.manage');
     }
 
     /**

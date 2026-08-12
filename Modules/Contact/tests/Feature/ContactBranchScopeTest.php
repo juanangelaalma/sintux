@@ -5,8 +5,8 @@ namespace Modules\Contact\Tests\Feature;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Modules\Company\Models\CompanyUser;
-use Modules\Company\Models\CompanyUserBranch;
+use Modules\Company\Application\CreateCompanyUser;
+use Modules\Company\Tests\Support\CompanyTestFixture;
 use Tests\TestCase;
 
 class ContactBranchScopeTest extends TestCase
@@ -17,7 +17,7 @@ class ContactBranchScopeTest extends TestCase
     {
         parent::setUp();
 
-        DB::table('company_users')->delete();
+        CompanyTestFixture::resetMemberships();
         DB::table('tenants')->delete();
         DB::table('users')->delete();
 
@@ -185,22 +185,19 @@ class ContactBranchScopeTest extends TestCase
             'is_active' => true,
         ]);
 
-        tenancy()->initialize($tenant);
-        $existingHq = DB::table('branches')->where('code', 'HQ')->value('id');
-        $hqId = $existingHq ? (int) $existingHq : DB::table('branches')->insertGetId([
+        $hqId = CompanyTestFixture::branch($tenant, [
             'name' => 'HQ Branch',
             'code' => 'HQ',
             'is_headquarters' => true,
         ]);
-        $branchA = (int) (DB::table('branches')->where('code', 'A')->value('id') ?? DB::table('branches')->insertGetId([
+        $branchA = CompanyTestFixture::branch($tenant, [
             'name' => 'Branch A',
             'code' => 'A',
-        ]));
-        $branchB = (int) (DB::table('branches')->where('code', 'B')->value('id') ?? DB::table('branches')->insertGetId([
+        ]);
+        $branchB = CompanyTestFixture::branch($tenant, [
             'name' => 'Branch B',
             'code' => 'B',
-        ]));
-        tenancy()->end();
+        ]);
 
         return [$tenant, $hqId, $branchA, $branchB];
     }
@@ -210,26 +207,15 @@ class ContactBranchScopeTest extends TestCase
      */
     private function createMember(Tenant $tenant, string $email, int $homeBranch, array $extraAllowed = []): User
     {
-        $user = User::factory()->create(['email' => $email, 'role' => 'user']);
-
-        CompanyUser::create([
-            'user_id' => $user->id,
-            'tenant_id' => $tenant->id,
+        return app(CreateCompanyUser::class)->execute((string) $tenant->id, [
+            'name' => 'Contact Scope Member',
+            'email' => $email,
+            'password' => 'password',
+            'company_role' => 'member',
             'branch_id' => $homeBranch,
-            'role' => 'member',
-            'is_default' => true,
+            'scope' => 'branch',
+            'allowed_branch_ids' => $extraAllowed,
         ]);
-
-        $membership = CompanyUser::where('user_id', $user->id)->where('tenant_id', $tenant->id)->firstOrFail();
-
-        foreach ($extraAllowed as $branchId) {
-            CompanyUserBranch::create([
-                'company_user_id' => $membership->id,
-                'branch_id' => $branchId,
-            ]);
-        }
-
-        return $user;
     }
 
     private function dropSchema(): void
