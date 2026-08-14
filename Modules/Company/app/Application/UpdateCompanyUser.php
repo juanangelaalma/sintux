@@ -2,6 +2,7 @@
 
 namespace Modules\Company\Application;
 
+use App\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Models\CompanyUser;
 use Modules\Company\Models\CompanyUserBranch;
@@ -46,19 +47,35 @@ class UpdateCompanyUser
     {
         $membership->allowedBranches()->delete();
 
-        $isHq = DB::table('branches')
-            ->where('id', $membership->branch_id)
-            ->value('is_headquarters');
+        $wasInitialized = tenancy()->initialized;
 
-        if ($isHq) {
-            return;
+        if (! $wasInitialized) {
+            $tenant = Tenant::find($membership->tenant_id);
+
+            if ($tenant) {
+                tenancy()->initialize($tenant);
+            }
         }
 
-        foreach ($branchIds as $branchId) {
-            CompanyUserBranch::create([
-                'company_user_id' => $membership->id,
-                'branch_id' => $branchId,
-            ]);
+        try {
+            $isHq = DB::table('branches')
+                ->where('id', $membership->branch_id)
+                ->value('is_headquarters');
+
+            if ($isHq) {
+                return;
+            }
+
+            foreach ($branchIds as $branchId) {
+                CompanyUserBranch::create([
+                    'company_user_id' => $membership->id,
+                    'branch_id' => $branchId,
+                ]);
+            }
+        } finally {
+            if (! $wasInitialized && tenancy()->initialized) {
+                tenancy()->end();
+            }
         }
     }
 
