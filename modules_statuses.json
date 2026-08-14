@@ -4,5 +4,7 @@
     "TestModule": true,
     "Invoice": true,
     "Company": true,
-    "Contact": true
+    "Contact": true,
+    "Product": true,
+    "Warehouse": true
 }

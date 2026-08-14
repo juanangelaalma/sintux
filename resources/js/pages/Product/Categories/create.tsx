@@ -1,0 +1,70 @@
+import { Head, useForm } from '@inertiajs/react';
+import FormActions from '@/components/ui/form-actions';
+import PageHeader from '@/components/ui/page-header';
+import CompanyLayout from '@/layouts/company/company-layout';
+import FormField from '@/components/ui/form-field';
+import TextInput from '@/components/ui/text-input';
+import Button from '@/components/ui/button';
+import InputError from '@/components/input-error';
+import { categoryLabels } from './types';
+import type { ProductCategoryForm } from './types';
+
+export default function Create() {
+    const form = useForm<ProductCategoryForm>({
+        name: '',
+        is_active: true,
+    });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        form.post('/product/categories', {
+            onSuccess: () => form.reset(),
+        });
+    };
+
+    return (
+        <CompanyLayout>
+            <Head title={`Tambah ${categoryLabels.singular}`} />
+
+            <div className="mx-auto max-w-2xl space-y-6">
+                <PageHeader
+                    title={`Tambah ${categoryLabels.singular}`}
+                    description={categoryLabels.description}
+                />
+
+                <form onSubmit={submit} className="space-y-6">
+                    <FormField label="Nama" required>
+                        <TextInput
+                            id="name"
+                            value={form.data.name}
+                            onChange={(e) => form.setData('name', e.target.value)}
+                            placeholder="Masukkan nama kategori"
+                            autoFocus
+                        />
+                        <InputError message={form.errors.name} />
+                    </FormField>
+
+                    <FormField label="Status">
+                        <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={form.data.is_active}
+                                    onChange={(e) => form.setData('is_active', e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                                />
+                                <span className="text-sm text-gray-700 dark:text-gray-300">Aktif</span>
+                            </label>
+                        </div>
+                    </FormField>
+
+                    <FormActions
+                        onCancel={() => window.history.back()}
+                        submitLabel="Simpan"
+                        processing={form.processing}
+                    />
+                </form>
+            </div>
+        </CompanyLayout>
+    );
+}

@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useSidebar } from "@/context/SidebarContext";
 import {
   BoxIcon,
+  BoxCubeIcon,
   GridIcon,
   GroupIcon,
   HorizontaLDots,
@@ -10,12 +11,26 @@ import {
   UserIcon,
 } from "@/icons";
 
+type LeafSubItem = {
+  name: string;
+  path: string;
+  permission?: string;
+};
+
+type GroupSubItem = {
+  name: string;
+  permission?: string;
+  subItems: LeafSubItem[];
+};
+
+type SubItem = LeafSubItem | GroupSubItem;
+
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
   permission?: string;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
+  subItems?: SubItem[];
 };
 
 const companyNavItems: NavItem[] = [
@@ -51,33 +66,53 @@ const companyNavItems: NavItem[] = [
     path: "/accounting/chart-of-accounts",
     permission: "accounting.account.view",
   },
+  {
+    icon: <BoxCubeIcon />,
+    name: "Produk",
+    path: "/product",
+    permission: "product.view",
+  },
 ];
+
+function isGroupSubItem(sub: SubItem): sub is GroupSubItem {
+  return "subItems" in sub && Array.isArray((sub as GroupSubItem).subItems);
+}
+
+function hasPermission(item: { permission?: string; subItems?: SubItem[] }, perms: string[]): boolean {
+  if (item.subItems && item.subItems.length > 0) {
+    return item.subItems.some((child) => hasPermission(child, perms));
+  }
+  return !item.permission || perms.includes(item.permission);
+}
 
 const CompanySidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const { url, props } = usePage();
 
   const auth = (props.auth ?? {}) as { permissions?: string[] };
-  const visibleNavItems = useMemo(() => {
-    const perms = auth.permissions ?? [];
+  const perms = useMemo(() => auth.permissions ?? [], [auth.permissions]);
 
-    return companyNavItems.filter(n => !n.permission || perms.includes(n.permission));
-  }, [auth.permissions]);
+  const visibleNavItems = useMemo(() => {
+    return companyNavItems.filter((n) => hasPermission(n, perms));
+  }, [perms]);
 
   const [manualSubmenu, setManualSubmenu] = useState<{
     type: "main";
     index: number;
   } | null>(null);
 
+  const [manualSubGroups, setManualSubGroups] = useState<Record<string, boolean>>({});
+
   const [prevUrl, setPrevUrl] = useState(url);
 
   if (prevUrl !== url) {
     setPrevUrl(url);
     setManualSubmenu(null);
+    setManualSubGroups({});
   }
 
   const isActive = useCallback(
-    (path: string) => url === path,
+    (path?: string) => Boolean(path && url === path),
     [url]
   );
 
@@ -86,7 +121,13 @@ const CompanySidebar: React.FC = () => {
     visibleNavItems.forEach((nav, index) => {
       if (nav.subItems) {
         nav.subItems.forEach((subItem) => {
-          if (isActive(subItem.path)) {
+          if (isGroupSubItem(subItem)) {
+            subItem.subItems.forEach((leaf) => {
+              if (isActive(leaf.path)) {
+                matched = { type: "main", index };
+              }
+            });
+          } else if (isActive(subItem.path)) {
             matched = { type: "main", index };
           }
         });
@@ -100,19 +141,107 @@ const CompanySidebar: React.FC = () => {
 
   const handleSubmenuToggle = (index: number, menuType: "main") => {
     setManualSubmenu((prev) => {
-      if (
-        prev &&
-        prev.type === menuType &&
-        prev.index === index
-      ) {
+      if (prev && prev.type === menuType && prev.index === index) {
         return null;
       }
-
       return { type: menuType, index };
     });
   };
 
-  const renderMenuItems = (items: NavItem[], menuType: "main") => (
+  const isSubGroupOpen = (groupKey: string, group: GroupSubItem) => {
+    if (manualSubGroups[groupKey] !== undefined) {
+      return manualSubGroups[groupKey];
+    }
+    return group.subItems.some((leaf) => isActive(leaf.path));
+  };
+
+  const toggleSubGroup = (groupKey: string, group: GroupSubItem) => {
+    const currentState = isSubGroupOpen(groupKey, group);
+    setManualSubGroups((prev) => ({
+      ...prev,
+      [groupKey]: !currentState,
+    }));
+  };
+
+  const renderSubItem = (sub: SubItem, parentName: string, permissions: string[]) => {
+    if (isGroupSubItem(sub)) {
+      const visibleLeaves = sub.subItems.filter(
+        (leaf) => !leaf.permission || permissions.includes(leaf.permission)
+      );
+
+      if (visibleLeaves.length === 0) return null;
+
+      const groupKey = `${parentName}-${sub.name}`;
+      const open = isSubGroupOpen(groupKey, sub);
+
+      return (
+        <li key={sub.name} className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => toggleSubGroup(groupKey, sub)}
+            className="flex w-full items-center justify-between py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+          >
+            <span>{sub.name}</span>
+            <svg
+              className={`size-3.5 transition-transform duration-200 ${
+                open ? "rotate-180" : ""
+              }`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+
+          {open && (
+            <ul className="flex flex-col gap-1 pl-3 border-l border-gray-200 dark:border-gray-800">
+              {visibleLeaves.map((leaf) => (
+                <li key={leaf.name}>
+                  <Link
+                    href={leaf.path}
+                    className={`block py-1 text-sm font-medium transition-colors ${
+                      isActive(leaf.path)
+                        ? "text-brand-500 font-semibold"
+                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                    }`}
+                  >
+                    {leaf.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      );
+    }
+
+    if (sub.permission && !permissions.includes(sub.permission)) {
+      return null;
+    }
+
+    return (
+      <li key={sub.name}>
+        <Link
+          href={sub.path}
+          className={`block py-1 text-sm font-medium transition-colors ${
+            isActive(sub.path)
+              ? "text-brand-500 font-semibold"
+              : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+          }`}
+        >
+          {sub.name}
+        </Link>
+      </li>
+    );
+  };
+
+  const renderMenuItems = (items: NavItem[], menuType: "main", permissions: string[]) => (
     <ul className="flex flex-col gap-4">
       {items.map((nav, index) => (
         <li key={nav.name}>
@@ -131,7 +260,7 @@ const CompanySidebar: React.FC = () => {
                 }`}
               >
                 <span
-                  className={`menu-item-icon-size  ${
+                  className={`menu-item-icon-size ${
                     openSubmenu?.type === menuType && openSubmenu?.index === index
                       ? "menu-item-icon-active"
                       : "menu-item-icon-inactive"
@@ -167,20 +296,9 @@ const CompanySidebar: React.FC = () => {
                 openSubmenu?.index === index &&
                 (isExpanded || isHovered || isMobileOpen) && (
                   <ul className="mt-2 flex flex-col gap-2 pl-9">
-                    {nav.subItems.map((sub) => (
-                      <li key={sub.name}>
-                        <Link
-                          href={sub.path}
-                          className={`block py-1 text-sm font-medium transition-colors ${
-                            isActive(sub.path)
-                              ? "text-brand-500"
-                              : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                          }`}
-                        >
-                          {sub.name}
-                        </Link>
-                      </li>
-                    ))}
+                    {nav.subItems.map((sub) =>
+                      renderSubItem(sub, nav.name, permissions)
+                    )}
                   </ul>
                 )}
             </>
@@ -277,7 +395,7 @@ const CompanySidebar: React.FC = () => {
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
-              {renderMenuItems(visibleNavItems, "main")}
+              {renderMenuItems(visibleNavItems, "main", perms)}
             </div>
           </div>
         </nav>
