@@ -5,7 +5,7 @@ namespace Modules\Warehouse\Http\Controllers;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransfers;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
 use Modules\Warehouse\Application\StockTransfer\ReceiveStockTransfer;

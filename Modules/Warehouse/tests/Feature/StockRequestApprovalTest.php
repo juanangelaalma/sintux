@@ -28,7 +28,7 @@ class StockRequestApprovalTest extends TestCase
         DB::table('tenants')->delete();
         DB::table('users')->delete();
 
-        $this->seed(\Database\Seeders\RolePermissionSeeder::class);
+        $this->seed(\Modules\Company\Database\Seeders\RolePermissionSeeder::class);
     }
 
     protected function tearDown(): void

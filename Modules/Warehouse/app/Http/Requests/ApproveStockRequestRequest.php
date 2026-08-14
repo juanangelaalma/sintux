@@ -3,7 +3,7 @@
 namespace Modules\Warehouse\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Warehouse\Models\StockRequest;
 
 class ApproveStockRequestRequest extends FormRequest

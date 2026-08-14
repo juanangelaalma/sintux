@@ -5,7 +5,7 @@ namespace Modules\Product\Http\Controllers;
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Product\Application\Category\GetCategories;
 use Modules\Product\Application\Product\GetProducts;
 use Modules\Product\Application\Product\GetProductStats;

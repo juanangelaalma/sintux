@@ -41,7 +41,6 @@ class GetProducts
         if (! empty($filters['product_type'])) {
             $query->where('product_type', $filters['product_type']);
         }
-        }
 
         if (isset($filters['is_active'])) {
             $query->where('is_active', $filters['is_active']);

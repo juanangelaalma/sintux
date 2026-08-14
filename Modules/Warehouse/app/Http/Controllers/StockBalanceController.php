@@ -5,7 +5,7 @@ namespace Modules\Warehouse\Http\Controllers;
 use App\Models\User;
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Warehouse\Application\StockBalance\GetStockBalances;
 use Modules\Warehouse\Application\Warehouse\GetWarehouses;
 

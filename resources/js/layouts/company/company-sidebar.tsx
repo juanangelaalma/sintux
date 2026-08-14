@@ -58,9 +58,9 @@ const companyNavItems: NavItem[] = [
       { name: "Customer", path: "/company/contacts/customers" },
       { name: "Supplier", path: "/company/contacts/suppliers" },
       { name: "Employee", path: "/company/contacts/employees" },
-      ],
-    },
-    {
+    ],
+  },
+  {
     icon: <ListIcon />,
     name: "Chart of Accounts",
     path: "/accounting/chart-of-accounts",

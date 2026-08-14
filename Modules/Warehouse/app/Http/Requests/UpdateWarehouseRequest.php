@@ -5,7 +5,7 @@ namespace Modules\Warehouse\Http\Requests;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 
 class UpdateWarehouseRequest extends FormRequest
 {

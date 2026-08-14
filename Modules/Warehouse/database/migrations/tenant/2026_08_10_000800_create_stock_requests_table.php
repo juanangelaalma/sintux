@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('requesting_warehouse_id')->constrained('warehouses');
             $table->foreignId('destination_warehouse_id')->constrained('warehouses');
-            $table->foreignId('requested_by')->constrained('users')->cascadeOnDelete();
+            $table->unsignedBigInteger('requested_by');
             $table->string('status')->default('pending');
             $table->text('note')->nullable();
             $table->timestamp('requested_at');

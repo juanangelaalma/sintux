@@ -223,9 +223,11 @@ class WarehouseCrudTest extends TestCase
         ]);
 
         $companyUser = CompanyUser::where('user_id', $user->id)->where('tenant_id', $tenantId)->first();
+        tenancy()->end();
         DB::table('company_user_branches')
             ->where('company_user_id', $companyUser->id)
             ->update(['branch_id' => $nonHqBranchId]);
+        tenancy()->initialize($tenantId);
 
         session([
             'active_tenant_id' => $tenantId,

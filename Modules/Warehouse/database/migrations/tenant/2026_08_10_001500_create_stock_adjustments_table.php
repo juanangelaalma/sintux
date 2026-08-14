@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('type'); // 'in' or 'out'
             $table->string('status')->default('draft'); // 'draft', 'posted', 'cancelled'
             $table->text('note')->nullable();
-            $table->foreignId('adjusted_by')->constrained('users');
+            $table->unsignedBigInteger('adjusted_by');
             $table->timestamp('adjusted_at')->nullable();
             $table->timestamps();
         });

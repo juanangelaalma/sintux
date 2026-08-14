@@ -6,7 +6,7 @@ use App\Models\User;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Warehouse\Application\Warehouse\CreateWarehouse;
 use Modules\Warehouse\Application\Warehouse\DeleteWarehouse;
 use Modules\Warehouse\Application\Warehouse\GetWarehouse;

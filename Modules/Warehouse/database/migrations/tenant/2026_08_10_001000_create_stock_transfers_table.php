@@ -14,9 +14,9 @@ return new class extends Migration
             $table->foreignId('from_warehouse_id')->constrained('warehouses');
             $table->foreignId('to_warehouse_id')->constrained('warehouses');
             $table->string('status')->default('draft');
-            $table->foreignId('shipped_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('shipped_by')->nullable();
             $table->timestamp('shipped_at')->nullable();
-            $table->foreignId('received_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('received_by')->nullable();
             $table->timestamp('received_at')->nullable();
             $table->timestamps();
         });

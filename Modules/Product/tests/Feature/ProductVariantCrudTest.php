@@ -107,8 +107,6 @@ class ProductVariantCrudTest extends TestCase
         $this->assertNotNull($deletedVariant->deleted_at);
         tenancy()->end();
     }
-        tenancy()->end();
-    }
 
     private function createCompanyWithMember(): array
     {

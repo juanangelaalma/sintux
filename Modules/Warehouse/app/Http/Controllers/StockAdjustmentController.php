@@ -4,7 +4,7 @@ namespace Modules\Warehouse\Http\Controllers;
 
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
-use Modules\Company\Access\CompanyAccess;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Product\Models\ProductVariant;
 use Modules\Warehouse\Application\StockAdjustment\CreateStockAdjustment;
 use Modules\Warehouse\Application\StockAdjustment\GetStockAdjustmentDetail;
