@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import CompanyLayout from '@/layouts/company/company-layout';
 import Button from '@/components/ui/button';
+import { UnitCombobox } from '@/pages/Product/components/unit-combobox';
 import type { ProductForm } from './types';
 
 type CategoryOption = { id: number; name: string };
@@ -25,6 +26,7 @@ export default function Create({ categories, uoms, availableProducts = [] }: Pro
     const [activeFormTab, setActiveFormTab] = useState<'pricing' | 'bundle'>('pricing');
     const [uploadingImage, setUploadingImage] = useState(false);
     const [imageError, setImageError] = useState<string | null>(null);
+    const [uomOptions, setUomOptions] = useState<UomOption[]>(uoms);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const form = useForm<ProductForm>({
@@ -233,17 +235,15 @@ export default function Create({ categories, uoms, availableProducts = [] }: Pro
                                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                                     Unit
                                 </label>
-                                <select
+                                <UnitCombobox
                                     value={form.data.uom_id}
-                                    onChange={(e) => form.setData('uom_id', Number(e.target.value))}
-                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                >
-                                    {uoms.map((u) => (
-                                        <option key={u.id} value={u.id}>
-                                            {u.name} ({u.code})
-                                        </option>
-                                    ))}
-                                </select>
+                                    options={uomOptions}
+                                    onChange={(id) => form.setData('uom_id', id)}
+                                    onOptionAdded={(newUom) => setUomOptions((prev) => [...prev, newUom])}
+                                />
+                                {form.errors.uom_id && (
+                                    <span className="text-xs text-rose-500">{form.errors.uom_id}</span>
+                                )}
                             </div>
 
                             <div>

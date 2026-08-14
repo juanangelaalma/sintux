@@ -4,6 +4,7 @@ namespace Modules\Product\Http\Controllers;
 
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
+use Inertia\Response;
 use Modules\Company\Access\CompanyAccess;
 use Modules\Product\Application\Category\GetCategories;
 use Modules\Product\Application\Product\GetProducts;
@@ -29,7 +30,7 @@ class ProductHubController extends Controller
         private readonly GetStockTransfers $getStockTransfers,
     ) {}
 
-    public function index()
+    public function index(): Response
     {
         $user = request()->user();
         $tenantId = (string) session('active_tenant_id');
@@ -42,7 +43,7 @@ class ProductHubController extends Controller
         $stats = $this->getProductStats->execute($branchIds);
         $filters = request()->only(['search', 'category_id', 'product_type', 'status', 'warehouse_id', 'type']);
 
-        $products = $this->getProducts->execute($filters);
+        $products = $this->getProducts->execute($filters, $branchIds);
         $warehouses = $this->getWarehouses->all($branchIds);
         $stockBalances = $this->getStockBalances->execute($branchIds, $filters);
         $stockRequests = $this->getStockRequests->execute($branchIds, $filters);

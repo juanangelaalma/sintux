@@ -20,6 +20,7 @@ type Product = {
     category?: Category;
     uom?: Uom;
     variants?: Array<{ id: number; sku: string }>;
+    total_stock?: number;
     is_active: boolean;
 };
 
@@ -130,7 +131,9 @@ export const ItemsTab: React.FC<Props> = ({
         {
             key: 'total_stock',
             header: 'Total stok ↕',
-            render: () => <span className="font-bold text-slate-900">0</span>,
+            render: (product) => (
+                <span className="font-bold text-slate-900">{product.total_stock ?? 0}</span>
+            ),
         },
         {
             key: 'min_stock',

@@ -9,6 +9,7 @@ class GetStockBalances
     /**
      * @param  list<int>  $branchIds
      * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
      */
     public function execute(array $branchIds, array $filters = []): array
     {
@@ -34,6 +35,34 @@ class GetStockBalances
             ->orderBy('product_variant_id')
             ->paginate(15)
             ->toArray();
+    }
+
+    /**
+     * Sum on-hand quantity per product variant id.
+     *
+     * @param  array<int, int>  $variantIds
+     * @param  list<int>|null  $branchIds  Restrict to warehouses in these branches. Null = all warehouses.
+     * @return array<int, int> Variant id => total qty on hand.
+     */
+    public function totalQtyByVariantIds(array $variantIds, ?array $branchIds = null): array
+    {
+        if ($variantIds === []) {
+            return [];
+        }
+
+        $query = StockBalance::query()
+            ->whereIn('product_variant_id', $variantIds)
+            ->selectRaw('product_variant_id, SUM(qty_on_hand) as total_qty')
+            ->groupBy('product_variant_id');
+
+        if ($branchIds !== null && $branchIds !== []) {
+            $query->whereHas('warehouse', fn ($q) => $q->whereIn('branch_id', $branchIds));
+        }
+
+        return $query
+            ->pluck('total_qty', 'product_variant_id')
+            ->map(fn ($qty): int => (int) $qty)
+            ->all();
     }
 
     /**

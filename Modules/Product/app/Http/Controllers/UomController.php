@@ -27,6 +27,10 @@ class UomController extends Controller
         $filters = request()->only(['search', 'is_active']);
         $uoms = $this->getUoms->execute($filters);
 
+        if (request()->wantsJson()) {
+            return response()->json($uoms);
+        }
+
         return Inertia::render('Product/Uoms/index', [
             'uoms' => $uoms,
             'filters' => $filters,
@@ -40,7 +44,11 @@ class UomController extends Controller
 
     public function store(StoreUomRequest $request)
     {
-        $this->createUom->execute($request->validated());
+        $uom = $this->createUom->execute($request->validated());
+
+        if ($request->wantsJson()) {
+            return response()->json($uom, 201);
+        }
 
         return redirect()->route('product.uoms.index')
             ->with('success', 'UOM created successfully.');
