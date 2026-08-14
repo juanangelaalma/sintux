@@ -32,6 +32,11 @@ class ContactCrudTest extends TestCase
          * Clean central tables in FK-safe order.
          */
         $this->cleanupCentralTables();
+
+        /*
+         * Seed roles and permissions for gate/permission checks.
+         */
+        $this->seed(RolePermissionSeeder::class);
     }
 
     protected function tearDown(): void
