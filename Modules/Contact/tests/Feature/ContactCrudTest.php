@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Application\CreateCompanyUser;
+use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Tests\Support\CompanyTestFixture;
 use Tests\TestCase;
 
@@ -31,6 +32,11 @@ class ContactCrudTest extends TestCase
          * Clean central tables in FK-safe order.
          */
         $this->cleanupCentralTables();
+
+        /*
+         * Seed roles and permissions for gate/permission checks.
+         */
+        $this->seed(RolePermissionSeeder::class);
     }
 
     protected function tearDown(): void
@@ -353,10 +359,10 @@ class ContactCrudTest extends TestCase
         ]);
 
         $user = app(CreateCompanyUser::class)->execute((string) $tenant->id, [
-            'name' => 'Contact Test Member',
+            'name' => 'Contact Test Admin',
             'email' => $email,
             'password' => 'password',
-            'company_role' => 'member',
+            'company_role' => 'admin',
             'branch_id' => $branchId,
             'scope' => 'branch',
         ]);

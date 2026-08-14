@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Application\CreateCompanyUser;
+use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Tests\Support\CompanyTestFixture;
 use Tests\TestCase;
 
@@ -21,16 +22,9 @@ class ContactBranchScopeTest extends TestCase
             tenancy()->end();
         }
 
-        /*
-         * Remove tenant schemas left behind by previous
-         * failed/interrupted tests.
-         */
         $this->dropLeftoverSchemas();
-
-        /*
-         * Clean central tables in FK-safe order.
-         */
         $this->cleanupCentralTables();
+        $this->seed(RolePermissionSeeder::class);
     }
 
     protected function tearDown(): void
@@ -229,7 +223,7 @@ class ContactBranchScopeTest extends TestCase
             'name' => 'Contact Scope Member',
             'email' => $email,
             'password' => 'password',
-            'company_role' => 'member',
+            'company_role' => 'admin',
             'branch_id' => $homeBranch,
             'scope' => 'branch',
             'allowed_branch_ids' => $extraAllowed,

@@ -18,12 +18,12 @@ class GetContacts
      */
     public function execute(string $type, array $branchIds): array
     {
-        return Contact::with(['billingAddress', 'shippingAddress'])
+        return Contact::query()
             ->where('type', $type)
             ->whereIn('branch_id', $branchIds)
             ->orderBy('name')
             ->get()
-            ->map(fn (Contact $contact) => $this->presenter->serialize($contact))
+            ->map(fn (Contact $contact) => $this->presenter->serializeForList($contact))
             ->all();
     }
 }

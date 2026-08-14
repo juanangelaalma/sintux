@@ -22,6 +22,6 @@ class GetContact
 
         abort_unless(in_array($contact->branch_id, $branchIds, true), 403);
 
-        return $this->presenter->serialize($contact);
+        return $this->presenter->serializeForDetail($contact);
     }
 }

@@ -4,10 +4,8 @@ namespace Modules\Company\Providers;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Modules\Company\Application\CompanyAccess;
-use Modules\Company\Models\Permission;
 
 class AccessServiceProvider extends ServiceProvider
 {
@@ -28,20 +26,12 @@ class AccessServiceProvider extends ServiceProvider
             if ($user->role === 'superadmin') {
                 return true;
             }
+
+            $activeTenantId = session('active_tenant_id');
+
+            if ($activeTenantId && CompanyAccess::can($user, (string) $activeTenantId, $ability)) {
+                return true;
+            }
         });
-
-        if (! Schema::hasTable('permissions')) {
-            return;
-        }
-
-        foreach (Permission::pluck('slug') as $slug) {
-            Gate::define($slug, function (User $user) use ($slug) {
-                return CompanyAccess::can(
-                    $user,
-                    session('active_tenant_id'),
-                    $slug,
-                );
-            });
-        }
     }
 }
