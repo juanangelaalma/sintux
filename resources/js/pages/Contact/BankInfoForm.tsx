@@ -1,4 +1,5 @@
 import FormField from '@/components/ui/form-field';
+import SensitiveInput from '@/components/ui/sensitive-input';
 import TextInput from '@/components/ui/text-input';
 import type { ContactForm } from './types';
 
@@ -41,8 +42,7 @@ export default function BankInfoForm({ data, setData, errors }: Props) {
                 </FormField>
 
                 <FormField label="Nomor Rekening" error={errors.bank_account_number}>
-                    <TextInput
-                        type="text"
+                    <SensitiveInput
                         value={data.bank_account_number}
                         onChange={(e) => setData('bank_account_number', e.target.value)}
                     />

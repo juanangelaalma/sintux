@@ -82,10 +82,12 @@ class ContactController extends Controller
     {
         abort_unless(array_key_exists($type, self::TYPES), 404);
 
+        $dbType = self::TYPES[$type];
+
         return Inertia::render('Contact/edit', [
             'branches' => $this->accessibleBranches(),
             'type' => $type,
-            'contact' => $this->getContact->execute($id, $this->branchIds()),
+            'contact' => $this->getContact->execute($id, $this->branchIds(), $dbType),
         ]);
     }
 
@@ -111,7 +113,8 @@ class ContactController extends Controller
     {
         abort_unless(array_key_exists($type, self::TYPES), 404);
 
-        $this->updateContact->execute($id, $request->validated(), $this->branchIds());
+        $dbType = self::TYPES[$type];
+        $this->updateContact->execute($id, $request->validated(), $this->branchIds(), $dbType);
 
         return redirect()
             ->route('company.contacts.index', $type)
@@ -125,7 +128,8 @@ class ContactController extends Controller
     {
         abort_unless(array_key_exists($type, self::TYPES), 404);
 
-        $this->deleteContact->execute($id, $this->branchIds());
+        $dbType = self::TYPES[$type];
+        $this->deleteContact->execute($id, $this->branchIds(), $dbType);
 
         return redirect()->back()->with('success', 'Contact removed successfully.');
     }

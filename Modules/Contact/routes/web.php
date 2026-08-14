@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Contact\Http\Controllers\ContactController;
 
-Route::middleware(['auth', 'verified', 'company.member'])->group(function () {
+Route::middleware(['auth', 'company.member'])->group(function () {
     Route::get('company/contacts/{type}/create', [ContactController::class, 'create'])
         ->middleware('permission:contact.create')
         ->name('company.contacts.create');

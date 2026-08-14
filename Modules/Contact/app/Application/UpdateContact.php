@@ -2,6 +2,7 @@
 
 namespace Modules\Contact\Application;
 
+use Illuminate\Support\Facades\DB;
 use Modules\Contact\Models\Contact;
 
 class UpdateContact
@@ -16,24 +17,35 @@ class UpdateContact
      * @param  array<string, mixed>  $data
      * @param  list<int>  $branchIds
      */
-    public function execute(int $contactId, array $data, array $branchIds): Contact
+    public function execute(int $contactId, array $data, array $branchIds, string $expectedType = ''): Contact
     {
-        $contact = Contact::findOrFail($contactId);
+        return DB::transaction(function () use ($contactId, $data, $branchIds, $expectedType) {
+            /** @var Contact $contact */
+            $contact = Contact::lockForUpdate()->findOrFail($contactId);
 
-        abort_unless(in_array($contact->branch_id, $branchIds, true), 403);
+            if (! in_array($contact->branch_id, $branchIds, true)) {
+                abort(404);
+            }
 
-        if (array_key_exists('branch_id', $data)) {
-            abort_unless(in_array((int) $data['branch_id'], $branchIds, true), 403);
-        }
+            if ($expectedType !== '' && $contact->type !== $expectedType) {
+                abort(404);
+            }
 
-        if ($contact->type !== 'customer') {
-            $data['tier_relation'] = null;
-        }
+            if (array_key_exists('branch_id', $data)) {
+                if (! in_array((int) $data['branch_id'], $branchIds, true)) {
+                    abort(404);
+                }
+            }
 
-        $contact->update($data);
+            if ($contact->type !== 'customer') {
+                $data['tier_relation'] = null;
+            }
 
-        $this->syncContactAddresses->execute($contact, $data);
+            $contact->update($data);
 
-        return $contact;
+            $this->syncContactAddresses->execute($contact, $data);
+
+            return $contact;
+        });
     }
 }
