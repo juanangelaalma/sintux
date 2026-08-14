@@ -96,11 +96,12 @@ class RolePermissionSeeder extends Seeder
             ],
             'member' => ['dashboard.view'],
             'sales_admin' => ['dashboard.view', 'contact.view', 'contact.create', 'contact.update', 'contact.delete', 'product.view'],
-            'warehouse_admin' => ['dashboard.view', 'product.view', 'product.create', 'product.update', 'product.delete', 'warehouse.view', 'warehouse.create', 'warehouse.update', 'warehouse.delete', 'warehouse.stock.view', 'warehouse.stock.manage', 'warehouse.stock.request', 'warehouse.stock.request.approve', 'warehouse.stock.transfer'],
+            'warehouse_admin' => ['dashboard.view', 'product.view', 'product.create', 'product.update', 'product.delete', 'warehouse.view', 'warehouse.create', 'warehouse.update', 'warehouse.delete', 'warehouse.stock.view', 'warehouse.stock.manage', 'warehouse.stock.request', 'warehouse.stock.request.approve', 'warehouse.stock.transfer', 'contact.view'],
             'finance' => ['dashboard.view', 'contact.view', 'finance.transaction.view', 'finance.transaction.manage', 'fiscal.report.view'],
             'fiscal' => ['dashboard.view', 'fiscal.report.view'],
             'accounting' => ['dashboard.view', 'contact.view', 'accounting.account.view', 'accounting.account.manage', 'accounting.journal.view', 'accounting.journal.manage', 'finance.transaction.view'],
-            'inventory_staff' => ['dashboard.view', 'product.view', 'warehouse.view', 'warehouse.stock.view', 'warehouse.stock.request'],
+            'cashier' => ['dashboard.view', 'sales.order.view', 'sales.order.create', 'contact.view', 'contact.create'],
+            'inventory_staff' => ['dashboard.view', 'product.view', 'warehouse.view', 'warehouse.stock.view', 'warehouse.stock.request', 'contact.view'],
         ];
 
         foreach ($roles as $role) {
