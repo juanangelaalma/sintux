@@ -22,17 +22,8 @@ class ContactBranchScopeTest extends TestCase
             tenancy()->end();
         }
 
-        /*
-         * Remove tenant schemas left behind by previous
-         * failed/interrupted tests.
-         */
         $this->dropLeftoverSchemas();
-
-        /*
-         * Clean central tables in FK-safe order.
-         */
         $this->cleanupCentralTables();
-
         $this->seed(RolePermissionSeeder::class);
     }
 
