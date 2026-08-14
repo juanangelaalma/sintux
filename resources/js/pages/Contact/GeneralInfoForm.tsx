@@ -2,6 +2,7 @@ import AddressMapPicker from '@/components/address/address-map-picker';
 import AddressSearch from '@/components/address/address-search';
 import FormField from '@/components/ui/form-field';
 import SelectInput from '@/components/ui/select-input';
+import SensitiveInput from '@/components/ui/sensitive-input';
 import TextInput from '@/components/ui/text-input';
 import type { AddressValue } from '@/lib/nominatim';
 import { identityTypeOptions } from './types';
@@ -47,10 +48,10 @@ export default function GeneralInfoForm({
                 </FormField>
 
                 <FormField label="Nomor Identitas" error={errors.identity_number}>
-                    <TextInput
-                        type="text"
+                    <SensitiveInput
                         value={data.identity_number}
                         onChange={(e) => setData('identity_number', e.target.value)}
+                        placeholder="Contoh: 3171012345670001"
                     />
                 </FormField>
 
@@ -95,10 +96,10 @@ export default function GeneralInfoForm({
                 </FormField>
 
                 <FormField label="No NPWP" error={errors.npwp}>
-                    <TextInput
-                        type="text"
+                    <SensitiveInput
                         value={data.npwp}
                         onChange={(e) => setData('npwp', e.target.value)}
+                        placeholder="Contoh: 01.234.567.8-901.000"
                     />
                 </FormField>
             </div>

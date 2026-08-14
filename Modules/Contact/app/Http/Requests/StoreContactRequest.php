@@ -12,7 +12,10 @@ class StoreContactRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->check();
+        $user = auth()->user();
+        $tenantId = (string) tenant('id');
+
+        return $user !== null && CompanyAccess::hasMembership($user, $tenantId);
     }
 
     /**
@@ -33,7 +36,7 @@ class StoreContactRequest extends FormRequest
             'telephone' => ['nullable', 'string', 'max:50'],
             'fax' => ['nullable', 'string', 'max:50'],
             'npwp' => ['nullable', 'string', 'max:30'],
-            'notes' => ['nullable', 'string'],
+            'notes' => ['nullable', 'string', 'max:5000'],
             'bank_name' => ['nullable', 'string', 'max:255'],
             'bank_branch' => ['nullable', 'string', 'max:255'],
             'bank_account_name' => ['nullable', 'string', 'max:255'],
@@ -66,12 +69,16 @@ class StoreContactRequest extends FormRequest
     }
 
     /**
-     * Closure that rejects branch ids outside the user's accessible branches.
+     * Closure that rejects branch ids outside the user's active context branch scope.
      */
     private function branchAccessibleRule(): \Closure
     {
         return function (string $attribute, mixed $value, \Closure $fail): void {
-            $branchIds = CompanyAccess::accessibleBranchIds(auth()->user(), (string) tenant('id'));
+            $tenantId = (string) tenant('id');
+            $user = auth()->user();
+
+            $branchIds = CompanyAccess::contextBranchIds($user, $tenantId)
+                ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
 
             if (! in_array((int) $value, $branchIds, true)) {
                 $fail('The selected branch is not accessible.');

@@ -16,11 +16,17 @@ class GetContact
      * @param  list<int>  $branchIds
      * @return array<string, mixed>
      */
-    public function execute(int $id, array $branchIds): array
+    public function execute(int $id, array $branchIds, string $expectedType = ''): array
     {
-        $contact = Contact::with(['billingAddress', 'shippingAddress'])->findOrFail($id);
+        $contact = Contact::findOrFail($id);
 
-        abort_unless(in_array($contact->branch_id, $branchIds, true), 403);
+        if (! in_array($contact->branch_id, $branchIds, true)) {
+            abort(404);
+        }
+
+        if ($expectedType !== '' && $contact->type !== $expectedType) {
+            abort(404);
+        }
 
         return $this->presenter->serializeForDetail($contact);
     }
