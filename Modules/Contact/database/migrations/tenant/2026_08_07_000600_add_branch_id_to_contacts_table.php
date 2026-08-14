@@ -12,14 +12,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Contacts were created without a branch; the data is experimental and
-        // cannot be scoped, so it is discarded.
-        DB::table('contacts')->delete();
-
         Schema::table('contacts', function (Blueprint $table) {
-            $table->unsignedBigInteger('branch_id')->after('id');
+            $table->unsignedBigInteger('branch_id')->nullable()->after('id');
             $table->index('branch_id');
         });
+
+        // Backfill existing contacts to the tenant's headquarters branch (or the
+        // first active branch) instead of discarding them. No data is deleted.
+        $defaultBranchId = DB::table('branches')
+            ->where('is_active', true)
+            ->orderByDesc('is_headquarters')
+            ->orderBy('id')
+            ->value('id');
+
+        if ($defaultBranchId !== null) {
+            DB::table('contacts')->whereNull('branch_id')->update(['branch_id' => $defaultBranchId]);
+        }
     }
 
     /**
