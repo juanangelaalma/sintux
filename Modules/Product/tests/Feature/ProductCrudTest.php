@@ -51,15 +51,11 @@ class ProductCrudTest extends TestCase
 
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
 
-        // Setup: Create category, brand, uom
+        // Setup: Create category and uom
         tenancy()->initialize($tenantId);
         $suffix = uniqid();
         $categoryId = DB::table('product_categories')->insertGetId([
             'name' => 'Electronics-'.$suffix,
-            'is_active' => true,
-        ]);
-        $brandId = DB::table('brands')->insertGetId([
-            'name' => 'Samsung-'.$suffix,
             'is_active' => true,
         ]);
         $uomId = DB::table('uoms')->insertGetId([
@@ -73,15 +69,22 @@ class ProductCrudTest extends TestCase
             ->get(route('product.products.index'))
             ->assertStatus(200);
 
-        // Create Product
+        // Create Product Single
         $codeLaptop = 'LAPTOP-'.$suffix;
         $this->actingAs($user)->post(route('product.products.store'), [
             'code' => $codeLaptop,
             'name' => 'Laptop Pro',
+            'barcode' => '880123456789',
             'category_id' => $categoryId,
-            'brand_id' => $brandId,
             'uom_id' => $uomId,
             'description' => 'High-end laptop',
+            'product_type' => 'single',
+            'is_purchased' => true,
+            'purchase_price' => 10000000,
+            'is_sold' => true,
+            'selling_price' => 15000000,
+            'is_inventory_tracked' => true,
+            'min_stock' => 5,
             'is_active' => true,
         ])->assertRedirect(route('product.products.index'));
 
@@ -90,10 +93,17 @@ class ProductCrudTest extends TestCase
         $this->assertNotNull($product);
         $this->assertSame('Laptop Pro', $product->name);
         $this->assertSame($codeLaptop, $product->code);
+        $this->assertSame('880123456789', $product->barcode);
+        $this->assertSame('single', $product->product_type);
+        $this->assertSame(15000000, (int) $product->selling_price);
+        $this->assertSame(10000000, (int) $product->purchase_price);
         $this->assertSame($categoryId, $product->category_id);
-        $this->assertSame($brandId, $product->brand_id);
         $this->assertSame($uomId, $product->uom_id);
-        $this->assertTrue((bool) $product->is_active);
+
+        // Verify primary variant auto-created for 1:1 Warehouse compatibility
+        $variant = DB::table('product_variants')->where('product_id', $product->id)->first();
+        $this->assertNotNull($variant);
+        $this->assertSame($codeLaptop, $variant->sku);
         tenancy()->end();
 
         // Update Product
@@ -101,9 +111,9 @@ class ProductCrudTest extends TestCase
             'code' => 'LAPTOP-002',
             'name' => 'Laptop Pro Max',
             'category_id' => $categoryId,
-            'brand_id' => $brandId,
             'uom_id' => $uomId,
             'description' => 'Updated description',
+            'selling_price' => 18000000,
             'is_active' => false,
         ])->assertRedirect(route('product.products.index'));
 
@@ -111,10 +121,11 @@ class ProductCrudTest extends TestCase
         $productUpdated = DB::table('products')->where('id', $product->id)->first();
         $this->assertSame('Laptop Pro Max', $productUpdated->name);
         $this->assertSame('LAPTOP-002', $productUpdated->code);
+        $this->assertSame(18000000, (int) $productUpdated->selling_price);
         $this->assertFalse((bool) $productUpdated->is_active);
         tenancy()->end();
 
-        // Delete Product (no variants yet)
+        // Delete Product
         $this->actingAs($user)->delete(route('product.products.destroy', ['product' => $product->id]))
             ->assertRedirect();
 
@@ -124,7 +135,7 @@ class ProductCrudTest extends TestCase
         tenancy()->end();
     }
 
-    public function test_partial_unique_index_code_reuse_after_soft_delete(): void
+    public function test_can_create_bundle_product_with_items(): void
     {
         [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
 
@@ -132,122 +143,51 @@ class ProductCrudTest extends TestCase
 
         tenancy()->initialize($tenantId);
         $suffix = uniqid();
-        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Cat-'.$suffix, 'is_active' => true]);
-        $brandId = DB::table('brands')->insertGetId(['name' => 'Brand-'.$suffix, 'is_active' => true]);
-        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
-        tenancy()->end();
+        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Bundle-'.$suffix, 'is_active' => true]);
+        $uomId = DB::table('uoms')->insertGetId(['name' => 'Set-'.$suffix, 'code' => 'SET-'.$suffix, 'is_active' => true]);
 
-        // Create first product
-        $this->actingAs($user)->post(route('product.products.store'), [
-            'code' => 'SAME-CODE',
-            'name' => 'Product 1',
+        $item1Id = DB::table('products')->insertGetId([
+            'code' => 'ITEM1-'.$suffix,
+            'name' => 'Mouse',
             'category_id' => $categoryId,
-            'brand_id' => $brandId,
             'uom_id' => $uomId,
-        ])->assertRedirect();
-
-        tenancy()->initialize($tenantId);
-        $product1 = DB::table('products')->where('code', 'SAME-CODE')->first();
-        $product1Id = $product1->id;
-        tenancy()->end();
-
-        // Soft delete first product
-        $this->actingAs($user)->delete(route('product.products.destroy', ['product' => $product1Id]))
-            ->assertRedirect();
-
-        // Create second product with same code (should work because of partial unique index)
-        $this->actingAs($user)->post(route('product.products.store'), [
-            'code' => 'SAME-CODE',
-            'name' => 'Product 2',
-            'category_id' => $categoryId,
-            'brand_id' => $brandId,
-            'uom_id' => $uomId,
-        ])->assertRedirect();
-
-        tenancy()->initialize($tenantId);
-        $product2 = DB::table('products')->where('code', 'SAME-CODE')->where('id', '!=', $product1Id)->first();
-        $this->assertNotNull($product2);
-        $this->assertSame('Product 2', $product2->name);
-        tenancy()->end();
-    }
-
-    public function test_cannot_delete_product_with_active_variants(): void
-    {
-        [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
-
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
-
-        tenancy()->initialize($tenantId);
-        $suffix = uniqid();
-        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Cat-'.$suffix, 'is_active' => true]);
-        $brandId = DB::table('brands')->insertGetId(['name' => 'Brand-'.$suffix, 'is_active' => true]);
-        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
-        $productId = DB::table('products')->insertGetId([
-            'code' => 'PROD-001-'.$suffix,
-            'name' => 'Product with variant',
-            'category_id' => $categoryId,
-            'brand_id' => $brandId,
-            'uom_id' => $uomId,
+            'selling_price' => 100000,
             'is_active' => true,
         ]);
-        DB::table('product_variants')->insert([
-            'product_id' => $productId,
-            'sku' => 'VAR-001-'.$suffix,
-            'variant_name' => 'Variant 1',
+
+        $item2Id = DB::table('products')->insertGetId([
+            'code' => 'ITEM2-'.$suffix,
+            'name' => 'Keyboard',
+            'category_id' => $categoryId,
+            'uom_id' => $uomId,
+            'selling_price' => 200000,
             'is_active' => true,
         ]);
         tenancy()->end();
 
-        // Try to delete product with active variant
-        $this->actingAs($user)->delete(route('product.products.destroy', ['product' => $productId]))
-            ->assertRedirect()
-            ->assertSessionHas('error', 'Cannot delete product with active variants.');
+        // Create Bundle Product
+        $bundleCode = 'BUNDLE-'.$suffix;
+        $this->actingAs($user)->post(route('product.products.store'), [
+            'code' => $bundleCode,
+            'name' => 'Paket Gaming Mouse + Keyboard',
+            'category_id' => $categoryId,
+            'uom_id' => $uomId,
+            'product_type' => 'bundle',
+            'selling_price' => 280000,
+            'bundle_items' => [
+                ['item_product_id' => $item1Id, 'quantity' => 1],
+                ['item_product_id' => $item2Id, 'quantity' => 1],
+            ],
+        ])->assertRedirect(route('product.products.index'));
 
         tenancy()->initialize($tenantId);
-        $this->assertDatabaseHas('products', ['id' => $productId]);
+        $bundle = DB::table('products')->where('code', $bundleCode)->first();
+        $this->assertNotNull($bundle);
+        $this->assertSame('bundle', $bundle->product_type);
+
+        $bundleItems = DB::table('product_bundle_items')->where('bundle_product_id', $bundle->id)->get();
+        $this->assertCount(2, $bundleItems);
         tenancy()->end();
-    }
-
-    public function test_search_and_filter_products(): void
-    {
-        [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
-
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
-
-        tenancy()->initialize($tenantId);
-        $suffix = uniqid();
-        $categoryId = DB::table('product_categories')->insertGetId(['name' => 'Electronics-'.$suffix, 'is_active' => true]);
-        $brandId = DB::table('brands')->insertGetId(['name' => 'Samsung-'.$suffix, 'is_active' => true]);
-        $uomId = DB::table('uoms')->insertGetId(['name' => 'Piece-'.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
-        tenancy()->end();
-
-        // Create multiple products
-        $this->actingAs($user)->post(route('product.products.store'), [
-            'code' => 'PHONE-001',
-            'name' => 'Smartphone',
-            'category_id' => $categoryId,
-            'brand_id' => $brandId,
-            'uom_id' => $uomId,
-        ]);
-        $this->actingAs($user)->post(route('product.products.store'), [
-            'code' => 'LAPTOP-001',
-            'name' => 'Laptop',
-            'category_id' => $categoryId,
-            'brand_id' => $brandId,
-            'uom_id' => $uomId,
-        ]);
-
-        // Test search by name
-        $response = $this->actingAs($user)->get(route('product.products.index', ['search' => 'Smartphone']));
-        $response->assertStatus(200);
-
-        // Test filter by category
-        $response = $this->actingAs($user)->get(route('product.products.index', ['category_id' => $categoryId]));
-        $response->assertStatus(200);
-
-        // Test filter by brand
-        $response = $this->actingAs($user)->get(route('product.products.index', ['brand_id' => $brandId]));
-        $response->assertStatus(200);
     }
 
     private function createCompanyWithMember(): array

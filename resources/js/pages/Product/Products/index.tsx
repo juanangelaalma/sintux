@@ -24,17 +24,16 @@ type Paginated<T> = {
 type Props = {
     products: Paginated<Product>;
     categories: CategoryOption[];
-    brands: BrandOption[];
     uoms: UomOption[];
     filters: {
         search?: string;
         category_id?: string;
-        brand_id?: string;
+        product_type?: string;
         is_active?: boolean;
     };
 };
 
-export default function Index({ products, categories, brands, uoms, filters }: Props) {
+export default function Index({ products, categories, uoms, filters }: Props) {
     const handleDelete = (product: Product) => {
         if (confirm(`Remove ${product.name}?`)) {
             router.delete(`/product/products/${product.id}`);
@@ -52,24 +51,37 @@ export default function Index({ products, categories, brands, uoms, filters }: P
     const columns: DataTableColumn<Product>[] = [
         {
             key: 'code',
-            header: 'Kode',
-            render: (product) => product.code,
-            cellClassName: 'font-medium text-gray-900 dark:text-white',
+            header: 'Kode / SKU',
+            render: (product) => <span className="font-mono text-xs font-semibold">{product.code}</span>,
         },
         {
             key: 'name',
             header: 'Nama',
-            render: (product) => product.name,
+            render: (product) => (
+                <div>
+                    <div className="font-semibold text-slate-900">{product.name}</div>
+                    {product.barcode && <div className="text-xs text-slate-500 font-mono">Barcode: {product.barcode}</div>}
+                </div>
+            ),
+        },
+        {
+            key: 'product_type',
+            header: 'Tipe Produk',
+            render: (product) =>
+                product.product_type === 'bundle' ? (
+                    <span className="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20">
+                        BUNDLE
+                    </span>
+                ) : (
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                        SINGLE
+                    </span>
+                ),
         },
         {
             key: 'category',
             header: 'Kategori',
             render: (product) => product.category?.name ?? '-',
-        },
-        {
-            key: 'brand',
-            header: 'Brand',
-            render: (product) => product.brand?.name ?? '-',
         },
         {
             key: 'uom',
@@ -159,16 +171,13 @@ export default function Index({ products, categories, brands, uoms, filters }: P
                     </div>
                     <div className="w-48">
                         <SelectInput
-                            id="brand_id"
-                            value={filters.brand_id ?? ''}
-                            onChange={(e) => applyFilters({ ...filters, brand_id: e.target.value })}
+                            id="product_type"
+                            value={filters.product_type ?? ''}
+                            onChange={(e) => applyFilters({ ...filters, product_type: e.target.value })}
                         >
-                            <option value="">Semua Brand</option>
-                            {brands.map((b) => (
-                                <option key={b.id} value={b.id}>
-                                    {b.name}
-                                </option>
-                            ))}
+                            <option value="">Semua Tipe</option>
+                            <option value="single">Single</option>
+                            <option value="bundle">Bundle</option>
                         </SelectInput>
                     </div>
                 </div>

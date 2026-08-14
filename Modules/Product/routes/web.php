@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Company\Http\Middleware\EnsureCompanyMember;
-use Modules\Product\Http\Controllers\BrandController;
 use Modules\Product\Http\Controllers\ProductCategoryController;
 use Modules\Product\Http\Controllers\ProductController;
 use Modules\Product\Http\Controllers\ProductHubController;
@@ -38,20 +37,10 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
             ])
             ->except(['show']);
 
-        // Brands
-        Route::resource('brands', BrandController::class)
-            ->parameters(['brands' => 'brand'])
-            ->names([
-                'index' => 'brands.index',
-                'create' => 'brands.create',
-                'store' => 'brands.store',
-                'edit' => 'brands.edit',
-                'update' => 'brands.update',
-                'destroy' => 'brands.destroy',
-            ])
-            ->except(['show']);
-
         // Products
+        Route::post('products/upload-image', [ProductController::class, 'uploadImage'])
+            ->name('products.upload-image');
+
         Route::resource('products', ProductController::class)
             ->parameters(['products' => 'product'])
             ->names([
@@ -64,7 +53,7 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
             ])
             ->except(['show']);
 
-        // Variants (nested under products)
+        // Variants (nested under products for 1:1 / variant compatibility)
         Route::prefix('products/{product}')->name('products.')->group(function () {
             Route::post('variants', [ProductVariantController::class, 'store'])->name('variants.store');
             Route::put('variants/{variant}', [ProductVariantController::class, 'update'])->name('variants.update');

@@ -3,8 +3,8 @@
 namespace Modules\Product\Http\Controllers;
 
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
-use Modules\Product\Application\Brand\GetBrands;
 use Modules\Product\Application\Category\GetCategories;
 use Modules\Product\Application\Product\CreateProduct;
 use Modules\Product\Application\Product\DeleteProduct;
@@ -15,6 +15,7 @@ use Modules\Product\Application\Uom\GetUoms;
 use Modules\Product\Application\Variant\GetVariants;
 use Modules\Product\Http\Requests\StoreProductRequest;
 use Modules\Product\Http\Requests\UpdateProductRequest;
+use Modules\Product\Http\Requests\UploadProductImageRequest;
 
 class ProductController extends Controller
 {
@@ -22,7 +23,6 @@ class ProductController extends Controller
         private readonly GetProducts $getProducts,
         private readonly GetProduct $getProduct,
         private readonly GetCategories $getCategories,
-        private readonly GetBrands $getBrands,
         private readonly GetUoms $getUoms,
         private readonly GetVariants $getVariants,
         private readonly CreateProduct $createProduct,
@@ -32,13 +32,12 @@ class ProductController extends Controller
 
     public function index()
     {
-        $filters = request()->only(['search', 'category_id', 'brand_id', 'is_active']);
+        $filters = request()->only(['search', 'category_id', 'product_type', 'is_active']);
         $products = $this->getProducts->execute($filters);
 
         return Inertia::render('Product/Products/index', [
             'products' => $products,
             'categories' => $this->getCategories->all(),
-            'brands' => $this->getBrands->all(),
             'uoms' => $this->getUoms->all(),
             'filters' => $filters,
         ]);
@@ -46,10 +45,13 @@ class ProductController extends Controller
 
     public function create()
     {
+        // Get all single products for bundle selection
+        $allProducts = $this->getProducts->execute(['is_active' => true]);
+
         return Inertia::render('Product/Products/create', [
             'categories' => $this->getCategories->all(),
-            'brands' => $this->getBrands->all(),
             'uoms' => $this->getUoms->all(),
+            'availableProducts' => $allProducts['data'] ?? [],
         ]);
     }
 
@@ -65,13 +67,17 @@ class ProductController extends Controller
     {
         $product = $this->getProduct->execute($id);
         $variants = $this->getVariants->execute($id);
+        $allProducts = $this->getProducts->execute(['is_active' => true]);
 
         return Inertia::render('Product/Products/edit', [
             'product' => $product,
             'variants' => $variants,
             'categories' => $this->getCategories->all(false),
-            'brands' => $this->getBrands->all(false),
             'uoms' => $this->getUoms->all(false),
+            'availableProducts' => array_values(array_filter(
+                $allProducts['data'] ?? [],
+                fn ($p) => $p['id'] !== $id
+            )),
         ]);
     }
 
@@ -88,9 +94,27 @@ class ProductController extends Controller
         $deleted = $this->deleteProduct->execute($id);
 
         if (! $deleted) {
-            return redirect()->back()->with('error', 'Cannot delete product with active variants.');
+            return redirect()->back()->with('error', 'Cannot delete product.');
         }
 
         return redirect()->back()->with('success', 'Product deleted successfully.');
+    }
+
+    /**
+     * Securely handle product image upload.
+     */
+    public function uploadImage(UploadProductImageRequest $request)
+    {
+        $file = $request->file('image');
+
+        // Store file securely with hashed unique filename in 'public/products/images'
+        $path = $file->store('products/images', 'public');
+        $url = Storage::url($path);
+
+        return response()->json([
+            'success' => true,
+            'path' => $path,
+            'url' => $url,
+        ]);
     }
 }

@@ -1,0 +1,12 @@
+{
+    "name": "Warehouse",
+    "alias": "warehouse",
+    "description": "Warehouse and stock balance management",
+    "keywords": [],
+    "priority": 0,
+    "requires": ["Product"],
+    "providers": [
+        "Modules\\Warehouse\\Providers\\WarehouseServiceProvider"
+    ],
+    "files": []
+}

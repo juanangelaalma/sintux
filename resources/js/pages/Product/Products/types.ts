@@ -1,37 +1,72 @@
+export type ProductBundleItem = {
+    id?: number;
+    bundle_product_id?: number;
+    item_product_id: number;
+    quantity: number;
+    item_product?: Product;
+};
+
 export type Product = {
     id: number;
     code: string;
     name: string;
+    barcode?: string | null;
     category_id: number;
-    brand_id: number | null;
     uom_id: number;
-    description: string | null;
+    description?: string | null;
+    image_path?: string | null;
+    product_type: 'single' | 'bundle';
+    is_purchased: boolean;
+    purchase_price: number;
+    purchase_account_id?: number | null;
+    purchase_tax_id?: number | null;
+    is_sold: boolean;
+    selling_price: number;
+    sales_account_id?: number | null;
+    sales_tax_id?: number | null;
+    is_inventory_tracked: boolean;
+    min_stock: number;
+    inventory_account_id?: number | null;
     is_active: boolean;
-    category: {
+    category?: {
         id: number;
         name: string;
     };
-    brand: {
-        id: number;
-        name: string;
-    } | null;
-    uom: {
+    uom?: {
         id: number;
         name: string;
         code: string;
     };
-    created_at: string;
-    updated_at: string;
+    bundle_items?: ProductBundleItem[];
+    created_at?: string;
+    updated_at?: string;
 };
 
 export type ProductForm = {
     code: string;
     name: string;
+    barcode: string;
     category_id: number;
-    brand_id: number | null;
     uom_id: number;
     description: string;
+    image_path: string;
+    product_type: 'single' | 'bundle';
+    is_purchased: boolean;
+    purchase_price: number;
+    purchase_account_id: number | null;
+    purchase_tax_id: number | null;
+    is_sold: boolean;
+    selling_price: number;
+    sales_account_id: number | null;
+    sales_tax_id: number | null;
+    is_inventory_tracked: boolean;
+    min_stock: number;
+    inventory_account_id: number | null;
     is_active: boolean;
+    bundle_items: Array<{
+        item_product_id: number;
+        quantity: number;
+    }>;
 };
 
 export type ProductVariant = {
@@ -39,22 +74,12 @@ export type ProductVariant = {
     product_id: number;
     sku: string;
     variant_name: string;
-    attributes: Record<string, unknown> | null;
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
-};
-
-export type ProductVariantForm = {
-    product_id: number;
-    sku: string;
-    variant_name: string;
-    attributes: object | null;
+    attributes?: Record<string, unknown> | null;
     is_active: boolean;
 };
 
 export const productLabels = {
     singular: 'Produk',
     plural: 'Produk',
-    description: 'Kelola produk dan varian.',
+    description: 'Kelola data produk, persediaan stok, HPP, dan paket bundle.',
 };

@@ -8,6 +8,10 @@ class GetProduct
 {
     public function execute(int $id): ?Product
     {
-        return Product::with(['category', 'brand', 'uom'])->find($id);
+        return Product::with([
+            'category',
+            'uom',
+            'bundleItems.itemProduct.uom',
+        ])->find($id);
     }
 }

@@ -2,14 +2,18 @@
 
 namespace Modules\Product\Application\Product;
 
-use Illuminate\Support\Facades\DB;
-use Modules\Product\Models\Product;
-use Modules\Warehouse\Models\StockBalance;
-use Modules\Warehouse\Models\StockRequest;
-use Modules\Warehouse\Models\Warehouse;
+use Modules\Warehouse\Application\StockBalance\GetStockBalances;
+use Modules\Warehouse\Application\StockRequest\GetStockRequests;
+use Modules\Warehouse\Application\Warehouse\GetWarehouses;
 
 class GetProductStats
 {
+    public function __construct(
+        private readonly GetWarehouses $getWarehouses,
+        private readonly GetStockBalances $getStockBalances,
+        private readonly GetStockRequests $getStockRequests,
+    ) {}
+
     /**
      * Get aggregate statistics for Product Hub Dashboard Cards.
      *
@@ -24,36 +28,17 @@ class GetProductStats
      */
     public function execute(array $accessibleBranchIds): array
     {
-        $totalProducts = Product::where('is_active', true)->count();
+        $warehouseIds = $this->getWarehouses->warehouseIdsByBranches($accessibleBranchIds);
 
-        // Calculate aggregated stock across accessible branch warehouses
-        $warehouseIds = Warehouse::whereIn('branch_id', $accessibleBranchIds)
-            ->pluck('id');
-
-        $stockStats = StockBalance::whereIn('warehouse_id', $warehouseIds)
-            ->selectRaw('
-                COUNT(CASE WHEN qty_on_hand > 5 THEN 1 END) as available_count,
-                COUNT(CASE WHEN qty_on_hand > 0 AND qty_on_hand <= 5 THEN 1 END) as low_stock_count,
-                COUNT(CASE WHEN qty_on_hand = 0 THEN 1 END) as out_of_stock_count
-            ')
-            ->first();
-
-        $availableCount = (int) ($stockStats->available_count ?? $totalProducts);
-        $lowStockCount = (int) ($stockStats->low_stock_count ?? 0);
-        $outOfStockCount = (int) ($stockStats->out_of_stock_count ?? 0);
-
-        $warehousesCount = Warehouse::whereIn('branch_id', $accessibleBranchIds)->count();
-
-        $pendingRequestsCount = StockRequest::whereHas('requestingWarehouse', function ($q) use ($accessibleBranchIds) {
-            $q->whereIn('branch_id', $accessibleBranchIds);
-        })->where('status', 'pending')->count();
+        $threshold = (int) config('product.low_stock_threshold', 5);
+        $stockCounts = $this->getStockBalances->aggregateCountsByWarehouseIds($warehouseIds, $threshold);
 
         return [
-            'available_count' => $availableCount,
-            'low_stock_count' => $lowStockCount,
-            'out_of_stock_count' => $outOfStockCount,
-            'warehouses_count' => $warehousesCount,
-            'pending_requests_count' => $pendingRequestsCount,
+            'available_count' => $stockCounts['available_count'],
+            'low_stock_count' => $stockCounts['low_stock_count'],
+            'out_of_stock_count' => $stockCounts['out_of_stock_count'],
+            'warehouses_count' => $this->getWarehouses->countByBranchIds($accessibleBranchIds),
+            'pending_requests_count' => $this->getStockRequests->pendingCountByBranchIds($accessibleBranchIds),
         ];
     }
 }

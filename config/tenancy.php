@@ -183,10 +183,10 @@ return [
      */
     'migration_parameters' => [
         '--force' => true, // This needs to be true to run migrations in production.
-        '--path' => [
-            database_path('migrations/tenant'),
-            base_path('Modules/Accounting/database/migrations/tenant'),
-        ],
+        '--path' => array_merge(
+            [database_path('migrations/tenant')],
+            glob(base_path('Modules/*/database/migrations/tenant')) ?: []
+        ),
         '--realpath' => true,
     ],
 

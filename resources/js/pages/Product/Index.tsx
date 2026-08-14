@@ -1,11 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import PageHeader from '@/components/ui/page-header';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { ProductActionsDropdown } from './components/product-actions-dropdown';
 import { ProductSummaryCards } from './components/product-summary-cards';
 import { ItemsTab } from './components/tabs/items-tab';
-import { MasterDataTab } from './components/tabs/master-data-tab';
 import { WarehouseTab } from './components/tabs/warehouse-tab';
 
 type ProductStats = {
@@ -18,16 +17,17 @@ type ProductStats = {
 
 type Props = {
     stats: ProductStats;
-    activeTab: string; // 'items' | 'gudang' | 'master'
+    activeTab: string; // 'items' | 'gudang' | 'pricing'
     subTab: string;
     filters: Record<string, any>;
     products: any;
     categories: any[];
-    brands: any[];
     uoms: any[];
     warehouses: any[];
     stockBalances: any;
     stockRequests: any;
+    stockAdjustments?: any;
+    stockTransfers?: any;
 };
 
 export default function ProductIndex({
@@ -37,12 +37,15 @@ export default function ProductIndex({
     filters,
     products,
     categories,
-    brands,
     uoms,
     warehouses,
     stockBalances,
     stockRequests,
+    stockAdjustments,
+    stockTransfers,
 }: Props) {
+    const [showBanner, setShowBanner] = useState(true);
+
     const handleTabChange = (tab: string, defaultSub: string) => {
         router.get('/product', { tab, sub: defaultSub }, { preserveState: true });
     };
@@ -55,89 +58,99 @@ export default function ProductIndex({
                 {/* Header & Quick Action */}
                 <PageHeader
                     title="Produk"
-                    description="Manajemen katalog barang, varian, lokasi gudang, persediaan stok, dan pengajuan transfer."
+                    description="Manajemen katalog barang, persediaan stok, HPP, paket bundle, dan pengajuan transfer."
                     actions={<ProductActionsDropdown />}
                 />
 
-                {/* Summary KPI Cards */}
-                <ProductSummaryCards stats={stats} />
+                {/* Level-1 Top Navigation Bar (Matching Image 1) */}
+                <div className="border-b border-slate-200 pb-2">
+                    <nav className="flex space-x-6 text-sm font-semibold">
+                        <button
+                            type="button"
+                            onClick={() => handleTabChange('items', 'products')}
+                            className={`pb-2 border-b-2 transition-all ${
+                                activeTab === 'items'
+                                    ? 'border-indigo-600 text-indigo-600 font-bold'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                            Barang & jasa
+                        </button>
 
-                {/* Main Level-1 Tabbed Hub Bar */}
-                <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="border-b border-slate-200 pb-4 mb-6">
-                        <nav className="flex space-x-6" aria-label="Tabs">
-                            <button
-                                type="button"
-                                onClick={() => handleTabChange('items', 'products')}
-                                className={`pb-2 text-base font-bold transition-all border-b-2 ${
-                                    activeTab === 'items'
-                                        ? 'border-indigo-600 text-indigo-600'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                                }`}
-                            >
-                                Barang & Jasa
-                            </button>
+                        <button
+                            type="button"
+                            onClick={() => handleTabChange('gudang', 'warehouses')}
+                            className={`pb-2 border-b-2 flex items-center gap-2 transition-all ${
+                                activeTab === 'gudang'
+                                    ? 'border-indigo-600 text-indigo-600 font-bold'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                            <span>Gudang</span>
+                            {stats.pending_requests_count > 0 && (
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                                    {stats.pending_requests_count}
+                                </span>
+                            )}
+                        </button>
 
-                            <button
-                                type="button"
-                                onClick={() => handleTabChange('gudang', 'warehouses')}
-                                className={`pb-2 text-base font-bold transition-all border-b-2 flex items-center gap-2 ${
-                                    activeTab === 'gudang'
-                                        ? 'border-indigo-600 text-indigo-600'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                                }`}
-                            >
-                                <span>Gudang</span>
-                                {stats.pending_requests_count > 0 && (
-                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                                        {stats.pending_requests_count}
-                                    </span>
-                                )}
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => handleTabChange('master', 'categories')}
-                                className={`pb-2 text-base font-bold transition-all border-b-2 ${
-                                    activeTab === 'master'
-                                        ? 'border-indigo-600 text-indigo-600'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                                }`}
-                            >
-                                Master Data
-                            </button>
-                        </nav>
-                    </div>
-
-                    {/* Tab Views */}
-                    {activeTab === 'items' && (
-                        <ItemsTab
-                            products={products}
-                            categories={categories}
-                            brands={brands}
-                            uoms={uoms}
-                            filters={filters}
-                        />
-                    )}
-
-                    {activeTab === 'gudang' && (
-                        <WarehouseTab
-                            subTab={subTab}
-                            warehouses={warehouses}
-                            stockBalances={stockBalances}
-                            stockRequests={stockRequests}
-                        />
-                    )}
-
-                    {activeTab === 'master' && (
-                        <MasterDataTab
-                            subTab={subTab}
-                            categories={categories}
-                            uoms={uoms}
-                            brands={brands}
-                        />
-                    )}
+                        <button
+                            type="button"
+                            onClick={() => handleTabChange('pricing', 'rules')}
+                            className={`pb-2 border-b-2 transition-all ${
+                                activeTab === 'pricing'
+                                    ? 'border-indigo-600 text-indigo-600 font-bold'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                            Aturan harga
+                        </button>
+                    </nav>
                 </div>
+
+                {/* Main Content Areas */}
+                {activeTab === 'items' && (
+                    <div className="space-y-6">
+                        {/* Summary KPI Cards (Image 1 Style) */}
+                        <ProductSummaryCards stats={stats} />
+
+                        {/* Items Table Container */}
+                        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <ItemsTab
+                                products={products}
+                                categories={categories}
+                                uoms={uoms}
+                                filters={filters}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'gudang' && (
+                    <div className="space-y-6">
+                        <ProductSummaryCards stats={stats} />
+                        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <WarehouseTab
+                                subTab={subTab}
+                                warehouses={warehouses}
+                                stockBalances={stockBalances}
+                                stockRequests={stockRequests}
+                                stockAdjustments={stockAdjustments}
+                                stockTransfers={stockTransfers}
+                                filters={filters}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'pricing' && (
+                    <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm text-center space-y-3">
+                        <h3 className="text-base font-bold text-slate-800">Aturan Harga & Multi Harga</h3>
+                        <p className="text-xs text-slate-500 max-w-md mx-auto">
+                            Fitur Aturan Harga memungkinkan pengaturan diskon bertingkat, daftar harga grosir, dan harga per kelompok pelanggan.
+                        </p>
+                    </div>
+                )}
             </div>
         </CompanyLayout>
     );

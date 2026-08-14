@@ -39,6 +39,10 @@ export const ProductActionsDropdown: React.FC = () => {
                         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Aksi Cepat</p>
                     </div>
 
+                    <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Produk</p>
+                    </div>
+
                     <Link
                         href="/product/products/create"
                         className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-200 dark:hover:bg-gray-700"
@@ -49,6 +53,10 @@ export const ProductActionsDropdown: React.FC = () => {
                         <span>Tambah Produk Baru</span>
                     </Link>
 
+                    <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Gudang</p>
+                    </div>
+
                     <Link
                         href="/warehouse/warehouses/create"
                         className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-200 dark:hover:bg-gray-700"
@@ -57,6 +65,16 @@ export const ProductActionsDropdown: React.FC = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
                         <span>Tambah Gudang Baru</span>
+                    </Link>
+
+                    <Link
+                        href="/warehouse/adjustments/create"
+                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                        <svg className="size-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <span>Penyesuaian Stok (Opname)</span>
                     </Link>
 
                     <Link
@@ -80,27 +98,6 @@ export const ProductActionsDropdown: React.FC = () => {
                     </Link>
 
                     <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
-
-                    <Link
-                        href="/product?tab=master&sub=categories"
-                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                        <span>Atur Kategori Produk</span>
-                    </Link>
-
-                    <Link
-                        href="/product?tab=master&sub=uoms"
-                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                        <span>Atur Satuan (UOM)</span>
-                    </Link>
-
-                    <Link
-                        href="/product?tab=master&sub=brands"
-                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                        <span>Atur Brand</span>
-                    </Link>
                 </div>
             )}
         </div>
