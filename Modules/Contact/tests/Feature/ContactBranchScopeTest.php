@@ -108,15 +108,15 @@ class ContactBranchScopeTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('company.contacts.edit', ['type' => 'customers', 'id' => $foreignId]))
-            ->assertStatus(403);
+            ->assertStatus(404);
 
         $this->actingAs($user)
             ->put(route('company.contacts.update', ['type' => 'customers', 'id' => $foreignId]), ['name' => 'Nope'])
-            ->assertStatus(403);
+            ->assertStatus(404);
 
         $this->actingAs($user)
             ->delete(route('company.contacts.destroy', ['type' => 'customers', 'id' => $foreignId]))
-            ->assertStatus(403);
+            ->assertStatus(404);
     }
 
     public function test_store_contact_with_inaccessible_branch_is_rejected(): void
