@@ -10,9 +10,18 @@ use Tests\TestCase;
 
 class TenantAuthTest extends TestCase
 {
+    private const SCHEMA_NAME = 'company_test_auth';
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        if (tenancy()->initialized) {
+            tenancy()->end();
+        }
+
+        DB::statement('DROP SCHEMA IF EXISTS "'.self::SCHEMA_NAME.'" CASCADE');
+
         // Clean tables
         DB::table('company_users')->delete();
         DB::table('domains')->delete();
@@ -32,15 +41,8 @@ class TenantAuthTest extends TestCase
         $tenant = Tenant::create([
             'id' => 'test-tenant',
             'name' => 'Test Company',
-            'schema_name' => 'company_test_auth',
+            'schema_name' => self::SCHEMA_NAME,
         ]);
-
-        $tenant->database()->makeCredentials();
-        try {
-            $tenant->database()->manager()->createDatabase($tenant);
-        } catch (\Exception $e) {
-            dump($e->getMessage());
-        }
 
         CompanyUser::create([
             'user_id' => $user->id,

@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
 
@@ -28,7 +29,7 @@ class StockMovementTest extends TestCase
         DB::table('tenants')->delete();
         DB::table('users')->delete();
 
-        $this->seed(\Modules\Company\Database\Seeders\RolePermissionSeeder::class);
+        $this->seed(RolePermissionSeeder::class);
     }
 
     protected function tearDown(): void
@@ -63,7 +64,7 @@ class StockMovementTest extends TestCase
 
         $warehouseId = DB::table('warehouses')->insertGetId([
             'branch_id' => $hqBranchId,
-            'code' => 'WH-TEST-' . uniqid(),
+            'code' => 'WH-TEST-'.uniqid(),
             'name' => 'Test Warehouse',
             'warehouse_type' => 'general',
             'is_active' => true,
@@ -72,23 +73,23 @@ class StockMovementTest extends TestCase
         ]);
 
         $catId = DB::table('product_categories')->insertGetId([
-            'name' => 'Cat ' . uniqid(),
+            'name' => 'Cat '.uniqid(),
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $uomId = DB::table('uoms')->insertGetId([
-            'name' => 'PCS ' . uniqid(),
-            'code' => 'PCS' . uniqid(),
+            'name' => 'PCS '.uniqid(),
+            'code' => 'PCS'.uniqid(),
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $productId = DB::table('products')->insertGetId([
-            'code' => 'PRD-' . uniqid(),
-            'name' => 'Movement Item ' . uniqid(),
+            'code' => 'PRD-'.uniqid(),
+            'name' => 'Movement Item '.uniqid(),
             'category_id' => $catId,
             'uom_id' => $uomId,
             'is_active' => true,
@@ -98,8 +99,8 @@ class StockMovementTest extends TestCase
 
         $variantId = DB::table('product_variants')->insertGetId([
             'product_id' => $productId,
-            'sku' => 'SKU-MVT-' . uniqid(),
-            'variant_name' => 'Variant Mvt ' . uniqid(),
+            'sku' => 'SKU-MVT-'.uniqid(),
+            'variant_name' => 'Variant Mvt '.uniqid(),
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
@@ -156,7 +157,7 @@ class StockMovementTest extends TestCase
     private function createCompanyWithMember(): array
     {
         $id = uniqid('mvt_');
-        $schemaName = 'sch_' . $id;
+        $schemaName = 'sch_'.$id;
 
         $this->activeSchemaName = $schemaName;
 
@@ -191,7 +192,7 @@ class StockMovementTest extends TestCase
         tenancy()->end();
 
         $user = User::factory()->create([
-            'email' => 'owner_' . $id . '@acme.test',
+            'email' => 'owner_'.$id.'@acme.test',
             'role' => 'user',
         ]);
 
@@ -217,7 +218,7 @@ class StockMovementTest extends TestCase
     private function dropSchema(string $schemaName): void
     {
         try {
-            DB::statement('DROP SCHEMA IF EXISTS "' . $schemaName . '" CASCADE');
+            DB::statement('DROP SCHEMA IF EXISTS "'.$schemaName.'" CASCADE');
         } catch (\Exception $e) {
             // Ignore cleanup failures.
         }

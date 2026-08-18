@@ -71,13 +71,13 @@ class WarehouseCrudTest extends TestCase
             ->get(route('warehouse.warehouses.index'))
             ->assertStatus(200);
 
-        $createCode = 'WH-HQ-' . $suffix;
+        $createCode = 'WH-HQ-'.$suffix;
 
         $this->actingAs($user)
             ->post(route('warehouse.warehouses.store'), [
                 'branch_id' => $branchId,
                 'code' => $createCode,
-                'name' => 'Gudang Utama-' . $suffix,
+                'name' => 'Gudang Utama-'.$suffix,
                 'warehouse_type' => 'regular',
                 'address' => 'Jl. Sudirman',
                 'is_active' => true,
@@ -92,7 +92,7 @@ class WarehouseCrudTest extends TestCase
 
         $this->assertNotNull($warehouse);
         $this->assertSame(
-            'Gudang Utama-' . $suffix,
+            'Gudang Utama-'.$suffix,
             $warehouse->name
         );
         $this->assertSame(
@@ -105,7 +105,7 @@ class WarehouseCrudTest extends TestCase
         /*
          * UPDATE
          */
-        $updateCode = 'WH-HQ-UPD-' . $suffix;
+        $updateCode = 'WH-HQ-UPD-'.$suffix;
 
         $this->actingAs($user)
             ->put(
@@ -116,7 +116,7 @@ class WarehouseCrudTest extends TestCase
                 [
                     'branch_id' => $branchId,
                     'code' => $updateCode,
-                    'name' => 'Gudang Cadangan-' . $suffix,
+                    'name' => 'Gudang Cadangan-'.$suffix,
                     'warehouse_type' => 'general',
                     'address' => 'Jl. Thamrin',
                     'is_active' => false,
@@ -133,7 +133,7 @@ class WarehouseCrudTest extends TestCase
         $this->assertNotNull($updated);
         $this->assertSame($updateCode, $updated->code);
         $this->assertSame(
-            'Gudang Cadangan-' . $suffix,
+            'Gudang Cadangan-'.$suffix,
             $updated->name
         );
         $this->assertSame(
@@ -176,7 +176,7 @@ class WarehouseCrudTest extends TestCase
         ]);
 
         $suffix = uniqid();
-        $duplicateCode = 'WH-DUP-' . $suffix;
+        $duplicateCode = 'WH-DUP-'.$suffix;
 
         /*
          * Create the first warehouse.
@@ -185,7 +185,7 @@ class WarehouseCrudTest extends TestCase
             ->post(route('warehouse.warehouses.store'), [
                 'branch_id' => $branchId,
                 'code' => $duplicateCode,
-                'name' => 'Gudang 1-' . $suffix,
+                'name' => 'Gudang 1-'.$suffix,
                 'warehouse_type' => 'general',
             ])
             ->assertRedirect();
@@ -198,7 +198,7 @@ class WarehouseCrudTest extends TestCase
             ->post(route('warehouse.warehouses.store'), [
                 'branch_id' => $branchId,
                 'code' => $duplicateCode,
-                'name' => 'Gudang 2-' . $suffix,
+                'name' => 'Gudang 2-'.$suffix,
                 'warehouse_type' => 'bunker',
             ])
             ->assertSessionHasErrors([
@@ -216,8 +216,8 @@ class WarehouseCrudTest extends TestCase
         tenancy()->initialize($tenantId);
 
         $nonHqBranchId = DB::table('branches')->insertGetId([
-            'name' => 'Non HQ Branch-' . $suffix,
-            'code' => 'BR-NONHQ-' . $suffix,
+            'name' => 'Non HQ Branch-'.$suffix,
+            'code' => 'BR-NONHQ-'.$suffix,
             'is_headquarters' => false,
             'is_active' => true,
         ]);
@@ -239,27 +239,27 @@ class WarehouseCrudTest extends TestCase
          * does not have access to.
          */
         $otherBranchId = DB::table('branches')->insertGetId([
-            'name' => 'Other Branch-' . $suffix,
-            'code' => 'BR-OTHER-' . $suffix,
+            'name' => 'Other Branch-'.$suffix,
+            'code' => 'BR-OTHER-'.$suffix,
             'is_headquarters' => false,
             'is_active' => true,
         ]);
 
-        $ownWarehouseCode = 'WH-OWN-' . $suffix;
-        $otherWarehouseCode = 'WH-OTHER-' . $suffix;
+        $ownWarehouseCode = 'WH-OWN-'.$suffix;
+        $otherWarehouseCode = 'WH-OTHER-'.$suffix;
 
         DB::table('warehouses')->insert([
             [
                 'branch_id' => $nonHqBranchId,
                 'code' => $ownWarehouseCode,
-                'name' => 'Own Warehouse-' . $suffix,
+                'name' => 'Own Warehouse-'.$suffix,
                 'warehouse_type' => 'general',
                 'is_active' => true,
             ],
             [
                 'branch_id' => $otherBranchId,
                 'code' => $otherWarehouseCode,
-                'name' => 'Other Warehouse-' . $suffix,
+                'name' => 'Other Warehouse-'.$suffix,
                 'warehouse_type' => 'general',
                 'is_active' => true,
             ],
@@ -291,13 +291,13 @@ class WarehouseCrudTest extends TestCase
     private function createCompanyWithMember(): array
     {
         $id = uniqid('wh_');
-        $schemaName = 'sch_' . $id;
+        $schemaName = 'sch_'.$id;
 
         $this->activeSchemaName = $schemaName;
 
         $tenant = Tenant::create([
             'id' => $id,
-            'name' => 'Warehouse Test Corp-' . $id,
+            'name' => 'Warehouse Test Corp-'.$id,
             'schema_name' => $schemaName,
             'is_active' => true,
         ]);
@@ -327,7 +327,7 @@ class WarehouseCrudTest extends TestCase
          * User belongs to central database.
          */
         $user = User::factory()->create([
-            'email' => 'member_' . $id . '@acme.test',
+            'email' => 'member_'.$id.'@acme.test',
             'role' => 'user',
         ]);
 
@@ -407,7 +407,7 @@ class WarehouseCrudTest extends TestCase
             $safeSchemaName = str_replace('"', '""', $schemaName);
 
             DB::statement(
-                'DROP SCHEMA IF EXISTS "' . $safeSchemaName . '" CASCADE'
+                'DROP SCHEMA IF EXISTS "'.$safeSchemaName.'" CASCADE'
             );
         } catch (\Throwable $e) {
             /*

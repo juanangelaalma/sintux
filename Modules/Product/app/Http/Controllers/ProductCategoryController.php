@@ -3,7 +3,6 @@
 namespace Modules\Product\Http\Controllers;
 
 use Illuminate\Routing\Controller;
-use Inertia\Inertia;
 use Modules\Product\Application\Category\CreateCategory;
 use Modules\Product\Application\Category\DeleteCategory;
 use Modules\Product\Application\Category\GetCategories;

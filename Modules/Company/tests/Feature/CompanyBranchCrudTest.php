@@ -260,10 +260,6 @@ class CompanyBranchCrudTest extends TestCase
 
     private function dropSchema(): void
     {
-        try {
-            (new \PDO('pgsql:host=127.0.0.1;port=5432;dbname=testing;user=root;password='))
-                ->exec('DROP SCHEMA IF EXISTS "'.self::SCHEMA_NAME.'" CASCADE');
-        } catch (\Exception $e) {
-        }
+        DB::statement('DROP SCHEMA IF EXISTS "'.self::SCHEMA_NAME.'" CASCADE');
     }
 }

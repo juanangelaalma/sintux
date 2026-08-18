@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
 
@@ -23,17 +24,12 @@ class StockAdjustmentTest extends TestCase
 
         $this->dropLeftoverSchemas();
 
-        DB::table('stock_movements')->delete();
-        DB::table('stock_layers')->delete();
-        DB::table('stock_balances')->delete();
-        DB::table('stock_adjustment_items')->delete();
-        DB::table('stock_adjustments')->delete();
         DB::table('company_user_branches')->delete();
         DB::table('company_users')->delete();
         DB::table('tenants')->delete();
         DB::table('users')->delete();
 
-        $this->seed(\Modules\Company\Database\Seeders\RolePermissionSeeder::class);
+        $this->seed(RolePermissionSeeder::class);
     }
 
     protected function tearDown(): void
@@ -41,9 +37,6 @@ class StockAdjustmentTest extends TestCase
         if (tenancy()->initialized) {
             tenancy()->end();
         }
-
-        DB::table('stock_adjustment_items')->delete();
-        DB::table('stock_adjustments')->delete();
 
         if ($this->activeSchemaName) {
             $this->dropSchema($this->activeSchemaName);
