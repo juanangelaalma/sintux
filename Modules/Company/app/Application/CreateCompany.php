@@ -77,12 +77,12 @@ class CreateCompany
 
         try {
             if (Schema::hasTable('branches')) {
-                $existing = DB::table('branches')->where('code', 'HQ')->first();
+                $existing = DB::table('branches')->where('code', 'HO')->first();
 
                 if (! $existing) {
                     DB::table('branches')->insert([
-                        'name' => 'Headquarters',
-                        'code' => 'HQ',
+                        'name' => 'Head Office',
+                        'code' => 'HO',
                         'is_headquarters' => true,
                         'is_active' => true,
                         'created_at' => now(),

@@ -70,7 +70,7 @@ class CompanyCrudTest extends TestCase
         // Verify Branch inside tenant context
         tenancy()->initialize($tenant);
         $this->assertDatabaseHas('branches', [
-            'code' => 'HQ',
+            'code' => 'HO',
             'is_headquarters' => true,
         ]);
         tenancy()->end();
