@@ -1,0 +1,12 @@
+{
+    "name": "Purchasing",
+    "alias": "purchasing",
+    "description": "Purchasing and procurement documents (request, quote, order, goods receipt, invoice, join invoice)",
+    "keywords": [],
+    "priority": 0,
+    "requires": ["Company", "Contact", "Product", "Warehouse", "Accounting"],
+    "providers": [
+        "Modules\\Purchasing\\Providers\\PurchasingServiceProvider"
+    ],
+    "files": []
+}
