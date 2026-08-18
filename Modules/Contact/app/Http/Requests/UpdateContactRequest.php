@@ -77,8 +77,7 @@ class UpdateContactRequest extends FormRequest
             $tenantId = (string) tenant('id');
             $user = auth()->user();
 
-            $branchIds = CompanyAccess::contextBranchIds($user, $tenantId)
-                ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+            $branchIds = CompanyAccess::contextBranchIds($user, $tenantId);
 
             if (! in_array((int) $value, $branchIds, true)) {
                 $fail('The selected branch is not accessible.');

@@ -108,7 +108,6 @@ class StockRequestController extends Controller
 
     private function resolveBranchIds($user, string $tenantId): array
     {
-        return CompanyAccess::contextBranchIds($user, $tenantId)
-            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+        return CompanyAccess::contextBranchIds($user, $tenantId);
     }
 }
