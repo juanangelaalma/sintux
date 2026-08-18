@@ -25,8 +25,7 @@ class StockBalanceController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
-        return CompanyAccess::contextBranchIds($user, $tenantId)
-            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+        return CompanyAccess::contextBranchIds($user, $tenantId);
     }
 
     public function index()

@@ -34,8 +34,7 @@ class ProductHubController extends Controller
     {
         $user = request()->user();
         $tenantId = (string) session('active_tenant_id');
-        $branchIds = CompanyAccess::contextBranchIds($user, $tenantId)
-            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+        $branchIds = CompanyAccess::contextBranchIds($user, $tenantId);
 
         $activeTab = request('tab', 'items'); // 'items' | 'gudang' | 'master'
         $subTab = request('sub', 'products'); // 'products' | 'warehouses' | 'balances' | 'requests' | 'adjustments' | 'transfers' | 'categories' | 'uoms'

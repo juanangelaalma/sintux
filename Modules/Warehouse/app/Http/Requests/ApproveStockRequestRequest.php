@@ -30,8 +30,7 @@ class ApproveStockRequestRequest extends FormRequest
             return false;
         }
 
-        $accessibleBranchIds = CompanyAccess::contextBranchIds($user, $tenantId)
-            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+        $accessibleBranchIds = CompanyAccess::contextBranchIds($user, $tenantId);
 
         return in_array((int) $stockRequest->destinationWarehouse->branch_id, $accessibleBranchIds, true);
     }

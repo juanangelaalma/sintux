@@ -20,8 +20,7 @@ class StoreStockAdjustmentRequest extends FormRequest
         $tenantId = (string) session('active_tenant_id');
         $user = $this->user();
 
-        $branchIds = CompanyAccess::contextBranchIds($user, $tenantId)
-            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+        $branchIds = CompanyAccess::contextBranchIds($user, $tenantId);
 
         $branchAccessibleRule = function (string $attribute, mixed $value, Closure $fail) use ($branchIds) {
             $warehouse = Warehouse::find($value);
