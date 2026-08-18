@@ -30,7 +30,7 @@ class GetStockMovements
             'productVariant.product.uom',
             'stockLayer',
         ])
-        ->whereHas('warehouse', fn ($w) => $w->whereIn('branch_id', $accessibleBranchIds));
+            ->whereHas('warehouse', fn ($w) => $w->whereIn('branch_id', $accessibleBranchIds));
 
         if (! empty($filters['warehouse_id'])) {
             $query->where('warehouse_id', (int) $filters['warehouse_id']);

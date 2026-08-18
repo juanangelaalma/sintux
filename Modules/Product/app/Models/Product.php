@@ -35,7 +35,7 @@ use Illuminate\Support\Carbon;
  * @property-read ProductCategory|null $category
  * @property-read Uom|null $uom
  * @property-read Collection<int, ProductVariant> $variants
- * @property-read Collection<int, ProductBundleItem> $bundle_items
+ * @property-read Collection<int, ProductBundleItem> $bundleItems
  */
 class Product extends Model
 {

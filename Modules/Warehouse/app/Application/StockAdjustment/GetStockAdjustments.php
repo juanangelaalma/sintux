@@ -18,9 +18,9 @@ class GetStockAdjustments
             'adjustedBy',
             'items.productVariant.product',
         ])
-        ->whereHas('warehouse', function ($q) use ($accessibleBranchIds) {
-            $q->whereIn('branch_id', $accessibleBranchIds);
-        });
+            ->whereHas('warehouse', function ($q) use ($accessibleBranchIds) {
+                $q->whereIn('branch_id', $accessibleBranchIds);
+            });
 
         if (! empty($filters['warehouse_id'])) {
             $query->where('warehouse_id', $filters['warehouse_id']);
@@ -38,8 +38,8 @@ class GetStockAdjustments
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('adjustment_number', 'ilike', "%{$search}%")
-                  ->orWhere('note', 'ilike', "%{$search}%")
-                  ->orWhereHas('warehouse', fn ($w) => $w->where('name', 'ilike', "%{$search}%"));
+                    ->orWhere('note', 'ilike', "%{$search}%")
+                    ->orWhereHas('warehouse', fn ($w) => $w->where('name', 'ilike', "%{$search}%"));
             });
         }
 

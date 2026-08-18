@@ -57,7 +57,7 @@ class ApproveStockRequest
             }
         }
 
-        return DB::transaction(function () use ($stockRequest, $itemsInput, $approvedById, $hqWarehouseId) {
+        return DB::transaction(function () use ($stockRequest, $itemsInput, $hqWarehouseId) {
             $allFullyApproved = true;
             $anyApproved = false;
 

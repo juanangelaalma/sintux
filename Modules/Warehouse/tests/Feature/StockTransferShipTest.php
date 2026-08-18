@@ -6,7 +6,9 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Models\CompanyUser;
+use Modules\Warehouse\Models\StockTransfer;
 use Tests\TestCase;
 
 class StockTransferShipTest extends TestCase
@@ -34,7 +36,7 @@ class StockTransferShipTest extends TestCase
         DB::table('tenants')->delete();
         DB::table('users')->delete();
 
-        $this->seed(\Modules\Company\Database\Seeders\RolePermissionSeeder::class);
+        $this->seed(RolePermissionSeeder::class);
     }
 
     protected function tearDown(): void
@@ -265,7 +267,7 @@ class StockTransferShipTest extends TestCase
             'qty' => -5,
             'unit_cost' => 10000,
             'stock_layer_id' => $layerId,
-            'reference_type' => \Modules\Warehouse\Models\StockTransfer::class,
+            'reference_type' => StockTransfer::class,
             'reference_id' => $transferId,
         ]);
 
@@ -695,11 +697,10 @@ class StockTransferShipTest extends TestCase
 
         $this->assertTrue(
             collect($messages)->contains(
-                fn (string $message): bool =>
-                    str_contains(
-                        strtolower($message),
-                        'insufficient stock'
-                    )
+                fn (string $message): bool => str_contains(
+                    strtolower($message),
+                    'insufficient stock'
+                )
             ),
             'Expected an insufficient stock error.'
         );
@@ -873,11 +874,10 @@ class StockTransferShipTest extends TestCase
 
         $this->assertTrue(
             collect($messages)->contains(
-                fn (string $message): bool =>
-                    str_contains(
-                        strtolower($message),
-                        'sudah diproses'
-                    )
+                fn (string $message): bool => str_contains(
+                    strtolower($message),
+                    'sudah diproses'
+                )
             ),
             'Expected an already-processed transfer error.'
         );
@@ -1038,7 +1038,7 @@ class StockTransferShipTest extends TestCase
          * source warehouse of the transfer.
          */
         $branchOnlyUser = User::factory()->create([
-            'email' => 'branch_only_' . uniqid() . '@acme.test',
+            'email' => 'branch_only_'.uniqid().'@acme.test',
             'role' => 'user',
         ]);
 
@@ -1167,7 +1167,7 @@ class StockTransferShipTest extends TestCase
     private function createCompanyWithMemberAndBranches(): array
     {
         $id = uniqid('ship_');
-        $schemaName = 'sch_' . $id;
+        $schemaName = 'sch_'.$id;
 
         $this->activeSchemaName = $schemaName;
 
@@ -1213,7 +1213,7 @@ class StockTransferShipTest extends TestCase
          */
         $branchBId = DB::table('branches')->insertGetId([
             'name' => 'Branch B',
-            'code' => 'BRB_' . uniqid(),
+            'code' => 'BRB_'.uniqid(),
             'is_headquarters' => false,
             'is_active' => true,
             'created_at' => now(),
@@ -1226,7 +1226,7 @@ class StockTransferShipTest extends TestCase
          * Owner/member user.
          */
         $user = User::factory()->create([
-            'email' => 'owner_' . $id . '@acme.test',
+            'email' => 'owner_'.$id.'@acme.test',
             'role' => 'user',
         ]);
 
@@ -1277,7 +1277,7 @@ class StockTransferShipTest extends TestCase
          */
         $hqWarehouseId = DB::table('warehouses')->insertGetId([
             'branch_id' => $hqBranchId,
-            'code' => 'WH-HQ-' . uniqid(),
+            'code' => 'WH-HQ-'.uniqid(),
             'name' => 'HQ Central Warehouse',
             'warehouse_type' => 'general',
             'is_active' => true,
@@ -1290,7 +1290,7 @@ class StockTransferShipTest extends TestCase
          */
         $branchBWarehouseId = DB::table('warehouses')->insertGetId([
             'branch_id' => $branchBId,
-            'code' => 'WH-BRB-' . uniqid(),
+            'code' => 'WH-BRB-'.uniqid(),
             'name' => 'Branch B Warehouse',
             'warehouse_type' => 'regular',
             'is_active' => true,
@@ -1302,7 +1302,7 @@ class StockTransferShipTest extends TestCase
          * Product category.
          */
         $catId = DB::table('product_categories')->insertGetId([
-            'name' => 'Category ' . uniqid(),
+            'name' => 'Category '.uniqid(),
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
@@ -1312,8 +1312,8 @@ class StockTransferShipTest extends TestCase
          * UOM.
          */
         $uomId = DB::table('uoms')->insertGetId([
-            'name' => 'PCS ' . uniqid(),
-            'code' => 'PCS' . uniqid(),
+            'name' => 'PCS '.uniqid(),
+            'code' => 'PCS'.uniqid(),
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
@@ -1323,8 +1323,8 @@ class StockTransferShipTest extends TestCase
          * Product.
          */
         $productId = DB::table('products')->insertGetId([
-            'code' => 'PRD-' . uniqid(),
-            'name' => 'Widget ' . uniqid(),
+            'code' => 'PRD-'.uniqid(),
+            'name' => 'Widget '.uniqid(),
             'category_id' => $catId,
             'uom_id' => $uomId,
             'is_active' => true,
@@ -1337,8 +1337,8 @@ class StockTransferShipTest extends TestCase
          */
         $variantId = DB::table('product_variants')->insertGetId([
             'product_id' => $productId,
-            'sku' => 'SKU-' . uniqid(),
-            'variant_name' => 'Widget Variant ' . uniqid(),
+            'sku' => 'SKU-'.uniqid(),
+            'variant_name' => 'Widget Variant '.uniqid(),
             'attributes' => json_encode([
                 'color' => 'blue',
             ]),
@@ -1358,8 +1358,8 @@ class StockTransferShipTest extends TestCase
     {
         try {
             DB::statement(
-                'DROP SCHEMA IF EXISTS "' .
-                $schemaName .
+                'DROP SCHEMA IF EXISTS "'.
+                $schemaName.
                 '" CASCADE'
             );
         } catch (\Exception $e) {

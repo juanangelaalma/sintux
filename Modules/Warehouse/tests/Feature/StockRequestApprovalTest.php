@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
 
@@ -28,7 +29,7 @@ class StockRequestApprovalTest extends TestCase
         DB::table('tenants')->delete();
         DB::table('users')->delete();
 
-        $this->seed(\Modules\Company\Database\Seeders\RolePermissionSeeder::class);
+        $this->seed(RolePermissionSeeder::class);
     }
 
     protected function tearDown(): void
@@ -277,7 +278,7 @@ class StockRequestApprovalTest extends TestCase
         [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
 
         // Create user with ONLY Branch B access (no HQ branch access)
-        $branchOnlyUser = User::factory()->create(['email' => 'branch_only_' . uniqid() . '@acme.test', 'role' => 'user']);
+        $branchOnlyUser = User::factory()->create(['email' => 'branch_only_'.uniqid().'@acme.test', 'role' => 'user']);
         $companyUser = CompanyUser::create([
             'user_id' => $branchOnlyUser->id,
             'tenant_id' => $tenantId,
@@ -321,7 +322,7 @@ class StockRequestApprovalTest extends TestCase
     private function createCompanyWithMemberAndBranches(): array
     {
         $id = uniqid('stra_');
-        $schemaName = 'sch_' . $id;
+        $schemaName = 'sch_'.$id;
         $this->activeSchemaName = $schemaName;
 
         $tenant = Tenant::create([
@@ -344,7 +345,7 @@ class StockRequestApprovalTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $codeBrb = 'BRB_' . uniqid();
+        $codeBrb = 'BRB_'.uniqid();
         $branchBId = DB::table('branches')->insertGetId([
             'name' => 'Branch B',
             'code' => $codeBrb,
@@ -355,7 +356,7 @@ class StockRequestApprovalTest extends TestCase
         ]);
         tenancy()->end();
 
-        $user = User::factory()->create(['email' => 'owner_' . $id . '@acme.test', 'role' => 'user']);
+        $user = User::factory()->create(['email' => 'owner_'.$id.'@acme.test', 'role' => 'user']);
         $companyUser = CompanyUser::create([
             'user_id' => $user->id,
             'tenant_id' => $tenant->id,
@@ -375,7 +376,7 @@ class StockRequestApprovalTest extends TestCase
     {
         $hqWarehouseId = DB::table('warehouses')->insertGetId([
             'branch_id' => $hqBranchId,
-            'code' => 'WH-HQ-' . uniqid(),
+            'code' => 'WH-HQ-'.uniqid(),
             'name' => 'HQ Central Warehouse',
             'warehouse_type' => 'general',
             'is_active' => true,
@@ -385,7 +386,7 @@ class StockRequestApprovalTest extends TestCase
 
         $branchBWarehouseId = DB::table('warehouses')->insertGetId([
             'branch_id' => $branchBId,
-            'code' => 'WH-BRB-' . uniqid(),
+            'code' => 'WH-BRB-'.uniqid(),
             'name' => 'Branch B Warehouse',
             'warehouse_type' => 'regular',
             'is_active' => true,
@@ -394,23 +395,23 @@ class StockRequestApprovalTest extends TestCase
         ]);
 
         $catId = DB::table('product_categories')->insertGetId([
-            'name' => 'Category ' . uniqid(),
+            'name' => 'Category '.uniqid(),
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $uomId = DB::table('uoms')->insertGetId([
-            'name' => 'PCS ' . uniqid(),
-            'code' => 'PCS' . uniqid(),
+            'name' => 'PCS '.uniqid(),
+            'code' => 'PCS'.uniqid(),
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $productId = DB::table('products')->insertGetId([
-            'code' => 'PRD-' . uniqid(),
-            'name' => 'Widget ' . uniqid(),
+            'code' => 'PRD-'.uniqid(),
+            'name' => 'Widget '.uniqid(),
             'category_id' => $catId,
             'uom_id' => $uomId,
             'is_active' => true,
@@ -420,7 +421,7 @@ class StockRequestApprovalTest extends TestCase
 
         $variant1Id = DB::table('product_variants')->insertGetId([
             'product_id' => $productId,
-            'sku' => 'SKU-V1-' . uniqid(),
+            'sku' => 'SKU-V1-'.uniqid(),
             'variant_name' => 'Variant 1',
             'attributes' => json_encode(['color' => 'blue']),
             'is_active' => true,
@@ -430,7 +431,7 @@ class StockRequestApprovalTest extends TestCase
 
         $variant2Id = DB::table('product_variants')->insertGetId([
             'product_id' => $productId,
-            'sku' => 'SKU-V2-' . uniqid(),
+            'sku' => 'SKU-V2-'.uniqid(),
             'variant_name' => 'Variant 2',
             'attributes' => json_encode(['color' => 'red']),
             'is_active' => true,
@@ -444,7 +445,7 @@ class StockRequestApprovalTest extends TestCase
     private function dropSchema(string $schemaName): void
     {
         try {
-            DB::statement('DROP SCHEMA IF EXISTS "' . $schemaName . '" CASCADE');
+            DB::statement('DROP SCHEMA IF EXISTS "'.$schemaName.'" CASCADE');
         } catch (\Throwable $e) {
         }
     }

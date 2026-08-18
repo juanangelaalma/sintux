@@ -72,19 +72,10 @@ class GetProducts
      */
     private function productTotalStock(Product $product, array $stocks): int
     {
-        \Illuminate\Support\Facades\Log::debug('DEBUG total_stock', [
-            'id' => $product->id,
-            'type' => $product->product_type,
-            'variants_loaded' => $product->relationLoaded('variants'),
-            'variants_count' => $product->variants?->count(),
-            'bundle_loaded' => $product->relationLoaded('bundleItems'),
-            'bundle_items' => $product->bundle_items === null ? null : $product->bundle_items->count(),
-        ]);
-
         if ($product->product_type === 'bundle') {
             $bundleQty = null;
 
-            foreach ($product->bundle_items as $item) {
+            foreach ($product->bundleItems as $item) {
                 if (! $item->itemProduct) {
                     continue;
                 }

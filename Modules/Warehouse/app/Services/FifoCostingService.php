@@ -9,9 +9,6 @@ class FifoCostingService
     /**
      * Consume stock using FIFO (First In, First Out) logic.
      *
-     * @param int $productVariantId
-     * @param int $warehouseId
-     * @param float $qty
      *
      * @return array<int, array{
      *     stock_layer_id: int,

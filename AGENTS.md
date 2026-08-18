@@ -1148,6 +1148,16 @@ AI agents should NOT:
 * Introduce microservices because a module exists.
 * Split the monolith into services without explicit architectural approval.
 
+## Linting and formatting
+
+AI agents MUST always consider the project's linting and formatting rules when changing code.
+
+* Preserve the established style while editing; do not defer formatting cleanup until the end.
+* Run the relevant formatter or auto-fixer after changes (`composer lint` for PHP, `npm run lint` and `npm run format` for frontend code).
+* Before completing a task, run the corresponding check commands (`composer lint:check`, `npm run lint:check`, and `npm run format:check`) for the files or stack affected by the change.
+* When practical, run the full `composer test` or `composer ci:check` workflow so linting, static analysis, types, and tests are verified together.
+* Do not report a task as complete while lint errors introduced or exposed by the change remain unresolved. If a check cannot run, clearly report the command and reason.
+
 ---
 
 # 29. Before Adding a New Module

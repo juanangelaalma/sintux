@@ -23,7 +23,7 @@ class StoreProductRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:6000'],
             'image_path' => ['nullable', 'string'],
             'product_type' => ['sometimes', 'string', Rule::in(['single', 'bundle'])],
-            
+
             // Purchase
             'is_purchased' => ['sometimes', 'boolean'],
             'purchase_price' => ['sometimes', 'numeric', 'min:0'],

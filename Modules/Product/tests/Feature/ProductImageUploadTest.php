@@ -8,6 +8,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Modules\Company\Http\Middleware\ResolveTenant;
 use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
 
@@ -18,6 +19,7 @@ class ProductImageUploadTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutMiddleware(ResolveTenant::class);
 
         if (tenancy()->initialized) {
             tenancy()->end();
@@ -49,10 +51,10 @@ class ProductImageUploadTest extends TestCase
 
     public function test_can_upload_valid_jpg_and_png_images(): void
     {
-        Storage::fake('public');
-
         [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
+        tenancy()->initialize($tenantId);
+        Storage::fake('public');
 
         // Upload JPG
         $jpgFile = UploadedFile::fake()->image('product.jpg', 600, 600);
@@ -79,10 +81,10 @@ class ProductImageUploadTest extends TestCase
 
     public function test_rejects_unallowed_file_types(): void
     {
-        Storage::fake('public');
-
         [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
+        tenancy()->initialize($tenantId);
+        Storage::fake('public');
 
         // Try PDF
         $pdfFile = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
@@ -105,10 +107,10 @@ class ProductImageUploadTest extends TestCase
 
     public function test_rejects_over_5mb_images(): void
     {
-        Storage::fake('public');
-
         [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
+        tenancy()->initialize($tenantId);
+        Storage::fake('public');
 
         // Fake image 6MB (6144 KB)
         $largeFile = UploadedFile::fake()->image('huge.jpg')->size(6144);
