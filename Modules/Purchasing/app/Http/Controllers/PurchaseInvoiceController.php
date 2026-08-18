@@ -1,0 +1,99 @@
+<?php
+
+namespace Modules\Purchasing\Http\Controllers;
+
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Routing\Controller;
+use Inertia\Inertia;
+use Inertia\Response;
+use Modules\Company\Application\CompanyAccess;
+use Modules\Contact\Application\GetContacts;
+use Modules\Product\Application\Variant\GetPurchaseVariants;
+use Modules\Purchasing\Application\PurchaseInvoice\ApprovePurchaseInvoice;
+use Modules\Purchasing\Application\PurchaseInvoice\CreatePurchaseInvoice;
+use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseInvoiceDetail;
+use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseInvoices;
+use Modules\Purchasing\Http\Requests\StorePurchaseInvoiceRequest;
+
+class PurchaseInvoiceController extends Controller
+{
+    public function __construct(
+        private readonly GetPurchaseInvoices $getPurchaseInvoices,
+        private readonly GetPurchaseInvoiceDetail $getPurchaseInvoiceDetail,
+        private readonly CreatePurchaseInvoice $createPurchaseInvoice,
+        private readonly ApprovePurchaseInvoice $approvePurchaseInvoice,
+    ) {}
+
+    public function index(): Response
+    {
+        $user = request()->user();
+        $tenantId = (string) session('active_tenant_id');
+
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
+        $filters = request()->only(['search', 'status']);
+
+        $purchaseInvoices = $this->getPurchaseInvoices->execute($accessibleBranchIds, $filters);
+
+        return Inertia::render('Purchasing/Invoices/index', [
+            'purchaseInvoices' => $purchaseInvoices,
+            'filters' => $filters,
+        ]);
+    }
+
+    public function create(): Response
+    {
+        $user = request()->user();
+        $tenantId = (string) session('active_tenant_id');
+
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
+
+        return Inertia::render('Purchasing/Invoices/create', [
+            'branches' => CompanyAccess::accessibleBranches($user, $tenantId),
+            'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
+            'productVariants' => app(GetPurchaseVariants::class)->execute(),
+        ]);
+    }
+
+    public function store(StorePurchaseInvoiceRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+        $user = $request->user();
+        $tenantId = (string) session('active_tenant_id');
+
+        $branchCode = collect(CompanyAccess::accessibleBranches($user, $tenantId))
+            ->firstWhere('id', $validated['branch_id'])
+            ->code ?? '';
+
+        $this->createPurchaseInvoice->execute($validated, (string) $branchCode);
+
+        return redirect()->route('purchasing.invoices.index')
+            ->with('success', 'Faktur pembelian berhasil dibuat.');
+    }
+
+    public function show(int $id): Response
+    {
+        $purchaseInvoice = $this->getPurchaseInvoiceDetail->execute($id);
+
+        return Inertia::render('Purchasing/Invoices/show', [
+            'purchaseInvoice' => $purchaseInvoice,
+        ]);
+    }
+
+    public function approve(int $id): RedirectResponse
+    {
+        $this->approvePurchaseInvoice->execute($id);
+
+        return redirect()->route('purchasing.invoices.show', $id)
+            ->with('success', 'Faktur pembelian disetujui.');
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function resolveBranchIds(User $user, string $tenantId): array
+    {
+        return CompanyAccess::contextBranchIds($user, $tenantId)
+            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+    }
+}

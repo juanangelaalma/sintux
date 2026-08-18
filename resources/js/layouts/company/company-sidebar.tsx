@@ -72,6 +72,12 @@ const companyNavItems: NavItem[] = [
     path: "/product",
     permission: "product.view",
   },
+  {
+    icon: <BoxIcon />,
+    name: "Purchasing",
+    path: "/purchasing/orders",
+    permission: "purchasing.po.view",
+  },
 ];
 
 function isGroupSubItem(sub: SubItem): sub is GroupSubItem {
