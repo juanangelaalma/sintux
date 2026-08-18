@@ -6,6 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property int $id
+ * @property int $product_id
+ * @property string $sku
+ * @property string $variant_name
+ * @property array<string, mixed>|null $attributes
+ * @property bool $is_active
+ * @property-read Product|null $product
+ */
 class ProductVariant extends Model
 {
     use SoftDeletes;
