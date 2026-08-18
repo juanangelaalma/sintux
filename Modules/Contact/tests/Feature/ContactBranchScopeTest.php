@@ -220,7 +220,7 @@ class ContactBranchScopeTest extends TestCase
     private function createMember(Tenant $tenant, string $email, int $homeBranch, array $extraAllowed = []): User
     {
         return app(CreateCompanyUser::class)->execute((string) $tenant->id, [
-            'name' => 'Contact Scope Member',
+            'name' => 'Contact Scope Admin',
             'email' => $email,
             'password' => 'password',
             'company_role' => 'admin',

@@ -20,10 +20,10 @@ class GetStockTransfers
             'receivedBy',
             'items.productVariant.product',
         ])
-        ->where(function ($q) use ($accessibleBranchIds) {
-            $q->whereHas('fromWarehouse', fn ($w) => $w->whereIn('branch_id', $accessibleBranchIds))
-              ->orWhereHas('toWarehouse', fn ($w) => $w->whereIn('branch_id', $accessibleBranchIds));
-        });
+            ->where(function ($q) use ($accessibleBranchIds) {
+                $q->whereHas('fromWarehouse', fn ($w) => $w->whereIn('branch_id', $accessibleBranchIds))
+                    ->orWhereHas('toWarehouse', fn ($w) => $w->whereIn('branch_id', $accessibleBranchIds));
+            });
 
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -41,7 +41,7 @@ class GetStockTransfers
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->whereHas('fromWarehouse', fn ($w) => $w->where('name', 'ilike', "%{$search}%"))
-                  ->orWhereHas('toWarehouse', fn ($w) => $w->where('name', 'ilike', "%{$search}%"));
+                    ->orWhereHas('toWarehouse', fn ($w) => $w->where('name', 'ilike', "%{$search}%"));
             });
         }
 

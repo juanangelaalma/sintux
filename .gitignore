@@ -33,3 +33,6 @@ yarn-error.log
 
 # Graphify generated output and cache
 graphify-out/
+free-react-tailwind-admin-dashboard-main/
+
+storage/tenant*

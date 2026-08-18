@@ -5,6 +5,7 @@ namespace Modules\Product\Tests\Feature;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
 
@@ -92,9 +93,9 @@ class ProductHubStockTest extends TestCase
         tenancy()->end();
 
         tenancy()->initialize($tenantId);
-        $probes = \Illuminate\Support\Facades\DB::table('products')->get(['id', 'name', 'product_type'])->all();
-        $schema = \Illuminate\Support\Facades\DB::selectOne('SELECT current_schema() AS s');
-        \Illuminate\Support\Facades\Log::debug('DEBUG test probe', [
+        $probes = DB::table('products')->get(['id', 'name', 'product_type'])->all();
+        $schema = DB::selectOne('SELECT current_schema() AS s');
+        Log::debug('DEBUG test probe', [
             'tenant' => $tenantId,
             'schema' => $schema->s ?? null,
             'products' => $probes,

@@ -6,7 +6,9 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Models\CompanyUser;
+use Modules\Warehouse\Models\StockTransfer;
 use Tests\TestCase;
 
 class StockTransferReceiveTest extends TestCase
@@ -31,7 +33,7 @@ class StockTransferReceiveTest extends TestCase
         DB::table('tenants')->delete();
         DB::table('users')->delete();
 
-        $this->seed(\Modules\Company\Database\Seeders\RolePermissionSeeder::class);
+        $this->seed(RolePermissionSeeder::class);
     }
 
     protected function tearDown(): void
@@ -252,7 +254,7 @@ class StockTransferReceiveTest extends TestCase
             'qty' => 5,
             'unit_cost' => 10000,
             'stock_layer_id' => $destinationLayer->id,
-            'reference_type' => \Modules\Warehouse\Models\StockTransfer::class,
+            'reference_type' => StockTransfer::class,
             'reference_id' => $transferId,
         ]);
 
@@ -432,7 +434,7 @@ class StockTransferReceiveTest extends TestCase
             ->where('warehouse_id', $branchBWarehouseId)
             ->where('product_variant_id', $variant1Id)
             ->where('movement_type', 'transfer_in')
-            ->where('reference_type', \Modules\Warehouse\Models\StockTransfer::class)
+            ->where('reference_type', StockTransfer::class)
             ->where('reference_id', $transferId)
             ->count();
 
@@ -445,7 +447,7 @@ class StockTransferReceiveTest extends TestCase
             'qty' => 10,
             'unit_cost' => 9000,
             'stock_layer_id' => $destinationLayers[0]->id,
-            'reference_type' => \Modules\Warehouse\Models\StockTransfer::class,
+            'reference_type' => StockTransfer::class,
             'reference_id' => $transferId,
         ]);
 
@@ -456,7 +458,7 @@ class StockTransferReceiveTest extends TestCase
             'qty' => 5,
             'unit_cost' => 11000,
             'stock_layer_id' => $destinationLayers[1]->id,
-            'reference_type' => \Modules\Warehouse\Models\StockTransfer::class,
+            'reference_type' => StockTransfer::class,
             'reference_id' => $transferId,
         ]);
 
@@ -662,7 +664,7 @@ class StockTransferReceiveTest extends TestCase
             $this->createCompanyWithMemberAndBranches();
 
         $branchOnlyUser = User::factory()->create([
-            'email' => 'receive_no_perm_' . uniqid() . '@acme.test',
+            'email' => 'receive_no_perm_'.uniqid().'@acme.test',
             'role' => 'user',
         ]);
 
@@ -750,7 +752,7 @@ class StockTransferReceiveTest extends TestCase
     private function createCompanyWithMemberAndBranches(): array
     {
         $id = uniqid('recv_');
-        $schemaName = 'sch_' . $id;
+        $schemaName = 'sch_'.$id;
 
         $this->activeSchemaName = $schemaName;
 
@@ -784,7 +786,7 @@ class StockTransferReceiveTest extends TestCase
 
         $branchBId = DB::table('branches')->insertGetId([
             'name' => 'Branch B',
-            'code' => 'BRB_' . uniqid(),
+            'code' => 'BRB_'.uniqid(),
             'is_headquarters' => false,
             'is_active' => true,
             'created_at' => now(),
@@ -794,7 +796,7 @@ class StockTransferReceiveTest extends TestCase
         tenancy()->end();
 
         $user = User::factory()->create([
-            'email' => 'owner_' . $id . '@acme.test',
+            'email' => 'owner_'.$id.'@acme.test',
             'role' => 'user',
         ]);
 
@@ -837,7 +839,7 @@ class StockTransferReceiveTest extends TestCase
     ): array {
         $hqWarehouseId = DB::table('warehouses')->insertGetId([
             'branch_id' => $hqBranchId,
-            'code' => 'WH-HQ-' . uniqid(),
+            'code' => 'WH-HQ-'.uniqid(),
             'name' => 'HQ Central Warehouse',
             'warehouse_type' => 'general',
             'is_active' => true,
@@ -847,7 +849,7 @@ class StockTransferReceiveTest extends TestCase
 
         $branchBWarehouseId = DB::table('warehouses')->insertGetId([
             'branch_id' => $branchBId,
-            'code' => 'WH-BRB-' . uniqid(),
+            'code' => 'WH-BRB-'.uniqid(),
             'name' => 'Branch B Warehouse',
             'warehouse_type' => 'regular',
             'is_active' => true,
@@ -856,23 +858,23 @@ class StockTransferReceiveTest extends TestCase
         ]);
 
         $catId = DB::table('product_categories')->insertGetId([
-            'name' => 'Category ' . uniqid(),
+            'name' => 'Category '.uniqid(),
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $uomId = DB::table('uoms')->insertGetId([
-            'name' => 'PCS ' . uniqid(),
-            'code' => 'PCS' . uniqid(),
+            'name' => 'PCS '.uniqid(),
+            'code' => 'PCS'.uniqid(),
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $productId = DB::table('products')->insertGetId([
-            'code' => 'PRD-' . uniqid(),
-            'name' => 'Widget ' . uniqid(),
+            'code' => 'PRD-'.uniqid(),
+            'name' => 'Widget '.uniqid(),
             'category_id' => $catId,
             'uom_id' => $uomId,
             'is_active' => true,
@@ -882,8 +884,8 @@ class StockTransferReceiveTest extends TestCase
 
         $variantId = DB::table('product_variants')->insertGetId([
             'product_id' => $productId,
-            'sku' => 'SKU-' . uniqid(),
-            'variant_name' => 'Widget Variant ' . uniqid(),
+            'sku' => 'SKU-'.uniqid(),
+            'variant_name' => 'Widget Variant '.uniqid(),
             'attributes' => json_encode([
                 'color' => 'blue',
             ]),
@@ -903,8 +905,8 @@ class StockTransferReceiveTest extends TestCase
     {
         try {
             DB::statement(
-                'DROP SCHEMA IF EXISTS "' .
-                $schemaName .
+                'DROP SCHEMA IF EXISTS "'.
+                $schemaName.
                 '" CASCADE'
             );
         } catch (\Exception $e) {

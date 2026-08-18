@@ -21,9 +21,9 @@ class GetStockRequests
             'requestedBy',
             'items.productVariant.product',
         ])
-        ->whereHas('requestingWarehouse', function ($q) use ($accessibleBranchIds) {
-            $q->whereIn('branch_id', $accessibleBranchIds);
-        });
+            ->whereHas('requestingWarehouse', function ($q) use ($accessibleBranchIds) {
+                $q->whereIn('branch_id', $accessibleBranchIds);
+            });
 
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -33,8 +33,8 @@ class GetStockRequests
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('note', 'ilike', "%{$search}%")
-                  ->orWhereHas('requestingWarehouse', fn ($w) => $w->where('name', 'ilike', "%{$search}%"))
-                  ->orWhereHas('destinationWarehouse', fn ($w) => $w->where('name', 'ilike', "%{$search}%"));
+                    ->orWhereHas('requestingWarehouse', fn ($w) => $w->where('name', 'ilike', "%{$search}%"))
+                    ->orWhereHas('destinationWarehouse', fn ($w) => $w->where('name', 'ilike', "%{$search}%"));
             });
         }
 

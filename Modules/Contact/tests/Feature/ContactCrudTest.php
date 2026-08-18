@@ -56,7 +56,7 @@ class ContactCrudTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_company_member_can_manage_contacts(): void
+    public function test_company_admin_can_manage_contacts(): void
     {
         [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
 
@@ -306,6 +306,23 @@ class ContactCrudTest extends TestCase
             ->assertStatus(200);
     }
 
+    public function test_company_member_without_contact_permission_cannot_access_contacts(): void
+    {
+        [$tenantId, $branchId] = $this->createCompanyWithMember();
+        $tenant = Tenant::findOrFail($tenantId);
+        [, $member] = $this->provision($tenant, 'restricted_member@example.test', 'member');
+
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchId]);
+
+        $this->actingAs($member)
+            ->get(route('company.contacts.index', 'customers'))
+            ->assertStatus(403);
+
+        $this->actingAs($member)
+            ->get(route('company.contacts.create', 'customers'))
+            ->assertStatus(403);
+    }
+
     public function test_non_member_cannot_manage_contacts(): void
     {
         [$tenantId, $branchId, $user] = $this->createCompanyWithMember();
@@ -350,7 +367,7 @@ class ContactCrudTest extends TestCase
     /**
      * @return array{0: int, 1: User}
      */
-    private function provision(Tenant $tenant, string $email): array
+    private function provision(Tenant $tenant, string $email, string $companyRole = 'admin'): array
     {
         $branchId = CompanyTestFixture::branch($tenant, [
             'name' => 'HQ Branch',
@@ -359,10 +376,10 @@ class ContactCrudTest extends TestCase
         ]);
 
         $user = app(CreateCompanyUser::class)->execute((string) $tenant->id, [
-            'name' => 'Contact Test Admin',
+            'name' => 'Contact Test User',
             'email' => $email,
             'password' => 'password',
-            'company_role' => 'admin',
+            'company_role' => $companyRole,
             'branch_id' => $branchId,
             'scope' => 'branch',
         ]);

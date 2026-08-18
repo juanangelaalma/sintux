@@ -67,19 +67,19 @@ class StockBalanceViewTest extends TestCase
         $suffix = uniqid();
 
         $categoryId = DB::table('product_categories')->insertGetId([
-            'name' => 'Elektronik-' . $suffix,
+            'name' => 'Elektronik-'.$suffix,
             'is_active' => true,
         ]);
 
         $uomId = DB::table('uoms')->insertGetId([
-            'name' => 'Piece-' . $suffix,
-            'code' => 'PCS-' . $suffix,
+            'name' => 'Piece-'.$suffix,
+            'code' => 'PCS-'.$suffix,
             'is_active' => true,
         ]);
 
         $productId = DB::table('products')->insertGetId([
-            'code' => 'LAPTOP-' . $suffix,
-            'name' => 'Laptop Pro-' . $suffix,
+            'code' => 'LAPTOP-'.$suffix,
+            'name' => 'Laptop Pro-'.$suffix,
             'category_id' => $categoryId,
             'uom_id' => $uomId,
             'is_active' => true,
@@ -87,14 +87,14 @@ class StockBalanceViewTest extends TestCase
 
         $variantId = DB::table('product_variants')->insertGetId([
             'product_id' => $productId,
-            'sku' => 'LAPTOP-BLK-' . $suffix,
+            'sku' => 'LAPTOP-BLK-'.$suffix,
             'variant_name' => 'Black',
             'is_active' => true,
         ]);
 
         $warehouseId = DB::table('warehouses')->insertGetId([
-            'code' => 'WH-HQ-' . $suffix,
-            'name' => 'Gudang HQ-' . $suffix,
+            'code' => 'WH-HQ-'.$suffix,
+            'name' => 'Gudang HQ-'.$suffix,
             'branch_id' => $branchId,
             'warehouse_type' => 'general',
             'is_active' => true,
@@ -136,8 +136,8 @@ class StockBalanceViewTest extends TestCase
         tenancy()->initialize($tenantId);
 
         $nonHqBranchId = DB::table('branches')->insertGetId([
-            'name' => 'Cabang A-' . $suffix,
-            'code' => 'BR-A-' . $suffix,
+            'name' => 'Cabang A-'.$suffix,
+            'code' => 'BR-A-'.$suffix,
             'is_headquarters' => false,
             'is_active' => true,
         ]);
@@ -159,26 +159,26 @@ class StockBalanceViewTest extends TestCase
          * user's branch scope.
          */
         $branchBId = DB::table('branches')->insertGetId([
-            'name' => 'Cabang B-' . $suffix,
-            'code' => 'BR-B-' . $suffix,
+            'name' => 'Cabang B-'.$suffix,
+            'code' => 'BR-B-'.$suffix,
             'is_headquarters' => false,
             'is_active' => true,
         ]);
 
         $categoryId = DB::table('product_categories')->insertGetId([
-            'name' => 'Elektronik-' . $suffix,
+            'name' => 'Elektronik-'.$suffix,
             'is_active' => true,
         ]);
 
         $uomId = DB::table('uoms')->insertGetId([
-            'name' => 'Piece-' . $suffix,
-            'code' => 'PCS-' . $suffix,
+            'name' => 'Piece-'.$suffix,
+            'code' => 'PCS-'.$suffix,
             'is_active' => true,
         ]);
 
         $productId = DB::table('products')->insertGetId([
-            'code' => 'PHONE-' . $suffix,
-            'name' => 'Smartphone-' . $suffix,
+            'code' => 'PHONE-'.$suffix,
+            'name' => 'Smartphone-'.$suffix,
             'category_id' => $categoryId,
             'uom_id' => $uomId,
             'is_active' => true,
@@ -186,22 +186,22 @@ class StockBalanceViewTest extends TestCase
 
         $variantId = DB::table('product_variants')->insertGetId([
             'product_id' => $productId,
-            'sku' => 'PHONE-BLK-' . $suffix,
+            'sku' => 'PHONE-BLK-'.$suffix,
             'variant_name' => 'Black',
             'is_active' => true,
         ]);
 
         $whBranchA = DB::table('warehouses')->insertGetId([
-            'code' => 'WH-A-' . $suffix,
-            'name' => 'Gudang A-' . $suffix,
+            'code' => 'WH-A-'.$suffix,
+            'name' => 'Gudang A-'.$suffix,
             'branch_id' => $nonHqBranchId,
             'warehouse_type' => 'general',
             'is_active' => true,
         ]);
 
         $whBranchB = DB::table('warehouses')->insertGetId([
-            'code' => 'WH-B-' . $suffix,
-            'name' => 'Gudang B-' . $suffix,
+            'code' => 'WH-B-'.$suffix,
+            'name' => 'Gudang B-'.$suffix,
             'branch_id' => $branchBId,
             'warehouse_type' => 'general',
             'is_active' => true,
@@ -245,13 +245,13 @@ class StockBalanceViewTest extends TestCase
     private function createCompanyWithMember(): array
     {
         $id = uniqid('sb_');
-        $schemaName = 'sch_' . $id;
+        $schemaName = 'sch_'.$id;
 
         $this->activeSchemaName = $schemaName;
 
         $tenant = Tenant::create([
             'id' => $id,
-            'name' => 'Stock Test Corp-' . $id,
+            'name' => 'Stock Test Corp-'.$id,
             'schema_name' => $schemaName,
             'is_active' => true,
         ]);
@@ -274,7 +274,7 @@ class StockBalanceViewTest extends TestCase
         tenancy()->end();
 
         $user = User::factory()->create([
-            'email' => 'member_' . $id . '@acme.test',
+            'email' => 'member_'.$id.'@acme.test',
             'role' => 'user',
         ]);
 
@@ -349,7 +349,7 @@ class StockBalanceViewTest extends TestCase
             $safeSchemaName = str_replace('"', '""', $schemaName);
 
             DB::statement(
-                'DROP SCHEMA IF EXISTS "' . $safeSchemaName . '" CASCADE'
+                'DROP SCHEMA IF EXISTS "'.$safeSchemaName.'" CASCADE'
             );
         } catch (\Throwable $e) {
             /*
