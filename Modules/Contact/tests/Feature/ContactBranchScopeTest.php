@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Application\CreateCompanyUser;
+use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Tests\Support\CompanyTestFixture;
 use Tests\TestCase;
 
@@ -18,6 +19,7 @@ class ContactBranchScopeTest extends TestCase
         parent::setUp();
 
         CompanyTestFixture::resetMemberships();
+        $this->seed(RolePermissionSeeder::class);
         DB::table('tenants')->delete();
         DB::table('users')->delete();
 
@@ -208,10 +210,10 @@ class ContactBranchScopeTest extends TestCase
     private function createMember(Tenant $tenant, string $email, int $homeBranch, array $extraAllowed = []): User
     {
         return app(CreateCompanyUser::class)->execute((string) $tenant->id, [
-            'name' => 'Contact Scope Member',
+            'name' => 'Contact Scope Admin',
             'email' => $email,
             'password' => 'password',
-            'company_role' => 'member',
+            'company_role' => 'admin',
             'branch_id' => $homeBranch,
             'scope' => 'branch',
             'allowed_branch_ids' => $extraAllowed,
