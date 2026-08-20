@@ -4,6 +4,7 @@ namespace Modules\Product\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Accounting\Application\ChartOfAccountQuery;
 use Modules\Accounting\Application\TaxQuery;
 
 class StoreProductRequest extends FormRequest
@@ -13,8 +14,14 @@ class StoreProductRequest extends FormRequest
         return auth()->check();
     }
 
-    public function rules(TaxQuery $taxQuery): array
+    public function rules(TaxQuery $taxQuery, ChartOfAccountQuery $chartOfAccountQuery): array
     {
+        $accountIsEligible = function (string $attribute, mixed $value, \Closure $fail) use ($chartOfAccountQuery): void {
+            if (! $chartOfAccountQuery->isEligible((int) $value)) {
+                $fail('The selected account is invalid.');
+            }
+        };
+
         return [
             'code' => ['required', 'string', 'max:50', Rule::unique('products', 'code')->whereNull('deleted_at')],
             'name' => ['required', 'string', 'max:255'],
@@ -28,7 +35,7 @@ class StoreProductRequest extends FormRequest
             // Purchase
             'is_purchased' => ['sometimes', 'boolean'],
             'purchase_price' => ['sometimes', 'numeric', 'min:0'],
-            'purchase_account_id' => ['nullable', 'integer', Rule::exists('chart_of_accounts', 'id')->where('is_header', false)->whereNull('deleted_at')],
+            'purchase_account_id' => ['nullable', 'integer', $accountIsEligible],
             'purchase_tax_id' => ['nullable', 'integer', function (string $attribute, mixed $value, \Closure $fail) use ($taxQuery): void {
                 if (! $taxQuery->isEligibleForPurchase((int) $value)) {
                     $fail('The selected purchase tax is invalid.');
@@ -38,7 +45,7 @@ class StoreProductRequest extends FormRequest
             // Sales
             'is_sold' => ['sometimes', 'boolean'],
             'selling_price' => ['sometimes', 'numeric', 'min:0'],
-            'sales_account_id' => ['nullable', 'integer', Rule::exists('chart_of_accounts', 'id')->where('is_header', false)->whereNull('deleted_at')],
+            'sales_account_id' => ['nullable', 'integer', $accountIsEligible],
             'sales_tax_id' => ['nullable', 'integer', function (string $attribute, mixed $value, \Closure $fail) use ($taxQuery): void {
                 if (! $taxQuery->isEligibleForSale((int) $value)) {
                     $fail('The selected sales tax is invalid.');
@@ -48,7 +55,7 @@ class StoreProductRequest extends FormRequest
             // Inventory
             'is_inventory_tracked' => ['sometimes', 'boolean'],
             'min_stock' => ['sometimes', 'numeric', 'min:0'],
-            'inventory_account_id' => ['nullable', 'integer', Rule::exists('chart_of_accounts', 'id')->where('is_header', false)->whereNull('deleted_at')],
+            'inventory_account_id' => ['nullable', 'integer', $accountIsEligible],
 
             'is_active' => ['sometimes', 'boolean'],
 
