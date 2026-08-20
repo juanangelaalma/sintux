@@ -4,6 +4,7 @@ namespace Modules\Product\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Accounting\Application\TaxQuery;
 
 class UpdateProductRequest extends FormRequest
 {
@@ -12,7 +13,7 @@ class UpdateProductRequest extends FormRequest
         return auth()->check();
     }
 
-    public function rules(): array
+    public function rules(TaxQuery $taxQuery): array
     {
         $productId = $this->route('product');
 
@@ -30,13 +31,21 @@ class UpdateProductRequest extends FormRequest
             'is_purchased' => ['sometimes', 'boolean'],
             'purchase_price' => ['sometimes', 'numeric', 'min:0'],
             'purchase_account_id' => ['nullable', 'integer', Rule::exists('chart_of_accounts', 'id')->where('is_header', false)->whereNull('deleted_at')],
-            'purchase_tax_id' => ['nullable', 'integer', Rule::exists('taxes', 'id')->where('is_active', true)->whereNotNull('input_account_id')],
+            'purchase_tax_id' => ['nullable', 'integer', function (string $attribute, mixed $value, \Closure $fail) use ($taxQuery): void {
+                if (! $taxQuery->isEligibleForPurchase((int) $value)) {
+                    $fail('The selected purchase tax is invalid.');
+                }
+            }],
 
             // Sales
             'is_sold' => ['sometimes', 'boolean'],
             'selling_price' => ['sometimes', 'numeric', 'min:0'],
             'sales_account_id' => ['nullable', 'integer', Rule::exists('chart_of_accounts', 'id')->where('is_header', false)->whereNull('deleted_at')],
-            'sales_tax_id' => ['nullable', 'integer', Rule::exists('taxes', 'id')->where('is_active', true)->whereNotNull('output_account_id')],
+            'sales_tax_id' => ['nullable', 'integer', function (string $attribute, mixed $value, \Closure $fail) use ($taxQuery): void {
+                if (! $taxQuery->isEligibleForSale((int) $value)) {
+                    $fail('The selected sales tax is invalid.');
+                }
+            }],
 
             // Inventory
             'is_inventory_tracked' => ['sometimes', 'boolean'],

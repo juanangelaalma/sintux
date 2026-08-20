@@ -22,6 +22,16 @@ final class TaxQuery
         return $this->listEligible('output_account_id');
     }
 
+    public function isEligibleForPurchase(int $taxId): bool
+    {
+        return $this->isEligible($taxId, 'input_account_id');
+    }
+
+    public function isEligibleForSale(int $taxId): bool
+    {
+        return $this->isEligible($taxId, 'output_account_id');
+    }
+
     /**
      * @return list<array{id: int, code: string, name: string, rate: string}>
      */
@@ -40,5 +50,14 @@ final class TaxQuery
                 'rate' => $tax->rate,
             ])
             ->all();
+    }
+
+    private function isEligible(int $taxId, string $accountColumn): bool
+    {
+        return Tax::query()
+            ->whereKey($taxId)
+            ->where('is_active', true)
+            ->whereNotNull($accountColumn)
+            ->exists();
     }
 }
