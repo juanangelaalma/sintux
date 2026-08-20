@@ -5,6 +5,7 @@ namespace Modules\Product\Http\Controllers;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Modules\Accounting\Application\ChartOfAccountQuery;
 use Modules\Product\Application\Category\GetCategories;
 use Modules\Product\Application\Product\CreateProduct;
 use Modules\Product\Application\Product\DeleteProduct;
@@ -28,6 +29,7 @@ class ProductController extends Controller
         private readonly CreateProduct $createProduct,
         private readonly UpdateProduct $updateProduct,
         private readonly DeleteProduct $deleteProduct,
+        private readonly ChartOfAccountQuery $chartOfAccountQuery,
     ) {}
 
     public function index()
@@ -48,10 +50,13 @@ class ProductController extends Controller
         // Get all single products for bundle selection
         $allProducts = $this->getProducts->execute(['is_active' => true]);
 
+        $chartOfAccounts = $this->chartOfAccountQuery->listChartOfAccounts();
+
         return Inertia::render('Product/Products/create', [
             'categories' => $this->getCategories->all(),
             'uoms' => $this->getUoms->all(),
             'availableProducts' => $allProducts['data'] ?? [],
+            'chartOfAccounts' => $chartOfAccounts,
         ]);
     }
 
