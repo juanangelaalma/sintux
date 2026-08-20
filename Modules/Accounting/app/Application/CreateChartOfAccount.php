@@ -9,6 +9,8 @@ use Modules\Accounting\Models\ChartOfAccount;
 
 class CreateChartOfAccount
 {
+    public function __construct(private CanBecomeChartOfAccountParent $canBecomeChartOfAccountParent) {}
+
     /**
      * Create an account in the current tenant database.
      *
@@ -49,10 +51,16 @@ class CreateChartOfAccount
                         ]);
                     }
 
-                    if ($detailType === 'sub_account' && ! $relatedAccounts->firstWhere('id', $parentId)?->is_header) {
-                        throw ValidationException::withMessages([
-                            'parent_id' => 'Akun induk yang dipilih bukan akun header.',
-                        ]);
+                    if ($detailType === 'sub_account') {
+                        $parent = $relatedAccounts->firstWhere('id', $parentId);
+
+                        if (! $parent || ! $this->canBecomeChartOfAccountParent->execute($parent)) {
+                            throw ValidationException::withMessages([
+                                'parent_id' => 'Akun induk tidak dapat digunakan.',
+                            ]);
+                        }
+
+                        $parent->update(['is_header' => true]);
                     }
 
                     unset($data['detail_type'], $data['header_account_ids']);

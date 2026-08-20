@@ -9,6 +9,8 @@ use Modules\Accounting\Models\ChartOfAccount;
 
 class UpdateChartOfAccount
 {
+    public function __construct(private CanBecomeChartOfAccountParent $canBecomeChartOfAccountParent) {}
+
     /**
      * Update an account in the current tenant database.
      *
@@ -56,15 +58,27 @@ class UpdateChartOfAccount
                     $headerAccountIds,
                 );
 
+                $hasChildren = $lockedAccounts->contains(
+                    fn (ChartOfAccount $candidate): bool => $candidate->parent_id === $account->id,
+                );
+
+                if ($detailType === 'sub_account') {
+                    $lockedAccounts->firstWhere('id', $parentId)->update(['is_header' => true]);
+                }
+
                 unset($data['detail_type'], $data['header_account_ids']);
 
-                if ($account->is_header && $data['is_header']) {
+                if ($hasChildren) {
+                    $data['is_header'] = true;
+                }
+
+                if ($detailType === 'header' && $account->is_header && $data['is_header']) {
                     $data['parent_id'] = $account->parent_id;
                 }
 
                 $account->fill($data)->save();
 
-                if ($account->is_header) {
+                if ($account->is_header && $detailType === 'header') {
                     $account->children()
                         ->whereNotIn('id', $headerAccountIds)
                         ->update(['parent_id' => null]);
@@ -97,22 +111,6 @@ class UpdateChartOfAccount
         ?int $parentId,
         array $headerAccountIds,
     ): void {
-        $hasChildren = $accounts->contains(
-            fn (ChartOfAccount $candidate): bool => $candidate->parent_id === $account->id,
-        );
-
-        if ($hasChildren && $detailType !== 'header') {
-            throw ValidationException::withMessages([
-                'detail_type' => 'Akun yang memiliki turunan harus tetap menjadi akun header.',
-            ]);
-        }
-
-        if ($hasChildren && $account->account_category_id !== $categoryId) {
-            throw ValidationException::withMessages([
-                'account_category_id' => 'Kategori akun header yang memiliki turunan tidak dapat diubah.',
-            ]);
-        }
-
         $selectedIds = $detailType === 'header' ? $headerAccountIds : ($parentId ? [$parentId] : []);
         $selectedAccounts = $accounts
             ->whereIn('id', $selectedIds)
@@ -135,11 +133,24 @@ class UpdateChartOfAccount
         if ($detailType === 'sub_account') {
             $parent = $selectedAccounts->firstWhere('id', $parentId);
 
-            if (! $parent?->is_header || $this->isDescendantOf($parent, $account->id, $accounts)) {
+            if (! $parent
+                || ! $this->canBecomeChartOfAccountParent->execute($parent)
+                || $parent->id === $account->id
+                || $this->isDescendantOf($parent, $account->id, $accounts)) {
                 throw ValidationException::withMessages([
                     'parent_id' => 'Akun induk tidak valid atau akan membuat siklus hierarki.',
                 ]);
             }
+        }
+
+        $hasChildren = $accounts->contains(
+            fn (ChartOfAccount $candidate): bool => $candidate->parent_id === $account->id,
+        );
+
+        if ($hasChildren && $account->account_category_id !== $categoryId) {
+            throw ValidationException::withMessages([
+                'account_category_id' => 'Kategori akun header yang memiliki turunan tidak dapat diubah.',
+            ]);
         }
 
         if ($detailType === 'header') {

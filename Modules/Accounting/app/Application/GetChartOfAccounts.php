@@ -43,7 +43,6 @@ class GetChartOfAccounts
 
         $parentAccounts = array_values($accounts
             ->whereNull('deleted_at')
-            ->where('is_header', true)
             ->map(fn (ChartOfAccount $account): array => [
                 'id' => $account->id,
                 'account_category_id' => $account->account_category_id,

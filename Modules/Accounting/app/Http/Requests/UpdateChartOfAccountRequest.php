@@ -71,10 +71,6 @@ class UpdateChartOfAccountRequest extends StoreChartOfAccountRequest
                 }
 
                 if ($account->children()->withTrashed()->exists()) {
-                    if (! $this->boolean('is_header')) {
-                        $validator->errors()->add('is_header', 'Akun yang memiliki turunan harus tetap menjadi akun header.');
-                    }
-
                     if ($account->account_category_id !== $this->integer('account_category_id')) {
                         $validator->errors()->add('account_category_id', 'Kategori akun header yang memiliki turunan tidak dapat diubah.');
                     }

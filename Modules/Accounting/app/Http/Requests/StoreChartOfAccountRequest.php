@@ -36,7 +36,7 @@ class StoreChartOfAccountRequest extends FormRequest
                 'required_if:detail_type,sub_account',
                 'prohibited_unless:detail_type,sub_account',
                 'integer',
-                Rule::exists('chart_of_accounts', 'id')->whereNull('deleted_at')->where('is_header', true),
+                Rule::exists('chart_of_accounts', 'id')->whereNull('deleted_at'),
             ],
             'header_account_ids' => [
                 'exclude_unless:detail_type,header',
