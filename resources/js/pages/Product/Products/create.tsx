@@ -23,14 +23,30 @@ type ChartOfAccountOption = {
     name: string;
 };
 
+type TaxOption = {
+    id: number;
+    code: string;
+    name: string;
+    rate: string;
+};
+
 type Props = {
     categories: CategoryOption[];
     uoms: UomOption[];
     availableProducts: AvailableProduct[];
     chartOfAccounts: ChartOfAccountOption[];
+    purchaseTaxes: TaxOption[];
+    salesTaxes: TaxOption[];
 };
 
-export default function Create({ categories, uoms, availableProducts = [], chartOfAccounts = [] }: Props) {
+export default function Create({
+    categories,
+    uoms,
+    availableProducts = [],
+    chartOfAccounts = [],
+    purchaseTaxes,
+    salesTaxes,
+}: Props) {
     const [activeFormTab, setActiveFormTab] = useState<'pricing' | 'bundle'>('pricing');
     const [uploadingImage, setUploadingImage] = useState(false);
     const [imageError, setImageError] = useState<string | null>(null);
@@ -39,6 +55,14 @@ export default function Create({ categories, uoms, availableProducts = [], chart
     const chartOfAccountOptions = chartOfAccounts.map((account) => ({
         id: account.id,
         label: `${account.code} - ${account.name}`,
+    }));
+    const purchaseTaxOptions = purchaseTaxes.map((tax) => ({
+        id: tax.id,
+        label: `${tax.code} - ${tax.name} (${tax.rate}%)`,
+    }));
+    const salesTaxOptions = salesTaxes.map((tax) => ({
+        id: tax.id,
+        label: `${tax.code} - ${tax.name} (${tax.rate}%)`,
     }));
 
     const form = useForm<ProductForm>({
@@ -494,11 +518,12 @@ return;
                                                     <label className="block text-xs font-medium text-slate-600 mb-1">
                                                         Pajak beli
                                                     </label>
-                                                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none text-slate-500">
-                                                        <option value="">Pilih pajak</option>
-                                                        <option value="ppn11">PPN 11%</option>
-                                                        <option value="non_pajak">Tanpa Pajak</option>
-                                                    </select>
+                                                    <SearchableSelect
+                                                        options={purchaseTaxOptions}
+                                                        value={form.data.purchase_tax_id}
+                                                        onChange={(value) => form.setData('purchase_tax_id', value)}
+                                                        placeholder="Pilih pajak beli"
+                                                    />
                                                 </div>
                                             </div>
                                         )}
@@ -556,10 +581,12 @@ return;
                                                         <label className="block text-xs font-medium text-slate-600 mb-1">
                                                             Pajak jual
                                                         </label>
-                                                        <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none text-slate-500">
-                                                            <option value="">Pilih pajak</option>
-                                                            <option value="ppn11">PPN 11%</option>
-                                                        </select>
+                                                        <SearchableSelect
+                                                            options={salesTaxOptions}
+                                                            value={form.data.sales_tax_id}
+                                                            onChange={(value) => form.setData('sales_tax_id', value)}
+                                                            placeholder="Pilih pajak jual"
+                                                        />
                                                     </div>
                                                 </div>
 
