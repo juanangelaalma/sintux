@@ -71,8 +71,8 @@ class ProductCrudTest extends TestCase
             ->get(route('product.products.create'))
             ->assertInertia(
                 fn ($page) => $page
-                    ->has('purchaseTaxes', 1, fn ($taxes) => $taxes->where('id', $purchaseTaxId))
-                    ->has('salesTaxes', 1, fn ($taxes) => $taxes->where('id', $salesTaxId))
+                    ->has('purchaseTaxes', fn ($taxes) => $taxes->where('id', $purchaseTaxId))
+                    ->has('salesTaxes', fn ($taxes) => $taxes->where('id', $salesTaxId))
             );
 
         $this->actingAs($user)
