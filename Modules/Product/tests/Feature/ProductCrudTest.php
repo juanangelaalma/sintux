@@ -67,6 +67,14 @@ class ProductCrudTest extends TestCase
         [$purchaseTaxId, $salesTaxId] = EligibleTaxFixture::create($suffix);
         tenancy()->end();
 
+        $this->actingAs($user)->post(route('product.products.store'), [
+            'code' => 'INVALID-TAX-'.$suffix,
+            'name' => 'Invalid tax product',
+            'category_id' => $categoryId,
+            'uom_id' => $uomId,
+            'purchase_tax_id' => $salesTaxId,
+        ])->assertSessionHasErrors('purchase_tax_id');
+
         $this->actingAs($user)
             ->get(route('product.products.create'))
             ->assertInertia(
@@ -91,8 +99,10 @@ class ProductCrudTest extends TestCase
             'product_type' => 'single',
             'is_purchased' => true,
             'purchase_price' => 10000000,
+            'purchase_tax_id' => $purchaseTaxId,
             'is_sold' => true,
             'selling_price' => 15000000,
+            'sales_tax_id' => $salesTaxId,
             'is_inventory_tracked' => true,
             'min_stock' => 5,
             'is_active' => true,
@@ -117,6 +127,17 @@ class ProductCrudTest extends TestCase
         tenancy()->end();
 
         // Update Product
+        $this->actingAs($user)->put(route('product.products.update', ['product' => $product->id]), [
+            'code' => 'LAPTOP-002',
+            'name' => 'Laptop Pro Max',
+            'category_id' => $categoryId,
+            'uom_id' => $uomId,
+            'description' => 'Updated description',
+            'selling_price' => 18000000,
+            'purchase_tax_id' => $salesTaxId,
+            'is_active' => false,
+        ])->assertSessionHasErrors('purchase_tax_id');
+
         $this->actingAs($user)->put(route('product.products.update', ['product' => $product->id]), [
             'code' => 'LAPTOP-002',
             'name' => 'Laptop Pro Max',

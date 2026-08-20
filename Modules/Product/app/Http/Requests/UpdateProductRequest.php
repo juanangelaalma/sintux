@@ -30,13 +30,13 @@ class UpdateProductRequest extends FormRequest
             'is_purchased' => ['sometimes', 'boolean'],
             'purchase_price' => ['sometimes', 'numeric', 'min:0'],
             'purchase_account_id' => ['nullable', 'integer', Rule::exists('chart_of_accounts', 'id')->where('is_header', false)->whereNull('deleted_at')],
-            'purchase_tax_id' => ['nullable', 'integer'],
+            'purchase_tax_id' => ['nullable', 'integer', Rule::exists('taxes', 'id')->where('is_active', true)->whereNotNull('input_account_id')],
 
             // Sales
             'is_sold' => ['sometimes', 'boolean'],
             'selling_price' => ['sometimes', 'numeric', 'min:0'],
             'sales_account_id' => ['nullable', 'integer', Rule::exists('chart_of_accounts', 'id')->where('is_header', false)->whereNull('deleted_at')],
-            'sales_tax_id' => ['nullable', 'integer'],
+            'sales_tax_id' => ['nullable', 'integer', Rule::exists('taxes', 'id')->where('is_active', true)->whereNotNull('output_account_id')],
 
             // Inventory
             'is_inventory_tracked' => ['sometimes', 'boolean'],
