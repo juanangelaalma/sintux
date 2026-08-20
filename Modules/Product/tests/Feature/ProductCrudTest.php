@@ -63,7 +63,29 @@ class ProductCrudTest extends TestCase
             'code' => 'PCS-'.$suffix,
             'is_active' => true,
         ]);
+        $purchaseTaxId = DB::table('taxes')->insertGetId([
+            'code' => 'PURCHASE-'.$suffix,
+            'name' => 'Purchase tax',
+            'rate' => '11.0000',
+            'input_account_id' => DB::table('chart_of_accounts')->value('id'),
+            'is_active' => true,
+        ]);
+        $salesTaxId = DB::table('taxes')->insertGetId([
+            'code' => 'SALES-'.$suffix,
+            'name' => 'Sales tax',
+            'rate' => '12.0000',
+            'output_account_id' => DB::table('chart_of_accounts')->value('id'),
+            'is_active' => true,
+        ]);
         tenancy()->end();
+
+        $this->actingAs($user)
+            ->get(route('product.products.create'))
+            ->assertInertia(
+                fn ($page) => $page
+                    ->where('purchaseTaxes.0.id', $purchaseTaxId)
+                    ->where('salesTaxes.0.id', $salesTaxId)
+            );
 
         $this->actingAs($user)
             ->get(route('product.products.index'))
