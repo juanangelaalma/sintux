@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Modules\Accounting\Tests\Support\EligibleChartOfAccountFixture;
 use Modules\Accounting\Tests\Support\EligibleTaxFixture;
 use Modules\Company\Models\CompanyUser;
 use Tests\TestCase;
@@ -65,7 +66,16 @@ class ProductCrudTest extends TestCase
             'is_active' => true,
         ]);
         [$purchaseTaxId, $salesTaxId] = EligibleTaxFixture::create($suffix);
+        $accountIds = EligibleChartOfAccountFixture::create();
         tenancy()->end();
+
+        $this->actingAs($user)->post(route('product.products.store'), [
+            'code' => 'INVALID-ACCOUNT-'.$suffix,
+            'name' => 'Invalid account product',
+            'category_id' => $categoryId,
+            'uom_id' => $uomId,
+            'purchase_account_id' => $accountIds['header'],
+        ])->assertSessionHasErrors('purchase_account_id');
 
         $this->actingAs($user)->post(route('product.products.store'), [
             'code' => 'INVALID-TAX-'.$suffix,
@@ -107,12 +117,15 @@ class ProductCrudTest extends TestCase
             'product_type' => 'single',
             'is_purchased' => true,
             'purchase_price' => 10000000,
+            'purchase_account_id' => $accountIds['eligible'],
             'purchase_tax_id' => $purchaseTaxId,
             'is_sold' => true,
             'selling_price' => 15000000,
+            'sales_account_id' => $accountIds['eligible'],
             'sales_tax_id' => $salesTaxId,
             'is_inventory_tracked' => true,
             'min_stock' => 5,
+            'inventory_account_id' => $accountIds['eligible'],
             'is_active' => true,
         ])->assertRedirect(route('product.products.index'));
 
@@ -142,9 +155,10 @@ class ProductCrudTest extends TestCase
             'uom_id' => $uomId,
             'description' => 'Updated description',
             'selling_price' => 18000000,
+            'sales_account_id' => $accountIds['deleted'],
             'purchase_tax_id' => $salesTaxId,
             'is_active' => false,
-        ])->assertSessionHasErrors('purchase_tax_id');
+        ])->assertSessionHasErrors(['purchase_tax_id', 'sales_account_id']);
 
         $this->actingAs($user)->put(route('product.products.update', ['product' => $product->id]), [
             'code' => 'LAPTOP-002',

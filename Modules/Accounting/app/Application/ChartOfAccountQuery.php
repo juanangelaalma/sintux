@@ -24,4 +24,12 @@ class ChartOfAccountQuery
             ->values()
             ->all();
     }
+
+    public function isEligible(int $accountId): bool
+    {
+        return ChartOfAccount::query()
+            ->whereKey($accountId)
+            ->where('is_header', false)
+            ->exists();
+    }
 }

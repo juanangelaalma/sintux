@@ -93,8 +93,8 @@ export default function Create({
         const file = e.target.files?.[0];
 
         if (!file) {
-return;
-}
+            return;
+        }
 
         setImageError(null);
 
@@ -111,8 +111,8 @@ return;
             setImageError('Format file tidak diizinkan! Hanya diperbolehkan berkas gambar JPG (.jpg, .jpeg) dan PNG (.png).');
 
             if (fileInputRef.current) {
-fileInputRef.current.value = '';
-}
+                fileInputRef.current.value = '';
+            }
 
             return;
         }
@@ -124,8 +124,8 @@ fileInputRef.current.value = '';
             setImageError('Ukuran berkas melebihi batas maksimal 5 MB.');
 
             if (fileInputRef.current) {
-fileInputRef.current.value = '';
-}
+                fileInputRef.current.value = '';
+            }
 
             return;
         }
@@ -165,14 +165,14 @@ fileInputRef.current.value = '';
 
     const handleAddBundleItem = (selectedProductId: number) => {
         if (!selectedProductId) {
-return;
-}
+            return;
+        }
 
         const exists = form.data.bundle_items.some((i) => i.item_product_id === selectedProductId);
 
         if (exists) {
-return;
-}
+            return;
+        }
 
         form.setData('bundle_items', [
             ...form.data.bundle_items,

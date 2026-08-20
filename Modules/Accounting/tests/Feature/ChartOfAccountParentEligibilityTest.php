@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Accounting\Application\CanBecomeChartOfAccountParent;
+use Modules\Accounting\Application\ChartOfAccountQuery;
 use Modules\Accounting\Application\CreateChartOfAccount;
 use Modules\Accounting\Application\GetChartOfAccounts;
 use Modules\Accounting\Application\UpdateChartOfAccount;
@@ -62,6 +63,24 @@ class ChartOfAccountParentEligibilityTest extends TestCase
         $this->assertTrue(
             app(CanBecomeChartOfAccountParent::class)->execute($account),
         );
+    }
+
+    public function test_it_identifies_accounts_eligible_for_product_references(): void
+    {
+        $eligible = ChartOfAccount::query()->where('is_header', false)->firstOrFail();
+        $header = ChartOfAccount::query()->where('is_header', true)->firstOrFail();
+        $deleted = ChartOfAccount::query()
+            ->where('is_header', false)
+            ->whereKeyNot($eligible->id)
+            ->firstOrFail();
+        $deleted->delete();
+
+        $query = app(ChartOfAccountQuery::class);
+
+        $this->assertTrue($query->isEligible($eligible->id));
+        $this->assertFalse($query->isEligible($header->id));
+        $this->assertFalse($query->isEligible($deleted->id));
+        $this->assertFalse($query->isEligible(PHP_INT_MAX));
     }
 
     public function test_parent_candidates_include_active_non_header_accounts(): void
