@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useRef } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import CompanyLayout from '@/layouts/company/company-layout';
+import React, { useState, useMemo, useRef } from 'react';
 import Button from '@/components/ui/button';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import CompanyLayout from '@/layouts/company/company-layout';
 import { UnitCombobox } from '@/pages/Product/components/unit-combobox';
 import type { ProductForm } from './types';
 
@@ -16,18 +17,29 @@ type AvailableProduct = {
     uom?: { code: string };
 };
 
+type ChartOfAccountOption = {
+    id: number;
+    code: string;
+    name: string;
+};
+
 type Props = {
     categories: CategoryOption[];
     uoms: UomOption[];
     availableProducts: AvailableProduct[];
+    chartOfAccounts: ChartOfAccountOption[];
 };
 
-export default function Create({ categories, uoms, availableProducts = [] }: Props) {
+export default function Create({ categories, uoms, availableProducts = [], chartOfAccounts = [] }: Props) {
     const [activeFormTab, setActiveFormTab] = useState<'pricing' | 'bundle'>('pricing');
     const [uploadingImage, setUploadingImage] = useState(false);
     const [imageError, setImageError] = useState<string | null>(null);
     const [uomOptions, setUomOptions] = useState<UomOption[]>(uoms);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const chartOfAccountOptions = chartOfAccounts.map((account) => ({
+        id: account.id,
+        label: `${account.code} - ${account.name}`,
+    }));
 
     const form = useForm<ProductForm>({
         code: '',
@@ -55,7 +67,10 @@ export default function Create({ categories, uoms, availableProducts = [] }: Pro
 
     const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+
+        if (!file) {
+return;
+}
 
         setImageError(null);
 
@@ -70,15 +85,24 @@ export default function Create({ categories, uoms, availableProducts = [] }: Pro
 
         if (!isValidExtension || !isValidMime) {
             setImageError('Format file tidak diizinkan! Hanya diperbolehkan berkas gambar JPG (.jpg, .jpeg) dan PNG (.png).');
-            if (fileInputRef.current) fileInputRef.current.value = '';
+
+            if (fileInputRef.current) {
+fileInputRef.current.value = '';
+}
+
             return;
         }
 
         // Security Validation 3: File size check (Max 5MB)
         const maxSizeInBytes = 5 * 1024 * 1024;
+
         if (file.size > maxSizeInBytes) {
             setImageError('Ukuran berkas melebihi batas maksimal 5 MB.');
-            if (fileInputRef.current) fileInputRef.current.value = '';
+
+            if (fileInputRef.current) {
+fileInputRef.current.value = '';
+}
+
             return;
         }
 
@@ -108,7 +132,7 @@ export default function Create({ categories, uoms, availableProducts = [] }: Pro
             } else if (data.url) {
                 form.setData('image_path', data.url);
             }
-        } catch (err) {
+        } catch {
             setImageError('Terjadi kesalahan saat mengunggah berkas.');
         } finally {
             setUploadingImage(false);
@@ -116,9 +140,15 @@ export default function Create({ categories, uoms, availableProducts = [] }: Pro
     };
 
     const handleAddBundleItem = (selectedProductId: number) => {
-        if (!selectedProductId) return;
+        if (!selectedProductId) {
+return;
+}
+
         const exists = form.data.bundle_items.some((i) => i.item_product_id === selectedProductId);
-        if (exists) return;
+
+        if (exists) {
+return;
+}
 
         form.setData('bundle_items', [
             ...form.data.bundle_items,
@@ -146,6 +176,7 @@ export default function Create({ categories, uoms, availableProducts = [] }: Pro
         return form.data.bundle_items.reduce((sum, item) => {
             const prod = availableProducts.find((p) => p.id === item.item_product_id);
             const price = prod?.selling_price ?? prod?.purchase_price ?? 0;
+
             return sum + price * item.quantity;
         }, 0);
     }, [form.data.bundle_items, availableProducts]);
@@ -451,10 +482,12 @@ export default function Create({ categories, uoms, availableProducts = [] }: Pro
                                                     <label className="block text-xs font-medium text-slate-600 mb-1">
                                                         Akun pembelian
                                                     </label>
-                                                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">
-                                                        <option>(5-50000) - Beban Pokok Pendapatan</option>
-                                                        <option>(5-50001) - Pembelian Barang Dagang</option>
-                                                    </select>
+                                                    <SearchableSelect
+                                                        options={chartOfAccountOptions}
+                                                        value={form.data.purchase_account_id}
+                                                        onChange={(value) => form.setData('purchase_account_id', value)}
+                                                        placeholder="Pilih akun pembelian"
+                                                    />
                                                 </div>
 
                                                 <div>
@@ -511,10 +544,12 @@ export default function Create({ categories, uoms, availableProducts = [] }: Pro
                                                         <label className="block text-xs font-medium text-slate-600 mb-1">
                                                             Akun penjualan
                                                         </label>
-                                                        <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">
-                                                            <option>(4-40000) - Pendapatan</option>
-                                                            <option>(4-40001) - Penjualan Barang</option>
-                                                        </select>
+                                                        <SearchableSelect
+                                                            options={chartOfAccountOptions}
+                                                            value={form.data.sales_account_id}
+                                                            onChange={(value) => form.setData('sales_account_id', value)}
+                                                            placeholder="Pilih akun penjualan"
+                                                        />
                                                     </div>
 
                                                     <div>
@@ -575,9 +610,12 @@ export default function Create({ categories, uoms, availableProducts = [] }: Pro
                                                         <label className="block text-xs font-medium text-slate-600 mb-1">
                                                             Akun persediaan barang default
                                                         </label>
-                                                        <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">
-                                                            <option>(1-10200) - Persediaan Barang</option>
-                                                        </select>
+                                                        <SearchableSelect
+                                                            options={chartOfAccountOptions}
+                                                            value={form.data.inventory_account_id}
+                                                            onChange={(value) => form.setData('inventory_account_id', value)}
+                                                            placeholder="Pilih akun persediaan"
+                                                        />
                                                     </div>
                                                 </div>
 
@@ -614,6 +652,7 @@ export default function Create({ categories, uoms, availableProducts = [] }: Pro
                                         {form.data.bundle_items.map((item) => {
                                             const prod = availableProducts.find((p) => p.id === item.item_product_id);
                                             const price = (prod?.selling_price ?? prod?.purchase_price ?? 0) * item.quantity;
+
                                             return (
                                                 <div key={item.item_product_id} className="grid grid-cols-12 gap-4 items-center py-1">
                                                     <div className="col-span-6">
