@@ -75,6 +75,14 @@ class ProductCrudTest extends TestCase
             'purchase_tax_id' => $salesTaxId,
         ])->assertSessionHasErrors('purchase_tax_id');
 
+        $this->actingAs($user)->post(route('product.products.store'), [
+            'code' => 'INVALID-SALES-TAX-'.$suffix,
+            'name' => 'Invalid sales tax product',
+            'category_id' => $categoryId,
+            'uom_id' => $uomId,
+            'sales_tax_id' => $purchaseTaxId,
+        ])->assertSessionHasErrors('sales_tax_id');
+
         $this->actingAs($user)
             ->get(route('product.products.create'))
             ->assertInertia(

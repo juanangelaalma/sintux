@@ -88,6 +88,45 @@ class TaxQueryTest extends TestCase
         $this->assertSame([$salesTax->id], array_column($query->listForSale(), 'id'));
     }
 
+    public function test_checks_tax_eligibility_for_each_transaction_type(): void
+    {
+        Tax::query()->delete();
+
+        $account = ChartOfAccount::query()->firstOrFail();
+        $purchaseTax = Tax::create([
+            'code' => 'PURCHASE',
+            'name' => 'Purchase tax',
+            'rate' => '11.0000',
+            'input_account_id' => $account->id,
+            'is_active' => true,
+        ]);
+        $salesTax = Tax::create([
+            'code' => 'SALE',
+            'name' => 'Sales tax',
+            'rate' => '12.0000',
+            'output_account_id' => $account->id,
+            'is_active' => true,
+        ]);
+        $inactiveTax = Tax::create([
+            'code' => 'INACTIVE',
+            'name' => 'Inactive tax',
+            'rate' => '13.0000',
+            'input_account_id' => $account->id,
+            'output_account_id' => $account->id,
+            'is_active' => false,
+        ]);
+
+        $query = app(TaxQuery::class);
+
+        $this->assertTrue($query->isEligibleForPurchase($purchaseTax->id));
+        $this->assertFalse($query->isEligibleForPurchase($salesTax->id));
+        $this->assertTrue($query->isEligibleForSale($salesTax->id));
+        $this->assertFalse($query->isEligibleForSale($purchaseTax->id));
+        $this->assertFalse($query->isEligibleForPurchase($inactiveTax->id));
+        $this->assertFalse($query->isEligibleForSale($inactiveTax->id));
+        $this->assertFalse($query->isEligibleForPurchase(PHP_INT_MAX));
+    }
+
     private function dropSchema(): void
     {
         DB::statement('DROP SCHEMA IF EXISTS "'.self::SCHEMA_NAME.'" CASCADE');
