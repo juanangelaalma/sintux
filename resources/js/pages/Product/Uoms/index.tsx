@@ -29,7 +29,11 @@ export default function Index({ uoms, filters }: Props) {
     };
 
     const changePage = (page: number) => {
-        router.get('/product/uoms', { ...filters, page }, { preserveState: true });
+        router.get(
+            '/product/uoms',
+            { ...filters, page },
+            { preserveState: true },
+        );
     };
 
     const columns: DataTableColumn<Uom>[] = [

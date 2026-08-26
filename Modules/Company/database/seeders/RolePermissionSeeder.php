@@ -80,6 +80,8 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'Create Purchase Invoices', 'slug' => 'purchasing.invoice.create', 'module' => 'purchasing'],
             ['name' => 'Approve Purchase Invoices', 'slug' => 'purchasing.invoice.approve', 'module' => 'purchasing'],
             ['name' => 'Join Purchase Invoices', 'slug' => 'purchasing.invoice.join', 'module' => 'purchasing'],
+            ['name' => 'View Approval Rules', 'slug' => 'approval.rule.view', 'module' => 'approval'],
+            ['name' => 'Manage Approval Rules', 'slug' => 'approval.rule.manage', 'module' => 'approval'],
         ];
 
         $mapping = [
@@ -134,6 +136,8 @@ class RolePermissionSeeder extends Seeder
                 'purchasing.invoice.create',
                 'purchasing.invoice.approve',
                 'purchasing.invoice.join',
+                'approval.rule.view',
+                'approval.rule.manage',
             ],
             'member' => ['dashboard.view'],
             'sales_admin' => ['dashboard.view', 'contact.view', 'contact.create', 'contact.update', 'contact.delete', 'product.view'],

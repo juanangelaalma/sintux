@@ -13,16 +13,18 @@ type Options = {
     branches?: Branch[];
 };
 
-export function useContactForm({ type, mode, contact = null, branches = [] }: Options) {
+export function useContactForm({
+    type,
+    mode,
+    contact = null,
+    branches = [],
+}: Options) {
     const { auth } = usePage<{ auth?: Auth }>().props;
     const defaultBranchId =
-        auth?.branch_scope === 'branch'
-            ? auth.branch?.id
-            : branches[0]?.id;
+        auth?.branch_scope === 'branch' ? auth.branch?.id : branches[0]?.id;
 
-    const { data, setData, post, put, processing, errors } = useForm<ContactForm>(
-        toContactForm(contact, defaultBranchId ?? 0),
-    );
+    const { data, setData, post, put, processing, errors } =
+        useForm<ContactForm>(toContactForm(contact, defaultBranchId ?? 0));
 
     const submit = (e: FormEvent) => {
         e.preventDefault();

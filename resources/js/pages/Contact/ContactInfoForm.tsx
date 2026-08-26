@@ -8,7 +8,10 @@ import type { ContactForm, ContactType } from './types';
 type Props = {
     type: ContactType;
     data: ContactForm;
-    setData: <K extends keyof ContactForm>(key: K, value: ContactForm[K]) => void;
+    setData: <K extends keyof ContactForm>(
+        key: K,
+        value: ContactForm[K],
+    ) => void;
     errors: Record<string, string | undefined>;
     branches?: Branch[];
     branchScope?: 'all' | 'branch' | null;
@@ -35,7 +38,9 @@ export default function ContactInfoForm({
                     <FormField label="Branch" required error={errors.branch_id}>
                         <SelectInput
                             value={data.branch_id}
-                            onChange={(e) => setData('branch_id', Number(e.target.value))}
+                            onChange={(e) =>
+                                setData('branch_id', Number(e.target.value))
+                            }
                         >
                             {branches.map((branch) => (
                                 <option key={branch.id} value={branch.id}>
@@ -55,20 +60,31 @@ export default function ContactInfoForm({
                     />
                 </FormField>
 
-                <FormField label="Tanggal Register" required error={errors.registered_at}>
+                <FormField
+                    label="Tanggal Register"
+                    required
+                    error={errors.registered_at}
+                >
                     <TextInput
                         type="date"
                         required
                         value={data.registered_at}
-                        onChange={(e) => setData('registered_at', e.target.value)}
+                        onChange={(e) =>
+                            setData('registered_at', e.target.value)
+                        }
                     />
                 </FormField>
 
                 {type === 'customers' && (
-                    <FormField label="Relation Type" error={errors.tier_relation}>
+                    <FormField
+                        label="Relation Type"
+                        error={errors.tier_relation}
+                    >
                         <SelectInput
                             value={data.tier_relation}
-                            onChange={(e) => setData('tier_relation', e.target.value)}
+                            onChange={(e) =>
+                                setData('tier_relation', e.target.value)
+                            }
                         >
                             <option value="">- Pilih Relation Type -</option>
                             {relationTypeOptions.map((option) => (
@@ -85,7 +101,9 @@ export default function ContactInfoForm({
                         <input
                             type="checkbox"
                             checked={data.is_active}
-                            onChange={(e) => setData('is_active', e.target.checked)}
+                            onChange={(e) =>
+                                setData('is_active', e.target.checked)
+                            }
                             className="rounded border-gray-300"
                         />
                         Active

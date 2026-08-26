@@ -72,7 +72,7 @@ class StorePurchaseRequestRequest extends FormRequest
                 'numeric',
                 'gt:0',
             ],
-            'items.*.unit_price' => ['nullable', 'numeric', 'gt:0'],
+            'items.*.unit_price' => ['nullable', 'numeric', 'gte:0'],
             'items.*.tax_id' => ['nullable', 'integer', Rule::in($taxIds)],
         ];
     }

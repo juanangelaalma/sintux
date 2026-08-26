@@ -8,13 +8,14 @@ use Illuminate\Routing\Controller;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Company\Application\CompanyAccess;
-use Modules\Contact\Application\GetContacts;
-use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Purchasing\Application\GoodsReceipt\CreateGoodsReceipt;
 use Modules\Purchasing\Application\GoodsReceipt\GetGoodsReceiptDetail;
 use Modules\Purchasing\Application\GoodsReceipt\GetGoodsReceipts;
 use Modules\Purchasing\Application\GoodsReceipt\PostGoodsReceipt;
+use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseSummary;
+use Modules\Purchasing\Application\PurchaseOrder\GetPurchaseOrderOptions;
 use Modules\Purchasing\Http\Requests\StoreGoodsReceiptRequest;
+use Modules\Warehouse\Application\Warehouse\GetWarehouses;
 
 class GoodsReceiptController extends Controller
 {
@@ -23,6 +24,7 @@ class GoodsReceiptController extends Controller
         private readonly GetGoodsReceiptDetail $getGoodsReceiptDetail,
         private readonly CreateGoodsReceipt $createGoodsReceipt,
         private readonly PostGoodsReceipt $postGoodsReceipt,
+        private readonly GetPurchaseSummary $getPurchaseSummary,
     ) {}
 
     public function index(): Response
@@ -34,10 +36,12 @@ class GoodsReceiptController extends Controller
         $filters = request()->only(['search', 'status']);
 
         $goodsReceipts = $this->getGoodsReceipts->execute($accessibleBranchIds, $filters);
+        $summary = $this->getPurchaseSummary->execute($accessibleBranchIds);
 
         return Inertia::render('Purchasing/GRNs/index', [
             'goodsReceipts' => $goodsReceipts,
             'filters' => $filters,
+            'summary' => $summary,
         ]);
     }
 
@@ -49,9 +53,8 @@ class GoodsReceiptController extends Controller
         $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
 
         return Inertia::render('Purchasing/GRNs/create', [
-            'branches' => CompanyAccess::accessibleBranches($user, $tenantId),
-            'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
-            'productVariants' => app(GetPurchaseVariants::class)->execute(),
+            'warehouses' => app(GetWarehouses::class)->execute($accessibleBranchIds),
+            'purchaseOrders' => app(GetPurchaseOrderOptions::class)->execute($accessibleBranchIds),
         ]);
     }
 
@@ -62,7 +65,7 @@ class GoodsReceiptController extends Controller
         $tenantId = (string) session('active_tenant_id');
 
         $branchCode = collect(CompanyAccess::accessibleBranches($user, $tenantId))
-            ->firstWhere('id', $validated['branch_id'])
+            ->first()
             ->code ?? '';
 
         $this->createGoodsReceipt->execute($validated, (string) $branchCode);
@@ -85,7 +88,7 @@ class GoodsReceiptController extends Controller
         $this->postGoodsReceipt->execute($id);
 
         return redirect()->route('purchasing.grns.show', $id)
-            ->with('success', 'Penerimaan barang diposting dan stok telah diperbarui.');
+            ->with('success', 'Stok penerimaan barang berhasil diposting.');
     }
 
     /**

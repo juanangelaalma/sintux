@@ -48,7 +48,9 @@ export const ItemsTab: React.FC<Props> = ({
     categories = [],
     filters = {},
 }) => {
-    const [level2Tab, setLevel2Tab] = useState<'daftar' | 'penyesuaian' | 'approval'>('daftar');
+    const [level2Tab, setLevel2Tab] = useState<
+        'daftar' | 'penyesuaian' | 'approval'
+    >('daftar');
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [search, setSearch] = useState(filters.search ?? '');
@@ -58,7 +60,7 @@ export const ItemsTab: React.FC<Props> = ({
         router.get(
             '/product',
             { tab: 'items', search, category_id: filters.category_id },
-            { preserveState: true }
+            { preserveState: true },
         );
     };
 
@@ -66,7 +68,7 @@ export const ItemsTab: React.FC<Props> = ({
         router.get(
             '/product',
             { tab: 'items', search, page },
-            { preserveState: true, preserveScroll: true }
+            { preserveState: true, preserveScroll: true },
         );
     };
 
@@ -92,7 +94,10 @@ export const ItemsTab: React.FC<Props> = ({
             header: (
                 <input
                     type="checkbox"
-                    checked={products.data.length > 0 && selectedIds.length === products.data.length}
+                    checked={
+                        products.data.length > 0 &&
+                        selectedIds.length === products.data.length
+                    }
                     onChange={toggleSelectAll}
                     className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
@@ -121,7 +126,11 @@ export const ItemsTab: React.FC<Props> = ({
         {
             key: 'code',
             header: 'Kode produk ↕',
-            render: (product) => <span className="font-mono text-xs text-slate-700">{product.code}</span>,
+            render: (product) => (
+                <span className="font-mono text-xs text-slate-700">
+                    {product.code}
+                </span>
+            ),
         },
         {
             key: 'category',
@@ -132,7 +141,9 @@ export const ItemsTab: React.FC<Props> = ({
             key: 'total_stock',
             header: 'Total stok ↕',
             render: (product) => (
-                <span className="font-bold text-slate-900">{product.total_stock ?? 0}</span>
+                <span className="font-bold text-slate-900">
+                    {product.total_stock ?? 0}
+                </span>
             ),
         },
         {
@@ -203,9 +214,9 @@ export const ItemsTab: React.FC<Props> = ({
                     <button
                         type="button"
                         onClick={() => setLevel2Tab('daftar')}
-                        className={`pb-2 border-b-2 transition-all ${
+                        className={`border-b-2 pb-2 transition-all ${
                             level2Tab === 'daftar'
-                                ? 'border-indigo-600 text-indigo-600 font-bold'
+                                ? 'border-indigo-600 font-bold text-indigo-600'
                                 : 'border-transparent text-slate-500 hover:text-slate-700'
                         }`}
                     >
@@ -213,13 +224,13 @@ export const ItemsTab: React.FC<Props> = ({
                     </button>
                     <Link
                         href="/warehouse/adjustments"
-                        className="pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-all"
+                        className="border-b-2 border-transparent pb-2 text-slate-500 transition-all hover:text-slate-700"
                     >
                         Daftar penyesuaian stok
                     </Link>
                     <Link
                         href="/warehouse/stock-requests"
-                        className="pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-all"
+                        className="border-b-2 border-transparent pb-2 text-slate-500 transition-all hover:text-slate-700"
                     >
                         Membutuhkan persetujuan
                     </Link>
@@ -227,7 +238,7 @@ export const ItemsTab: React.FC<Props> = ({
             </div>
 
             {/* Toolbar Action Bar (Matching Image 1) */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 {/* Left Actions */}
                 <div className="flex items-center gap-3">
                     <button
@@ -235,34 +246,65 @@ export const ItemsTab: React.FC<Props> = ({
                         className="rounded-lg border border-slate-300 p-2 text-slate-600 hover:bg-slate-50"
                         title="Tampilan Grid"
                     >
-                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        <svg
+                            className="size-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 6h16M4 12h16M4 18h16"
+                            />
                         </svg>
                     </button>
 
                     <button
                         type="button"
                         onClick={() => setShowCategoryModal(true)}
-                        className="rounded-lg border border-indigo-600/40 bg-white px-3.5 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 shadow-sm transition-colors"
+                        className="rounded-lg border border-indigo-600/40 bg-white px-3.5 py-1.5 text-xs font-semibold text-indigo-600 shadow-sm transition-colors hover:bg-indigo-50"
                     >
                         Atur kategori produk
                     </button>
                 </div>
 
                 {/* Right Actions */}
-                <form onSubmit={handleSearchSubmit} className="flex flex-wrap items-center gap-2">
-                    <Button type="button" variant="secondary" className="text-xs px-3 py-1.5">
+                <form
+                    onSubmit={handleSearchSubmit}
+                    className="flex flex-wrap items-center gap-2"
+                >
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        className="px-3 py-1.5 text-xs"
+                    >
                         Impor
                     </Button>
 
-                    <Button type="button" variant="secondary" className="text-xs px-3 py-1.5">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        className="px-3 py-1.5 text-xs"
+                    >
                         Ekspor
                     </Button>
 
                     <div className="relative w-48 sm:w-56">
                         <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                            <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            <svg
+                                className="size-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
                             </svg>
                         </span>
                         <input
@@ -270,13 +312,27 @@ export const ItemsTab: React.FC<Props> = ({
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Cari produk"
-                            className="w-full rounded-lg border border-slate-300 pl-8 pr-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none"
+                            className="w-full rounded-lg border border-slate-300 py-1.5 pr-3 pl-8 text-xs focus:border-indigo-500 focus:outline-none"
                         />
                     </div>
 
-                    <Button type="submit" variant="secondary" className="text-xs px-3 py-1.5 flex items-center gap-1">
-                        <svg className="size-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    <Button
+                        type="submit"
+                        variant="secondary"
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs"
+                    >
+                        <svg
+                            className="size-3.5 text-slate-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                            />
                         </svg>
                         Filter
                     </Button>

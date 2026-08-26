@@ -20,18 +20,20 @@ type PageProps = {
 export default function Dashboard() {
     const { props } = usePage<PageProps>();
     const branchSummaries = props.branchSummaries ?? [];
-    const auth = props.auth as {
-        branch_scope?: 'all' | 'branch' | null;
-        branch?: { name: string } | null;
-        branches?: { id: number; name: string }[];
-    } | undefined;
+    const auth = props.auth as
+        | {
+              branch_scope?: 'all' | 'branch' | null;
+              branch?: { name: string } | null;
+              branches?: { id: number; name: string }[];
+          }
+        | undefined;
 
     const scopeLabel =
         auth?.branch_scope === 'all'
             ? (auth.branches?.length ?? 0) > 1
                 ? 'Semua cabang'
                 : 'Semua cabang'
-            : auth?.branch?.name ?? '';
+            : (auth?.branch?.name ?? '');
 
     const totalContacts = branchSummaries.reduce(
         (sum, summary) =>
@@ -51,7 +53,9 @@ export default function Dashboard() {
                         Dashboard
                     </h1>
                     <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-                        {scopeLabel ? `Cakupan: ${scopeLabel}` : 'Ringkasan cabang'}
+                        {scopeLabel
+                            ? `Cakupan: ${scopeLabel}`
+                            : 'Ringkasan cabang'}
                     </p>
                 </div>
 
@@ -77,7 +81,10 @@ export default function Dashboard() {
                             Pelanggan
                         </p>
                         <p className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
-                            {branchSummaries.reduce((sum, s) => sum + s.contacts.customers, 0)}
+                            {branchSummaries.reduce(
+                                (sum, s) => sum + s.contacts.customers,
+                                0,
+                            )}
                         </p>
                     </div>
                 </div>
@@ -87,11 +94,21 @@ export default function Dashboard() {
                         <table className="w-full text-left text-theme-sm">
                             <thead>
                                 <tr className="border-b border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                                    <th className="pb-3 pr-4 font-medium">Cabang</th>
-                                    <th className="pb-3 pr-4 font-medium">Kode</th>
-                                    <th className="pb-3 pr-4 font-medium">Customer</th>
-                                    <th className="pb-3 pr-4 font-medium">Supplier</th>
-                                    <th className="pb-3 pr-4 font-medium">Employee</th>
+                                    <th className="pr-4 pb-3 font-medium">
+                                        Cabang
+                                    </th>
+                                    <th className="pr-4 pb-3 font-medium">
+                                        Kode
+                                    </th>
+                                    <th className="pr-4 pb-3 font-medium">
+                                        Customer
+                                    </th>
+                                    <th className="pr-4 pb-3 font-medium">
+                                        Supplier
+                                    </th>
+                                    <th className="pr-4 pb-3 font-medium">
+                                        Employee
+                                    </th>
                                     <th className="pb-3 font-medium">Total</th>
                                 </tr>
                             </thead>

@@ -6,22 +6,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Purchasing\Models\PurchaseInvoice;
 
-class ApprovePurchaseInvoice
+class ValidateInvoiceQuantities
 {
-    public function execute(int $purchaseInvoiceId): PurchaseInvoice
+    public function execute(PurchaseInvoice $invoice): void
     {
-        $inv = PurchaseInvoice::with(['items'])->findOrFail($purchaseInvoiceId);
+        $invoice->loadMissing('items');
 
-        if ($inv->status !== 'draft') {
-            throw ValidationException::withMessages([
-                'invoice' => 'Faktur hanya dapat disetujui saat berstatus draft.',
-            ]);
-        }
-
-        // 3-way match validation: invoice qty must not exceed PO item qty_received
-        foreach ($inv->items as $item) {
+        foreach ($invoice->items as $item) {
             if ($item->purchase_order_item_id) {
-                $poItem = DB::table('purchase_order_items')->where('id', $item->purchase_order_item_id)->first();
+                $poItem = DB::table('purchase_order_items')
+                    ->where('id', $item->purchase_order_item_id)
+                    ->first();
+
                 if ($poItem) {
                     $qtyInvoiced = (float) $item->qty;
                     $qtyReceived = (float) $poItem->qty_received;
@@ -34,9 +30,5 @@ class ApprovePurchaseInvoice
                 }
             }
         }
-
-        $inv->update(['status' => 'approved']);
-
-        return $inv->fresh(['items']);
     }
 }

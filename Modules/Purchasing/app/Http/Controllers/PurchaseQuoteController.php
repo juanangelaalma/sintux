@@ -10,6 +10,7 @@ use Inertia\Response;
 use Modules\Company\Application\CompanyAccess;
 use Modules\Contact\Application\GetContacts;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
+use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseSummary;
 use Modules\Purchasing\Application\PurchaseQuote\AcceptPurchaseQuote;
 use Modules\Purchasing\Application\PurchaseQuote\CancelPurchaseQuote;
 use Modules\Purchasing\Application\PurchaseQuote\CreatePurchaseQuote;
@@ -27,6 +28,7 @@ class PurchaseQuoteController extends Controller
         private readonly SendPurchaseQuote $sendPurchaseQuote,
         private readonly AcceptPurchaseQuote $acceptPurchaseQuote,
         private readonly CancelPurchaseQuote $cancelPurchaseQuote,
+        private readonly GetPurchaseSummary $getPurchaseSummary,
     ) {}
 
     public function index(): Response
@@ -38,10 +40,12 @@ class PurchaseQuoteController extends Controller
         $filters = request()->only(['search', 'status']);
 
         $purchaseQuotes = $this->getPurchaseQuotes->execute($accessibleBranchIds, $filters);
+        $summary = $this->getPurchaseSummary->execute($accessibleBranchIds);
 
         return Inertia::render('Purchasing/Quotes/index', [
             'purchaseQuotes' => $purchaseQuotes,
             'filters' => $filters,
+            'summary' => $summary,
         ]);
     }
 
@@ -104,7 +108,7 @@ class PurchaseQuoteController extends Controller
     {
         $this->cancelPurchaseQuote->execute($id);
 
-        return redirect()->route('purchasing.quotes.index')
+        return redirect()->route('purchasing.quotes.show', $id)
             ->with('success', 'Penawaran harga dibatalkan.');
     }
 

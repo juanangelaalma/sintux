@@ -3,6 +3,10 @@
 namespace Modules\Purchasing\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Modules\Approval\Events\ApprovalRuleChanged;
+use Modules\Approval\Events\TransactionApprovalFinalized;
+use Modules\Purchasing\Listeners\FinalizePurchaseApproval;
+use Modules\Purchasing\Listeners\ReevaluatePurchaseApprovals;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -11,7 +15,14 @@ class EventServiceProvider extends ServiceProvider
      *
      * @var array<string, array<int, string>>
      */
-    protected $listen = [];
+    protected $listen = [
+        TransactionApprovalFinalized::class => [
+            FinalizePurchaseApproval::class,
+        ],
+        ApprovalRuleChanged::class => [
+            ReevaluatePurchaseApprovals::class,
+        ],
+    ];
 
     /**
      * Indicates if events should be discovered.

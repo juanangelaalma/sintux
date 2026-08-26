@@ -15,9 +15,6 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
             ->only(['index', 'create', 'store', 'show'])
             ->parameters(['requests' => 'request']);
 
-        Route::post('requests/{request}/approve', [PurchaseRequestController::class, 'approve'])
-            ->name('requests.approve');
-
         Route::post('requests/{request}/cancel', [PurchaseRequestController::class, 'cancel'])
             ->name('requests.cancel');
 
@@ -38,9 +35,6 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
             ->only(['index', 'create', 'store', 'show'])
             ->parameters(['orders' => 'order']);
 
-        Route::post('orders/{order}/approve', [PurchaseOrderController::class, 'approve'])
-            ->name('orders.approve');
-
         Route::post('orders/{order}/send', [PurchaseOrderController::class, 'send'])
             ->name('orders.send');
 
@@ -57,9 +51,6 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
         Route::resource('invoices', PurchaseInvoiceController::class)
             ->only(['index', 'create', 'store', 'show'])
             ->parameters(['invoices' => 'invoice']);
-
-        Route::post('invoices/{invoice}/approve', [PurchaseInvoiceController::class, 'approve'])
-            ->name('invoices.approve');
 
         Route::resource('joins', JoinPurchaseInvoiceController::class)
             ->only(['index', 'create', 'store', 'show'])

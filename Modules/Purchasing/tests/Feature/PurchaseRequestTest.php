@@ -5,6 +5,8 @@ namespace Modules\Purchasing\Tests\Feature;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Modules\Approval\Application\CreateApprovalRule;
+use Modules\Approval\Models\ApprovalTransactionType;
 use Modules\Company\Models\CompanyUser;
 use Modules\Purchasing\Models\PurchaseRequest;
 use Tests\TestCase;
@@ -65,7 +67,7 @@ class PurchaseRequestTest extends TestCase
         tenancy()->initialize($tenantId);
         $request = DB::table('purchase_requests')->where('branch_id', $branchBId)->first();
         $this->assertNotNull($request);
-        $this->assertSame('pending', $request->status);
+        $this->assertSame('approved', $request->status);
         $this->assertStringStartsWith('PR-'.$branchCode.'-', (string) $request->number);
         $this->assertSame('2026-08-18', (string) $request->request_date);
         $this->assertSame('Restock bulanan', $request->note);
@@ -189,52 +191,41 @@ class PurchaseRequestTest extends TestCase
         $response->assertSessionHasErrors(['branch_id']);
     }
 
-    public function test_approve_transitions_pending_to_approved(): void
+    public function test_pr_with_matching_rule_transitions_to_pending(): void
     {
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
         [$variantId] = $this->createProductAndVariant('PRD-001', true);
-        $request = PurchaseRequest::create([
-            'number' => 'PR-HQ-0001',
+        $supplierId = $this->createSupplier($branchBId);
+
+        $type = ApprovalTransactionType::where('key', 'purchase_request')->firstOrFail();
+        app(CreateApprovalRule::class)->execute([
+            'transaction_type_id' => $type->id,
+            'name' => 'PR Rule',
+            'min_amount' => 100000,
+            'stages' => [
+                ['approval_type' => 'any', 'approver_ids' => [$user->id + 999]],
+            ],
+        ], $user->id);
+
+        tenancy()->end();
+
+        $response = $this->actingAs($user)->post(route('purchasing.requests.store'), [
             'branch_id' => $branchBId,
-            'status' => 'pending',
-            'request_date' => now()->toDateString(),
-            'currency_code' => 'IDR',
+            'supplier_id' => $supplierId,
+            'request_date' => '2026-08-18',
+            'items' => [
+                ['product_variant_id' => $variantId, 'qty_requested' => 10, 'unit_price' => 50000],
+            ],
         ]);
-        $requestId = $request->id;
-        tenancy()->end();
 
-        $response = $this->actingAs($user)->post(route('purchasing.requests.approve', $requestId));
-
-        $response->assertRedirect(route('purchasing.requests.show', $requestId));
+        $response->assertRedirect(route('purchasing.requests.index'));
 
         tenancy()->initialize($tenantId);
-        $this->assertSame('approved', DB::table('purchase_requests')->where('id', $requestId)->value('status'));
-        tenancy()->end();
-    }
-
-    public function test_approve_rejects_non_pending_request(): void
-    {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
-        tenancy()->initialize($tenantId);
-        $request = PurchaseRequest::create([
-            'number' => 'PR-HQ-0002',
-            'branch_id' => $branchBId,
-            'status' => 'cancelled',
-            'request_date' => now()->toDateString(),
-            'currency_code' => 'IDR',
-        ]);
-        $requestId = $request->id;
-        tenancy()->end();
-
-        $response = $this->actingAs($user)->post(route('purchasing.requests.approve', $requestId));
-
-        $response->assertSessionHasErrors('request');
-
-        tenancy()->initialize($tenantId);
-        $this->assertSame('cancelled', DB::table('purchase_requests')->where('id', $requestId)->value('status'));
+        $pr = DB::table('purchase_requests')->where('branch_id', $branchBId)->first();
+        $this->assertNotNull($pr);
+        $this->assertSame('pending', $pr->status);
         tenancy()->end();
     }
 
@@ -255,7 +246,7 @@ class PurchaseRequestTest extends TestCase
 
         $response = $this->actingAs($user)->post(route('purchasing.requests.cancel', $requestId));
 
-        $response->assertRedirect(route('purchasing.requests.index'));
+        $response->assertRedirect(route('purchasing.requests.show', $requestId));
 
         tenancy()->initialize($tenantId);
         $this->assertSame('cancelled', DB::table('purchase_requests')->where('id', $requestId)->value('status'));

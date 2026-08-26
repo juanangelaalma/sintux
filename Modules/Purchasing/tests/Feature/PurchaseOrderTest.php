@@ -5,6 +5,8 @@ namespace Modules\Purchasing\Tests\Feature;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Modules\Approval\Application\CreateApprovalRule;
+use Modules\Approval\Models\ApprovalTransactionType;
 use Modules\Company\Models\CompanyUser;
 use Modules\Purchasing\Models\PurchaseOrder;
 use Tests\TestCase;
@@ -65,8 +67,9 @@ class PurchaseOrderTest extends TestCase
         tenancy()->initialize($tenantId);
         $po = DB::table('purchase_orders')->where('branch_id', $branchBId)->first();
         $this->assertNotNull($po);
-        $this->assertSame('pending', $po->status);
-        $this->assertSame('PO-'.$branchCode.'-0001', (string) $po->number);
+        $this->assertSame('approved', $po->status);
+        $expectedPrefix = 'PO/'.$branchCode.'/'.date('Y/m/d').'/000';
+        $this->assertStringStartsWith('PO/'.$branchCode.'/', (string) $po->number);
         $this->assertEquals(2000000, (float) $po->subtotal);
 
         $items = DB::table('purchase_order_items')->where('purchase_order_id', $po->id)->get();
@@ -77,29 +80,43 @@ class PurchaseOrderTest extends TestCase
         tenancy()->end();
     }
 
-    public function test_approve_po_transitions_pending_to_approved(): void
+    public function test_po_with_matching_rule_transitions_to_pending(): void
     {
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
+        [$variantId] = $this->createProductAndVariant('PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
+        $branchCode = DB::table('branches')->where('id', $branchBId)->value('code');
 
-        $po = PurchaseOrder::create([
-            'number' => 'PO-HQ-0001',
-            'branch_id' => $branchBId,
-            'supplier_id' => $supplierId,
-            'status' => 'pending',
-            'order_date' => now()->toDateString(),
-            'currency_code' => 'IDR',
-        ]);
-        $poId = $po->id;
+        $type = ApprovalTransactionType::where('key', 'purchase_order')->firstOrFail();
+        app(CreateApprovalRule::class)->execute([
+            'transaction_type_id' => $type->id,
+            'name' => 'PO Rule',
+            'min_amount' => 100000,
+            'stages' => [
+                ['approval_type' => 'any', 'approver_ids' => [$user->id + 999]], // different user as approver
+            ],
+        ], $user->id);
+
         tenancy()->end();
 
-        $response = $this->actingAs($user)->post(route('purchasing.orders.approve', $poId));
-        $response->assertRedirect(route('purchasing.orders.show', $poId));
+        $response = $this->actingAs($user)->post(route('purchasing.orders.store'), [
+            'branch_id' => $branchBId,
+            'supplier_id' => $supplierId,
+            'order_date' => '2026-08-18',
+            'expected_date' => '2026-08-25',
+            'items' => [
+                ['product_variant_id' => $variantId, 'qty_ordered' => 20, 'unit_price' => 100000],
+            ],
+        ]);
+
+        $response->assertRedirect(route('purchasing.orders.index'));
 
         tenancy()->initialize($tenantId);
-        $this->assertSame('approved', DB::table('purchase_orders')->where('id', $poId)->value('status'));
+        $po = DB::table('purchase_orders')->where('branch_id', $branchBId)->first();
+        $this->assertNotNull($po);
+        $this->assertSame('pending', $po->status);
         tenancy()->end();
     }
 
@@ -148,7 +165,7 @@ class PurchaseOrderTest extends TestCase
         tenancy()->end();
 
         $response = $this->actingAs($user)->post(route('purchasing.orders.cancel', $poId));
-        $response->assertRedirect(route('purchasing.orders.index'));
+        $response->assertRedirect(route('purchasing.orders.show', $poId));
 
         tenancy()->initialize($tenantId);
         $this->assertSame('cancelled', DB::table('purchase_orders')->where('id', $poId)->value('status'));

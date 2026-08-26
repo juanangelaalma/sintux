@@ -27,25 +27,25 @@ export default function StockRequestsIndex({ stockRequests }: Props) {
         switch (status) {
             case 'pending':
                 return (
-                    <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                    <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-600/20 ring-inset">
                         PENDING
                     </span>
                 );
             case 'approved':
                 return (
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/20 ring-inset">
                         DISETUJUI
                     </span>
                 );
             case 'partially_approved':
                 return (
-                    <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-600/20">
+                    <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-sky-600/20 ring-inset">
                         DISETUJUI SEBAGIAN
                     </span>
                 );
             case 'rejected':
                 return (
-                    <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-600/20">
+                    <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-rose-600/20 ring-inset">
                         DITOLAK
                     </span>
                 );
@@ -83,7 +83,9 @@ export default function StockRequestsIndex({ stockRequests }: Props) {
             header: 'Gudang Peminta',
             render: (row: StockRequest) => (
                 <div>
-                    <div className="font-medium text-slate-900">{row.requesting_warehouse?.name ?? '-'}</div>
+                    <div className="font-medium text-slate-900">
+                        {row.requesting_warehouse?.name ?? '-'}
+                    </div>
                     <div className="text-xs text-slate-500">
                         {row.requesting_warehouse?.branch?.name ?? ''}
                     </div>
@@ -95,7 +97,9 @@ export default function StockRequestsIndex({ stockRequests }: Props) {
             header: 'Gudang Tujuan (HQ)',
             render: (row: StockRequest) => (
                 <div>
-                    <div className="font-medium text-slate-900">{row.destination_warehouse?.name ?? '-'}</div>
+                    <div className="font-medium text-slate-900">
+                        {row.destination_warehouse?.name ?? '-'}
+                    </div>
                     <div className="text-xs text-slate-500">
                         {row.destination_warehouse?.branch?.name ?? ''}
                     </div>
@@ -109,7 +113,8 @@ export default function StockRequestsIndex({ stockRequests }: Props) {
                 const itemCount = row.items?.length ?? 0;
                 const totalQty =
                     row.items?.reduce(
-                        (sum: number, item: StockRequestItem) => sum + Number(item.qty_requested),
+                        (sum: number, item: StockRequestItem) =>
+                            sum + Number(item.qty_requested),
                         0,
                     ) ?? 0;
                 return (
@@ -135,7 +140,7 @@ export default function StockRequestsIndex({ stockRequests }: Props) {
             render: (row: StockRequest) => (
                 <Link
                     href={`/warehouse/stock-requests/${row.id}`}
-                    className="inline-flex items-center font-medium text-brand-600 hover:text-brand-700 text-sm"
+                    className="inline-flex items-center text-sm font-medium text-brand-600 hover:text-brand-700"
                 >
                     {row.status === 'pending' ? 'Proses' : 'Detail'}
                 </Link>

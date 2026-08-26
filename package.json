@@ -31,6 +31,9 @@
         "vite-plugin-svgr": "^5.2.0"
     },
     "dependencies": {
+        "@heroui/react": "^3.2.4",
+        "@heroui/styles": "^3.2.4",
+        "@iconify/react": "^6.0.2",
         "@inertiajs/react": "^3.0.0",
         "@inertiajs/vite": "^3.0.0",
         "@tailwindcss/vite": "^4.1.11",
@@ -44,6 +47,7 @@
         "leaflet": "^1.9.4",
         "lucide-react": "^0.475.0",
         "react": "^19.2.0",
+        "react-aria-components": "^1.20.0",
         "react-dom": "^19.2.0",
         "react-leaflet": "^5.0.0",
         "tailwind-merge": "^3.0.1",
