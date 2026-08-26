@@ -12,13 +12,17 @@ use Illuminate\Support\Carbon;
  * @property string $number
  * @property int $branch_id
  * @property int $supplier_id
+ * @property int|null $warehouse_id
  * @property int|null $source_request_id
  * @property int|null $source_quote_id
  * @property string $status
+ * @property string|null $payment_term
  * @property string $order_date
+ * @property string|null $due_date
  * @property string|null $expected_date
  * @property string|null $note
  * @property string $currency_code
+ * @property bool $is_tax_inclusive
  * @property float $subtotal
  * @property float $tax_amount
  * @property float $total
@@ -32,13 +36,17 @@ class PurchaseOrder extends Model
         'number',
         'branch_id',
         'supplier_id',
+        'warehouse_id',
         'source_request_id',
         'source_quote_id',
         'status',
+        'payment_term',
         'order_date',
+        'due_date',
         'expected_date',
         'note',
         'currency_code',
+        'is_tax_inclusive',
         'subtotal',
         'tax_amount',
         'total',
@@ -47,10 +55,12 @@ class PurchaseOrder extends Model
     protected function casts(): array
     {
         return [
+            'is_tax_inclusive' => 'boolean',
             'subtotal' => 'decimal:4',
             'tax_amount' => 'decimal:4',
             'total' => 'decimal:4',
             'order_date' => 'date',
+            'due_date' => 'date',
             'expected_date' => 'date',
         ];
     }

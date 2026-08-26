@@ -1,6 +1,12 @@
+import { Button } from '@heroui/react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import Button from '@/components/ui/button';
+import { useState } from 'react';
+import PurchaseConfirmDialog from '@/components/purchasing/purchase-confirm-dialog';
+import PurchaseDocumentDetail from '@/components/purchasing/purchase-document-detail';
+import type { DetailRow } from '@/components/purchasing/purchase-document-detail';
+import PurchaseDocumentHeader from '@/components/purchasing/purchase-document-header';
 import CompanyLayout from '@/layouts/company/company-layout';
+import { formatCurrency, formatDate } from '@/lib/format';
 
 type Item = {
     id: number;
@@ -24,78 +30,89 @@ type Props = {
     joinPurchaseInvoice: JoinPurchaseInvoice;
 };
 
-export default function JoinPurchaseInvoicesShow({ joinPurchaseInvoice }: Props) {
+export default function JoinPurchaseInvoicesShow({
+    joinPurchaseInvoice,
+}: Props) {
+    const [confirmReady, setConfirmReady] = useState(false);
     const { post: postReady, processing: markingReady } = useForm({});
 
     const handleReady = () => {
-        if (confirm('Tandai Tukar Faktur ini sebagai SIAP (ready) untuk pembayaran?')) {
-            postReady(`/purchasing/joins/${joinPurchaseInvoice.id}/ready`);
-        }
+        postReady(`/purchasing/joins/${joinPurchaseInvoice.id}/ready`);
     };
+
+    const rows: DetailRow[] = [
+        {
+            label: 'Tanggal konsolidasi',
+            value: formatDate(joinPurchaseInvoice.join_date),
+        },
+    ];
 
     return (
         <CompanyLayout>
             <Head title={`Tukar Faktur #${joinPurchaseInvoice.number}`} />
-            <div className="space-y-6 max-w-5xl">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
+            <div className="w-full space-y-6">
+                <PurchaseDocumentHeader
+                    eyebrow="Pembelian / Detail Tukar Faktur"
+                    title={`Join Invoice #${joinPurchaseInvoice.number}`}
+                    actions={
+                        <>
+                            <Link href="/purchasing/joins">
+                                <Button type="button" variant="secondary">
+                                    Kembali
+                                </Button>
+                            </Link>
+                            {joinPurchaseInvoice.status === 'draft' && (
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    onPress={() => setConfirmReady(true)}
+                                >
+                                    Tandai Siap (Ready)
+                                </Button>
+                            )}
+                        </>
+                    }
+                />
+
+                <PurchaseDocumentDetail
+                    status={joinPurchaseInvoice.status}
+                    statusLabel="Status Konsolidasi"
+                    rows={rows}
+                    note={joinPurchaseInvoice.note}
+                >
                     <div>
-                        <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wider">Pembelian / Detail Tukar Faktur</p>
-                        <h1 className="text-2xl font-bold text-slate-900">Join Invoice #{joinPurchaseInvoice.number}</h1>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Link href="/purchasing/joins">
-                            <Button variant="secondary">Kembali</Button>
-                        </Link>
-                        {joinPurchaseInvoice.status === 'draft' && (
-                            <Button variant="primary" onClick={handleReady} disabled={markingReady}>
-                                Tandai Siap (Ready)
-                            </Button>
-                        )}
-                    </div>
-                </div>
-
-                <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
-                    <div className="flex justify-between items-start border-b border-slate-100 pb-6">
-                        <div>
-                            <span className="text-xs uppercase font-semibold text-slate-400">Status Konsolidasi</span>
-                            <div className="mt-1">
-                                <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-700/10 uppercase">
-                                    {joinPurchaseInvoice.status}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="text-right space-y-1 text-sm">
-                            <p className="text-slate-500">
-                                Tgl Konsolidasi: <span className="font-semibold text-slate-900">{joinPurchaseInvoice.join_date}</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    {joinPurchaseInvoice.note && (
-                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
-                            <p className="text-xs font-bold text-slate-700 uppercase">Catatan</p>
-                            <p className="text-slate-600 mt-1">{joinPurchaseInvoice.note}</p>
-                        </div>
-                    )}
-
-                    <div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-3">Faktur Tergabung</h3>
-                        <div className="border border-slate-200 rounded-lg overflow-hidden">
-                            <table className="w-full text-sm text-left text-slate-600">
-                                <thead className="text-xs uppercase bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                        <h3 className="mb-3 text-sm font-bold text-foreground">
+                            Faktur Tergabung
+                        </h3>
+                        <div className="overflow-hidden rounded-lg border border-border">
+                            <table className="w-full text-left text-sm text-foreground">
+                                <thead className="border-b border-border bg-cyan-500/10 text-xs font-bold text-cyan-950 uppercase dark:bg-cyan-950/40 dark:text-cyan-200">
                                     <tr>
-                                        <th className="py-3 px-4">No. Faktur</th>
-                                        <th className="py-3 px-4">Supplier</th>
-                                        <th className="py-3 px-4 text-right">Nilai Faktur</th>
+                                        <th className="px-4 py-3">
+                                            Nomor Faktur
+                                        </th>
+                                        <th className="px-4 py-3">Pemasok</th>
+                                        <th className="px-4 py-3 text-right">
+                                            Nilai Faktur
+                                        </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-border/60">
                                     {joinPurchaseInvoice.items.map((item) => (
-                                        <tr key={item.id} className="hover:bg-slate-50/50">
-                                            <td className="py-3 px-4 font-semibold text-slate-900">{item.invoice_number}</td>
-                                            <td className="py-3 px-4 text-slate-600">{item.supplier_name}</td>
-                                            <td className="py-3 px-4 text-right font-bold text-slate-900">
-                                                Rp{Number(item.invoice_total).toLocaleString('id-ID', { minimumFractionDigits: 2 })}
+                                        <tr
+                                            key={item.id}
+                                            className="hover:bg-surface-secondary/60"
+                                        >
+                                            <td className="px-4 py-3 font-semibold text-foreground">
+                                                {item.invoice_number}
+                                            </td>
+                                            <td className="px-4 py-3 text-muted">
+                                                {item.supplier_name}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-bold text-foreground">
+                                                {formatCurrency(
+                                                    item.invoice_total,
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -104,16 +121,30 @@ export default function JoinPurchaseInvoicesShow({ joinPurchaseInvoice }: Props)
                         </div>
                     </div>
 
-                    <div className="flex justify-end pt-4 border-t border-slate-100">
+                    <div className="flex justify-end border-t border-border/60 pt-4">
                         <div className="w-72 space-y-2 text-sm">
-                            <div className="flex justify-between font-bold text-slate-900 text-lg">
+                            <div className="flex justify-between text-lg font-bold text-foreground">
                                 <span>Total Konsolidasi</span>
-                                <span>Rp{Number(joinPurchaseInvoice.total_amount).toLocaleString('id-ID', { minimumFractionDigits: 2 })}</span>
+                                <span>
+                                    {formatCurrency(
+                                        joinPurchaseInvoice.total_amount,
+                                    )}
+                                </span>
                             </div>
                         </div>
                     </div>
-                </div>
+                </PurchaseDocumentDetail>
             </div>
+
+            <PurchaseConfirmDialog
+                open={confirmReady}
+                title="Tandai Tukar Faktur sebagai Siap?"
+                description="Tukar Faktur ini akan ditandai SIAP (ready) untuk diproses pembayaran."
+                confirmLabel="Tandai Siap"
+                processing={markingReady}
+                onConfirm={handleReady}
+                onClose={() => setConfirmReady(false)}
+            />
         </CompanyLayout>
     );
 }

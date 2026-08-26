@@ -95,7 +95,7 @@ class JoinPurchaseInvoiceTest extends TestCase
         $join = DB::table('join_purchase_invoices')->where('branch_id', $branchBId)->first();
         $this->assertNotNull($join);
         $this->assertSame('draft', $join->status);
-        $this->assertSame('JOIN-'.$branchCode.'-0001', (string) $join->number);
+        $this->assertSame('JOIN-HQ-0001', (string) $join->number);
         $this->assertEquals(800000, (float) $join->total_amount);
 
         $items = DB::table('join_purchase_invoice_items')->where('join_purchase_invoice_id', $join->id)->get();

@@ -42,12 +42,15 @@ type Props = {
     };
 };
 
-export default function StockMovementsIndex({ stockMovements, filters }: Props) {
+export default function StockMovementsIndex({
+    stockMovements,
+    filters,
+}: Props) {
     const handleFilterChange = (key: string, value: string) => {
         router.get(
             '/warehouse/stock-movements',
             { ...filters, [key]: value, page: 1 },
-            { preserveState: true }
+            { preserveState: true },
         );
     };
 
@@ -55,28 +58,29 @@ export default function StockMovementsIndex({ stockMovements, filters }: Props) 
         router.get(
             '/warehouse/stock-movements',
             { ...filters, page },
-            { preserveState: true, preserveScroll: true }
+            { preserveState: true, preserveScroll: true },
         );
     };
 
-    const movementBadges: Record<string, { label: string; className: string }> = {
-        transfer_in: {
-            label: 'TRANSFER IN (+)',
-            className: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-        },
-        transfer_out: {
-            label: 'TRANSFER OUT (-)',
-            className: 'bg-rose-50 text-rose-700 ring-rose-600/20',
-        },
-        adjustment_in: {
-            label: 'ADJUSTMENT IN (+)',
-            className: 'bg-blue-50 text-blue-700 ring-blue-600/20',
-        },
-        adjustment_out: {
-            label: 'ADJUSTMENT OUT (-)',
-            className: 'bg-amber-50 text-amber-700 ring-amber-600/20',
-        },
-    };
+    const movementBadges: Record<string, { label: string; className: string }> =
+        {
+            transfer_in: {
+                label: 'TRANSFER IN (+)',
+                className: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+            },
+            transfer_out: {
+                label: 'TRANSFER OUT (-)',
+                className: 'bg-rose-50 text-rose-700 ring-rose-600/20',
+            },
+            adjustment_in: {
+                label: 'ADJUSTMENT IN (+)',
+                className: 'bg-blue-50 text-blue-700 ring-blue-600/20',
+            },
+            adjustment_out: {
+                label: 'ADJUSTMENT OUT (-)',
+                className: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+            },
+        };
 
     const columns: DataTableColumn<StockMovement>[] = [
         {
@@ -183,20 +187,30 @@ export default function StockMovementsIndex({ stockMovements, filters }: Props) 
                         type="text"
                         placeholder="Cari SKU, Nama Produk, Gudang..."
                         defaultValue={filters.search ?? ''}
-                        onBlur={(e) => handleFilterChange('search', e.target.value)}
-                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        onBlur={(e) =>
+                            handleFilterChange('search', e.target.value)
+                        }
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                     />
 
                     <select
                         defaultValue={filters.movement_type ?? ''}
-                        onChange={(e) => handleFilterChange('movement_type', e.target.value)}
-                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        onChange={(e) =>
+                            handleFilterChange('movement_type', e.target.value)
+                        }
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                     >
                         <option value="">Semua Tipe Pergerakan</option>
                         <option value="transfer_in">Transfer Masuk (+)</option>
-                        <option value="transfer_out">Transfer Keluar (-)</option>
-                        <option value="adjustment_in">Adjustment Masuk (+)</option>
-                        <option value="adjustment_out">Adjustment Keluar (-)</option>
+                        <option value="transfer_out">
+                            Transfer Keluar (-)
+                        </option>
+                        <option value="adjustment_in">
+                            Adjustment Masuk (+)
+                        </option>
+                        <option value="adjustment_out">
+                            Adjustment Keluar (-)
+                        </option>
                     </select>
 
                     <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -204,14 +218,18 @@ export default function StockMovementsIndex({ stockMovements, filters }: Props) 
                         <input
                             type="date"
                             defaultValue={filters.date_from ?? ''}
-                            onChange={(e) => handleFilterChange('date_from', e.target.value)}
+                            onChange={(e) =>
+                                handleFilterChange('date_from', e.target.value)
+                            }
                             className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs"
                         />
                         <span>Sampai:</span>
                         <input
                             type="date"
                             defaultValue={filters.date_to ?? ''}
-                            onChange={(e) => handleFilterChange('date_to', e.target.value)}
+                            onChange={(e) =>
+                                handleFilterChange('date_to', e.target.value)
+                            }
                             className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs"
                         />
                     </div>

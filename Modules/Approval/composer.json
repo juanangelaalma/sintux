@@ -1,0 +1,29 @@
+{
+    "name": "nwidart/approval",
+    "description": "Multi-layer approval workflow module",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Approval\\": "app/",
+            "Modules\\Approval\\Database\\Factories\\": "database/factories/",
+            "Modules\\Approval\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Approval\\Tests\\": "tests/"
+        }
+    }
+}

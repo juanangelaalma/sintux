@@ -14,6 +14,14 @@ class ContactPresenter
      */
     public function serializeForList(Contact $contact): array
     {
+        $billingAddress = $contact->billingAddress ? implode(', ', array_filter([
+            $contact->billingAddress->detail,
+            $contact->billingAddress->kelurahan,
+            $contact->billingAddress->kecamatan,
+            $contact->billingAddress->kabupaten,
+            $contact->billingAddress->provinsi,
+        ])) : null;
+
         return [
             'id' => $contact->id,
             'branch_id' => $contact->branch_id,
@@ -26,6 +34,7 @@ class ContactPresenter
             'mobile_phone' => $contact->mobile_phone,
             'telephone' => $contact->telephone,
             'is_active' => $contact->is_active,
+            'billing_address' => $billingAddress,
         ];
     }
 

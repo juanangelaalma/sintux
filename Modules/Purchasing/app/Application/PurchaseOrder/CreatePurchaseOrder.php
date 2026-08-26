@@ -2,8 +2,10 @@
 
 namespace Modules\Purchasing\Application\PurchaseOrder;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Modules\Accounting\Application\GetPurchaseTaxes;
+use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Purchasing\Models\PurchaseOrder;
 
@@ -12,48 +14,72 @@ class CreatePurchaseOrder
     public function __construct(
         private readonly GetPurchaseVariants $purchaseVariants,
         private readonly GetPurchaseTaxes $getPurchaseTaxes,
+        private readonly ApprovalEngine $approvalEngine,
     ) {}
 
     /**
      * @param  array<string, mixed>  $data
      */
-    public function execute(array $data, string $branchCode): PurchaseOrder
+    public function execute(array $data, string $branchCode, ?int $userId = null, ?string $userName = null): PurchaseOrder
     {
         $variants = collect($this->purchaseVariants->execute())->keyBy('id');
         $taxes = collect($this->getPurchaseTaxes->execute())->keyBy('id');
+        $creatorId = $userId ?? (int) auth()->id();
+        $creatorName = $userName ?? auth()->user()?->name;
 
-        return DB::transaction(function () use ($data, $branchCode, $variants, $taxes) {
+        return DB::transaction(function () use ($data, $branchCode, $variants, $taxes, $creatorId, $creatorName) {
+            $orderDate = $data['order_date'] ?? date('Y-m-d');
+            $dateObj = Carbon::parse($orderDate);
+            $year = $dateObj->format('Y');
+            $month = $dateObj->format('m');
+            $day = $dateObj->format('d');
+
             $sequence = PurchaseOrder::where('branch_id', $data['branch_id'])->count() + 1;
-            $number = 'PO-'.$branchCode.'-'.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
+            $number = sprintf('PO/%s/%s/%s/%s/%03d', $branchCode, $year, $month, $day, $sequence);
 
+            $isTaxInclusive = (bool) ($data['is_tax_inclusive'] ?? false);
             $subtotal = 0.0;
             $taxAmount = 0.0;
 
             foreach ($data['items'] as $item) {
                 $qty = (float) $item['qty_ordered'];
                 $unitPrice = (float) $item['unit_price'];
-                $lineSubtotal = $qty * $unitPrice;
-                $subtotal += $lineSubtotal;
-
                 $taxId = $item['tax_id'] ?? null;
                 $taxRate = $taxId ? (float) ($taxes->get($taxId)['rate'] ?? 0) : 0.0;
-                $taxAmount += $lineSubtotal * ($taxRate / 100);
+
+                if ($isTaxInclusive && $taxRate > 0) {
+                    $lineTotal = $qty * $unitPrice;
+                    $lineSubtotal = $lineTotal / (1 + ($taxRate / 100));
+                    $lineTax = $lineTotal - $lineSubtotal;
+                } else {
+                    $lineSubtotal = $qty * $unitPrice;
+                    $lineTax = $lineSubtotal * ($taxRate / 100);
+                }
+
+                $subtotal += $lineSubtotal;
+                $taxAmount += $lineTax;
             }
+
+            $total = $subtotal + $taxAmount;
 
             $po = PurchaseOrder::create([
                 'number' => $number,
                 'branch_id' => $data['branch_id'],
                 'supplier_id' => $data['supplier_id'],
+                'warehouse_id' => $data['warehouse_id'] ?? null,
                 'source_request_id' => $data['source_request_id'] ?? null,
                 'source_quote_id' => $data['source_quote_id'] ?? null,
                 'status' => 'pending',
-                'order_date' => $data['order_date'],
+                'payment_term' => $data['payment_term'] ?? null,
+                'order_date' => $orderDate,
+                'due_date' => $data['due_date'] ?? null,
                 'expected_date' => $data['expected_date'] ?? null,
                 'note' => $data['note'] ?? null,
                 'currency_code' => 'IDR',
+                'is_tax_inclusive' => $isTaxInclusive,
                 'subtotal' => $subtotal,
                 'tax_amount' => $taxAmount,
-                'total' => $subtotal + $taxAmount,
+                'total' => $total,
             ]);
 
             foreach ($data['items'] as $item) {
@@ -77,6 +103,20 @@ class CreatePurchaseOrder
                     'line_total' => $lineTotal,
                 ]);
             }
+
+            $mapping = $this->approvalEngine->evaluateAndMap([
+                'transaction_type' => 'purchase_order',
+                'transaction_id' => $po->id,
+                'document_number' => $po->number,
+                'created_by' => $creatorId,
+                'created_by_name' => $creatorName,
+                'branch_id' => $po->branch_id,
+                'total' => $total,
+                'currency_code' => 'IDR',
+            ]);
+
+            $finalStatus = $mapping ? 'pending' : 'approved';
+            $po->update(['status' => $finalStatus]);
 
             return $po->load('items');
         });

@@ -9,9 +9,11 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Company\Application\CompanyAccess;
 use Modules\Purchasing\Application\JoinPurchaseInvoice\CreateJoinPurchaseInvoice;
+use Modules\Purchasing\Application\JoinPurchaseInvoice\GetJoinableInvoices;
 use Modules\Purchasing\Application\JoinPurchaseInvoice\GetJoinPurchaseInvoiceDetail;
 use Modules\Purchasing\Application\JoinPurchaseInvoice\GetJoinPurchaseInvoices;
 use Modules\Purchasing\Application\JoinPurchaseInvoice\ReadyJoinPurchaseInvoice;
+use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseSummary;
 use Modules\Purchasing\Http\Requests\StoreJoinPurchaseInvoiceRequest;
 
 class JoinPurchaseInvoiceController extends Controller
@@ -21,6 +23,7 @@ class JoinPurchaseInvoiceController extends Controller
         private readonly GetJoinPurchaseInvoiceDetail $getJoinPurchaseInvoiceDetail,
         private readonly CreateJoinPurchaseInvoice $createJoinPurchaseInvoice,
         private readonly ReadyJoinPurchaseInvoice $readyJoinPurchaseInvoice,
+        private readonly GetPurchaseSummary $getPurchaseSummary,
     ) {}
 
     public function index(): Response
@@ -32,10 +35,12 @@ class JoinPurchaseInvoiceController extends Controller
         $filters = request()->only(['search', 'status']);
 
         $joinPurchaseInvoices = $this->getJoinPurchaseInvoices->execute($accessibleBranchIds, $filters);
+        $summary = $this->getPurchaseSummary->execute($accessibleBranchIds);
 
         return Inertia::render('Purchasing/Joins/index', [
             'joinPurchaseInvoices' => $joinPurchaseInvoices,
             'filters' => $filters,
+            'summary' => $summary,
         ]);
     }
 
@@ -44,8 +49,10 @@ class JoinPurchaseInvoiceController extends Controller
         $user = request()->user();
         $tenantId = (string) session('active_tenant_id');
 
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
+
         return Inertia::render('Purchasing/Joins/create', [
-            'branches' => CompanyAccess::accessibleBranches($user, $tenantId),
+            'invoices' => app(GetJoinableInvoices::class)->execute($accessibleBranchIds),
         ]);
     }
 
@@ -56,7 +63,7 @@ class JoinPurchaseInvoiceController extends Controller
         $tenantId = (string) session('active_tenant_id');
 
         $branchCode = collect(CompanyAccess::accessibleBranches($user, $tenantId))
-            ->firstWhere('id', $validated['branch_id'])
+            ->first()
             ->code ?? '';
 
         $this->createJoinPurchaseInvoice->execute($validated, (string) $branchCode);

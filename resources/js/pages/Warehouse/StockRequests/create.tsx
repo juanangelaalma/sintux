@@ -60,7 +60,11 @@ export default function Create({
         form.setData('items', updated);
     };
 
-    const handleItemChange = (index: number, field: keyof ItemRow, value: number) => {
+    const handleItemChange = (
+        index: number,
+        field: keyof ItemRow,
+        value: number,
+    ) => {
         const updated = [...form.data.items];
         updated[index] = { ...updated[index], [field]: value };
         form.setData('items', updated);
@@ -80,26 +84,48 @@ export default function Create({
                     description="Form pengajuan pasokan stok baru dari cabang ke Gudang Utama (HQ)."
                 />
 
-                <form onSubmit={submit} className="max-w-4xl space-y-6 rounded-lg bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <form
+                    onSubmit={submit}
+                    className="max-w-4xl space-y-6 rounded-lg bg-white p-6 shadow-sm ring-1 ring-slate-200"
+                >
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                        <FormField label="Gudang Peminta" error={form.errors.requesting_warehouse_id} required>
+                        <FormField
+                            label="Gudang Peminta"
+                            error={form.errors.requesting_warehouse_id}
+                            required
+                        >
                             <SelectInput
                                 value={form.data.requesting_warehouse_id}
-                                onChange={(e) => form.setData('requesting_warehouse_id', Number(e.target.value))}
+                                onChange={(e) =>
+                                    form.setData(
+                                        'requesting_warehouse_id',
+                                        Number(e.target.value),
+                                    )
+                                }
                             >
                                 <option value={0}>Pilih Gudang Peminta</option>
                                 {requestingWarehouses.map((wh) => (
                                     <option key={wh.id} value={wh.id}>
-                                        {wh.name} ({wh.branch?.name ?? 'Cabang'})
+                                        {wh.name} ({wh.branch?.name ?? 'Cabang'}
+                                        )
                                     </option>
                                 ))}
                             </SelectInput>
                         </FormField>
 
-                        <FormField label="Gudang Tujuan (HQ)" error={form.errors.destination_warehouse_id} required>
+                        <FormField
+                            label="Gudang Tujuan (HQ)"
+                            error={form.errors.destination_warehouse_id}
+                            required
+                        >
                             <SelectInput
                                 value={form.data.destination_warehouse_id}
-                                onChange={(e) => form.setData('destination_warehouse_id', Number(e.target.value))}
+                                onChange={(e) =>
+                                    form.setData(
+                                        'destination_warehouse_id',
+                                        Number(e.target.value),
+                                    )
+                                }
                             >
                                 <option value={0}>Pilih Gudang HQ</option>
                                 {destinationWarehouses.map((wh) => (
@@ -111,49 +137,81 @@ export default function Create({
                         </FormField>
                     </div>
 
-                    <FormField label="Catatan / Alasan Permintaan" error={form.errors.note}>
+                    <FormField
+                        label="Catatan / Alasan Permintaan"
+                        error={form.errors.note}
+                    >
                         <textarea
-                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none"
                             placeholder="Contoh: Stok barang fisik di cabang B sudah menipis..."
                             value={form.data.note}
-                            onChange={(e) => form.setData('note', e.target.value)}
+                            onChange={(e) =>
+                                form.setData('note', e.target.value)
+                            }
                             rows={3}
                         />
                     </FormField>
 
                     <div className="space-y-4 pt-2">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-base font-semibold text-slate-900">Daftar Barang yang Diminta</h3>
-                            <Button type="button" variant="secondary" onClick={handleAddItem}>
+                            <h3 className="text-base font-semibold text-slate-900">
+                                Daftar Barang yang Diminta
+                            </h3>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={handleAddItem}
+                            >
                                 + Tambah Barang
                             </Button>
                         </div>
 
                         {form.errors.items && (
-                            <p className="text-sm font-medium text-red-600">{form.errors.items}</p>
+                            <p className="text-sm font-medium text-red-600">
+                                {form.errors.items}
+                            </p>
                         )}
 
                         <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
                             {form.data.items.map((item, idx) => (
-                                <div key={idx} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+                                <div
+                                    key={idx}
+                                    className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center"
+                                >
                                     <div className="flex-1">
                                         <label className="mb-1 block text-xs font-medium text-slate-500">
                                             Varian Produk #{idx + 1}
                                         </label>
                                         <SelectInput
                                             value={item.product_variant_id}
-                                            onChange={(e) => handleItemChange(idx, 'product_variant_id', Number(e.target.value))}
+                                            onChange={(e) =>
+                                                handleItemChange(
+                                                    idx,
+                                                    'product_variant_id',
+                                                    Number(e.target.value),
+                                                )
+                                            }
                                         >
-                                            <option value={0}>Pilih Varian Produk</option>
+                                            <option value={0}>
+                                                Pilih Varian Produk
+                                            </option>
                                             {productVariants.map((v) => (
                                                 <option key={v.id} value={v.id}>
-                                                    {v.product?.name ?? 'Produk'} - {v.variant_name} ({v.sku})
+                                                    {v.product?.name ??
+                                                        'Produk'}{' '}
+                                                    - {v.variant_name} ({v.sku})
                                                 </option>
                                             ))}
                                         </SelectInput>
-                                        {form.errors[`items.${idx}.product_variant_id` as keyof typeof form.errors] && (
+                                        {form.errors[
+                                            `items.${idx}.product_variant_id` as keyof typeof form.errors
+                                        ] && (
                                             <p className="mt-1 text-xs text-red-600">
-                                                {form.errors[`items.${idx}.product_variant_id` as keyof typeof form.errors]}
+                                                {
+                                                    form.errors[
+                                                        `items.${idx}.product_variant_id` as keyof typeof form.errors
+                                                    ]
+                                                }
                                             </p>
                                         )}
                                     </div>
@@ -166,11 +224,23 @@ export default function Create({
                                             type="number"
                                             min={1}
                                             value={item.qty_requested}
-                                            onChange={(e) => handleItemChange(idx, 'qty_requested', Number(e.target.value))}
+                                            onChange={(e) =>
+                                                handleItemChange(
+                                                    idx,
+                                                    'qty_requested',
+                                                    Number(e.target.value),
+                                                )
+                                            }
                                         />
-                                        {form.errors[`items.${idx}.qty_requested` as keyof typeof form.errors] && (
+                                        {form.errors[
+                                            `items.${idx}.qty_requested` as keyof typeof form.errors
+                                        ] && (
                                             <p className="mt-1 text-xs text-red-600">
-                                                {form.errors[`items.${idx}.qty_requested` as keyof typeof form.errors]}
+                                                {
+                                                    form.errors[
+                                                        `items.${idx}.qty_requested` as keyof typeof form.errors
+                                                    ]
+                                                }
                                             </p>
                                         )}
                                     </div>
@@ -179,8 +249,12 @@ export default function Create({
                                         <Button
                                             type="button"
                                             variant="danger"
-                                            onClick={() => handleRemoveItem(idx)}
-                                            disabled={form.data.items.length <= 1}
+                                            onClick={() =>
+                                                handleRemoveItem(idx)
+                                            }
+                                            disabled={
+                                                form.data.items.length <= 1
+                                            }
                                         >
                                             Hapus
                                         </Button>

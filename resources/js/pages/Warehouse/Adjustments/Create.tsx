@@ -30,7 +30,10 @@ type AdjustmentItemForm = {
     note: string;
 };
 
-export default function AdjustmentsCreate({ warehouses, productVariants }: Props) {
+export default function AdjustmentsCreate({
+    warehouses,
+    productVariants,
+}: Props) {
     const { data, setData, post, processing, errors } = useForm<{
         warehouse_id: number | '';
         type: 'in' | 'out';
@@ -64,7 +67,11 @@ export default function AdjustmentsCreate({ warehouses, productVariants }: Props
         setData('items', newItems);
     };
 
-    const updateItem = (index: number, field: keyof AdjustmentItemForm, value: any) => {
+    const updateItem = (
+        index: number,
+        field: keyof AdjustmentItemForm,
+        value: any,
+    ) => {
         const newItems = [...data.items];
         newItems[index] = { ...newItems[index], [field]: value };
         setData('items', newItems);
@@ -90,7 +97,10 @@ export default function AdjustmentsCreate({ warehouses, productVariants }: Props
                     }
                 />
 
-                <form onSubmit={handleSubmit} className="space-y-6 rounded-lg bg-white p-6 shadow-sm border border-slate-200">
+                <form
+                    onSubmit={handleSubmit}
+                    className="space-y-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+                >
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <div>
                             <label className="block text-sm font-medium text-slate-700">
@@ -98,11 +108,18 @@ export default function AdjustmentsCreate({ warehouses, productVariants }: Props
                             </label>
                             <select
                                 value={data.warehouse_id}
-                                onChange={(e) => setData('warehouse_id', Number(e.target.value))}
-                                className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                onChange={(e) =>
+                                    setData(
+                                        'warehouse_id',
+                                        Number(e.target.value),
+                                    )
+                                }
+                                className="mt-1 block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 required
                             >
-                                <option value="" disabled>Pilih Gudang</option>
+                                <option value="" disabled>
+                                    Pilih Gudang
+                                </option>
                                 {warehouses.map((w) => (
                                     <option key={w.id} value={w.id}>
                                         {w.name} ({w.branch?.name ?? '-'})
@@ -110,86 +127,137 @@ export default function AdjustmentsCreate({ warehouses, productVariants }: Props
                                 ))}
                             </select>
                             {errors.warehouse_id && (
-                                <p className="mt-1 text-xs text-rose-600">{errors.warehouse_id}</p>
+                                <p className="mt-1 text-xs text-rose-600">
+                                    {errors.warehouse_id}
+                                </p>
                             )}
                         </div>
 
                         <div>
                             <label className="block text-sm font-medium text-slate-700">
-                                Tipe Penyesuaian <span className="text-rose-500">*</span>
+                                Tipe Penyesuaian{' '}
+                                <span className="text-rose-500">*</span>
                             </label>
                             <select
                                 value={data.type}
-                                onChange={(e) => setData('type', e.target.value as 'in' | 'out')}
-                                className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-semibold"
+                                onChange={(e) =>
+                                    setData(
+                                        'type',
+                                        e.target.value as 'in' | 'out',
+                                    )
+                                }
+                                className="mt-1 block w-full rounded-md border-slate-300 text-sm font-semibold shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 required
                             >
-                                <option value="in">Stok Masuk (IN - Tambah Stok & FIFO Layer)</option>
-                                <option value="out">Stok Keluar (OUT - Kurang Stok via FIFO)</option>
+                                <option value="in">
+                                    Stok Masuk (IN - Tambah Stok & FIFO Layer)
+                                </option>
+                                <option value="out">
+                                    Stok Keluar (OUT - Kurang Stok via FIFO)
+                                </option>
                             </select>
                             {errors.type && (
-                                <p className="mt-1 text-xs text-rose-600">{errors.type}</p>
+                                <p className="mt-1 text-xs text-rose-600">
+                                    {errors.type}
+                                </p>
                             )}
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700">Catatan / Alasan</label>
+                        <label className="block text-sm font-medium text-slate-700">
+                            Catatan / Alasan
+                        </label>
                         <textarea
                             value={data.note}
                             onChange={(e) => setData('note', e.target.value)}
                             rows={2}
                             placeholder="Contoh: Stok opname bulanan, barang rusak, penyesuaian awal..."
-                            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                            className="mt-1 block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                         />
                         {errors.note && (
-                            <p className="mt-1 text-xs text-rose-600">{errors.note}</p>
+                            <p className="mt-1 text-xs text-rose-600">
+                                {errors.note}
+                            </p>
                         )}
                     </div>
 
                     <div className="border-t border-slate-200 pt-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base font-semibold text-slate-900">Daftar Item Barang</h3>
-                            <Button type="button" variant="secondary" className="px-3 py-1.5 text-xs" onClick={addItem}>
+                        <div className="mb-4 flex items-center justify-between">
+                            <h3 className="text-base font-semibold text-slate-900">
+                                Daftar Item Barang
+                            </h3>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                className="px-3 py-1.5 text-xs"
+                                onClick={addItem}
+                            >
                                 + Tambah Item
                             </Button>
                         </div>
 
                         {errors.items && (
-                            <p className="mb-4 text-xs text-rose-600">{errors.items}</p>
+                            <p className="mb-4 text-xs text-rose-600">
+                                {errors.items}
+                            </p>
                         )}
 
                         <div className="space-y-4">
                             {data.items.map((item, index) => (
-                                <div key={index} className="flex flex-col gap-4 rounded-md border border-slate-200 p-4 bg-slate-50 sm:flex-row sm:items-start">
+                                <div
+                                    key={index}
+                                    className="flex flex-col gap-4 rounded-md border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-start"
+                                >
                                     <div className="flex-1">
-                                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                                        <label className="mb-1 block text-xs font-medium text-slate-600">
                                             Varian Produk #{index + 1}
                                         </label>
                                         <select
                                             value={item.product_variant_id}
-                                            onChange={(e) => updateItem(index, 'product_variant_id', Number(e.target.value))}
-                                            className="block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                            onChange={(e) =>
+                                                updateItem(
+                                                    index,
+                                                    'product_variant_id',
+                                                    Number(e.target.value),
+                                                )
+                                            }
+                                            className="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                             required
                                         >
-                                            <option value="" disabled>Pilih Varian Produk</option>
+                                            <option value="" disabled>
+                                                Pilih Varian Produk
+                                            </option>
                                             {productVariants.map((v) => (
                                                 <option key={v.id} value={v.id}>
-                                                    [{v.sku}] {v.product?.name} - {v.variant_name}
+                                                    [{v.sku}] {v.product?.name}{' '}
+                                                    - {v.variant_name}
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
 
                                     <div className="w-full sm:w-28">
-                                        <label className="block text-xs font-medium text-slate-600 mb-1">Qty</label>
+                                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                                            Qty
+                                        </label>
                                         <input
                                             type="number"
                                             step="any"
                                             min="0.0001"
                                             value={item.qty}
-                                            onChange={(e) => updateItem(index, 'qty', e.target.value === '' ? '' : Number(e.target.value))}
-                                            className="block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                            onChange={(e) =>
+                                                updateItem(
+                                                    index,
+                                                    'qty',
+                                                    e.target.value === ''
+                                                        ? ''
+                                                        : Number(
+                                                              e.target.value,
+                                                          ),
+                                                )
+                                            }
+                                            className="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                             placeholder="0"
                                             required
                                         />
@@ -197,26 +265,47 @@ export default function AdjustmentsCreate({ warehouses, productVariants }: Props
 
                                     {data.type === 'in' && (
                                         <div className="w-full sm:w-36">
-                                            <label className="block text-xs font-medium text-slate-600 mb-1">Biaya/Unit (Rp)</label>
+                                            <label className="mb-1 block text-xs font-medium text-slate-600">
+                                                Biaya/Unit (Rp)
+                                            </label>
                                             <input
                                                 type="number"
                                                 step="any"
                                                 min="0"
                                                 value={item.unit_cost}
-                                                onChange={(e) => updateItem(index, 'unit_cost', e.target.value === '' ? '' : Number(e.target.value))}
-                                                className="block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                                onChange={(e) =>
+                                                    updateItem(
+                                                        index,
+                                                        'unit_cost',
+                                                        e.target.value === ''
+                                                            ? ''
+                                                            : Number(
+                                                                  e.target
+                                                                      .value,
+                                                              ),
+                                                    )
+                                                }
+                                                className="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                                 placeholder="0"
                                             />
                                         </div>
                                     )}
 
                                     <div className="flex-1">
-                                        <label className="block text-xs font-medium text-slate-600 mb-1">Catatan Item</label>
+                                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                                            Catatan Item
+                                        </label>
                                         <input
                                             type="text"
                                             value={item.note}
-                                            onChange={(e) => updateItem(index, 'note', e.target.value)}
-                                            className="block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                            onChange={(e) =>
+                                                updateItem(
+                                                    index,
+                                                    'note',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            className="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                             placeholder="Opsional..."
                                         />
                                     </div>
@@ -225,8 +314,10 @@ export default function AdjustmentsCreate({ warehouses, productVariants }: Props
                                         <div className="pt-6">
                                             <button
                                                 type="button"
-                                                onClick={() => removeItem(index)}
-                                                className="text-xs text-rose-600 hover:text-rose-800 font-semibold"
+                                                onClick={() =>
+                                                    removeItem(index)
+                                                }
+                                                className="text-xs font-semibold text-rose-600 hover:text-rose-800"
                                             >
                                                 Hapus
                                             </button>
@@ -239,10 +330,18 @@ export default function AdjustmentsCreate({ warehouses, productVariants }: Props
 
                     <div className="flex justify-end gap-3 border-t border-slate-200 pt-6">
                         <Link href="/warehouse/adjustments">
-                            <Button type="button" variant="secondary">Batal</Button>
+                            <Button type="button" variant="secondary">
+                                Batal
+                            </Button>
                         </Link>
-                        <Button type="submit" variant="primary" disabled={processing}>
-                            {processing ? 'Menyimpan...' : 'Simpan Draft Penyesuaian'}
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            disabled={processing}
+                        >
+                            {processing
+                                ? 'Menyimpan...'
+                                : 'Simpan Draft Penyesuaian'}
                         </Button>
                     </div>
                 </form>

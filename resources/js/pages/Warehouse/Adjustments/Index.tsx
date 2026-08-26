@@ -30,20 +30,20 @@ export default function AdjustmentsIndex({ adjustments }: Props) {
         router.get(
             '/warehouse/adjustments',
             { page },
-            { preserveState: true, preserveScroll: true }
+            { preserveState: true, preserveScroll: true },
         );
     };
 
     const renderTypeBadge = (type: string) => {
         if (type === 'in') {
             return (
-                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/20 ring-inset">
                     STOK MASUK (IN)
                 </span>
             );
         }
         return (
-            <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+            <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-600/20 ring-inset">
                 STOK KELUAR (OUT)
             </span>
         );
@@ -52,7 +52,7 @@ export default function AdjustmentsIndex({ adjustments }: Props) {
     const renderStatusBadge = (status: string) => {
         if (status === 'posted') {
             return (
-                <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-700/10 ring-inset">
                     POSTED
                 </span>
             );

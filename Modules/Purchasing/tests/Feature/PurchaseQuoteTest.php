@@ -193,7 +193,7 @@ class PurchaseQuoteTest extends TestCase
         tenancy()->end();
 
         $response = $this->actingAs($user)->post(route('purchasing.quotes.cancel', $quoteId));
-        $response->assertRedirect(route('purchasing.quotes.index'));
+        $response->assertRedirect(route('purchasing.quotes.show', $quoteId));
 
         tenancy()->initialize($tenantId);
         $this->assertSame('cancelled', DB::table('purchase_quotes')->where('id', $quoteId)->value('status'));

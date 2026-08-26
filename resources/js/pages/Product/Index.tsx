@@ -47,7 +47,11 @@ export default function ProductIndex({
     const [showBanner, setShowBanner] = useState(true);
 
     const handleTabChange = (tab: string, defaultSub: string) => {
-        router.get('/product', { tab, sub: defaultSub }, { preserveState: true });
+        router.get(
+            '/product',
+            { tab, sub: defaultSub },
+            { preserveState: true },
+        );
     };
 
     return (
@@ -68,9 +72,9 @@ export default function ProductIndex({
                         <button
                             type="button"
                             onClick={() => handleTabChange('items', 'products')}
-                            className={`pb-2 border-b-2 transition-all ${
+                            className={`border-b-2 pb-2 transition-all ${
                                 activeTab === 'items'
-                                    ? 'border-indigo-600 text-indigo-600 font-bold'
+                                    ? 'border-indigo-600 font-bold text-indigo-600'
                                     : 'border-transparent text-slate-500 hover:text-slate-700'
                             }`}
                         >
@@ -79,10 +83,12 @@ export default function ProductIndex({
 
                         <button
                             type="button"
-                            onClick={() => handleTabChange('gudang', 'warehouses')}
-                            className={`pb-2 border-b-2 flex items-center gap-2 transition-all ${
+                            onClick={() =>
+                                handleTabChange('gudang', 'warehouses')
+                            }
+                            className={`flex items-center gap-2 border-b-2 pb-2 transition-all ${
                                 activeTab === 'gudang'
-                                    ? 'border-indigo-600 text-indigo-600 font-bold'
+                                    ? 'border-indigo-600 font-bold text-indigo-600'
                                     : 'border-transparent text-slate-500 hover:text-slate-700'
                             }`}
                         >
@@ -97,9 +103,9 @@ export default function ProductIndex({
                         <button
                             type="button"
                             onClick={() => handleTabChange('pricing', 'rules')}
-                            className={`pb-2 border-b-2 transition-all ${
+                            className={`border-b-2 pb-2 transition-all ${
                                 activeTab === 'pricing'
-                                    ? 'border-indigo-600 text-indigo-600 font-bold'
+                                    ? 'border-indigo-600 font-bold text-indigo-600'
                                     : 'border-transparent text-slate-500 hover:text-slate-700'
                             }`}
                         >
@@ -144,10 +150,14 @@ export default function ProductIndex({
                 )}
 
                 {activeTab === 'pricing' && (
-                    <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm text-center space-y-3">
-                        <h3 className="text-base font-bold text-slate-800">Aturan Harga & Multi Harga</h3>
-                        <p className="text-xs text-slate-500 max-w-md mx-auto">
-                            Fitur Aturan Harga memungkinkan pengaturan diskon bertingkat, daftar harga grosir, dan harga per kelompok pelanggan.
+                    <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+                        <h3 className="text-base font-bold text-slate-800">
+                            Aturan Harga & Multi Harga
+                        </h3>
+                        <p className="mx-auto max-w-md text-xs text-slate-500">
+                            Fitur Aturan Harga memungkinkan pengaturan diskon
+                            bertingkat, daftar harga grosir, dan harga per
+                            kelompok pelanggan.
                         </p>
                     </div>
                 )}

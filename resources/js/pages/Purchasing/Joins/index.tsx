@@ -1,28 +1,17 @@
-import { Head, Link } from '@inertiajs/react';
-import { PurchasingHeaderDropdown } from '@/components/purchasing/purchasing-header-dropdown';
-import { PurchasingSummaryCards } from '@/components/purchasing/purchasing-summary-cards';
-import { PurchasingTabs } from '@/components/purchasing/purchasing-tabs';
-import type { DataTableColumn } from '@/components/tables/data-table';
-import DataTable from '@/components/tables/data-table';
-import PageHeader from '@/components/ui/page-header';
-import CompanyLayout from '@/layouts/company/company-layout';
-
-type Item = {
-    id: number;
-    purchase_invoice_id: number;
-    invoice_number: string;
-    supplier_name: string;
-    invoice_total: number;
-};
+import { Link } from '@inertiajs/react';
+import PurchasingListPage from '@/components/purchasing/purchasing-list-page';
+import PurchasingStatusBadge from '@/components/purchasing/purchasing-status-badge';
+import type { PurchasingSummary } from '@/components/purchasing/purchasing-summary-cards';
+import type { DataTableColumn } from '@/components/tables/heroui-data-table';
+import { formatCurrency, formatDate } from '@/lib/format';
 
 type JoinPurchaseInvoice = {
     id: number;
     number: string;
-    branch_id: number;
     status: string;
     join_date: string;
     total_amount: number;
-    items?: Item[];
+    supplier_name?: string;
 };
 
 type Paginated<T> = {
@@ -39,135 +28,71 @@ type Props = {
         search?: string;
         status?: string;
     };
+    summary?: PurchasingSummary;
 };
 
-export default function JoinPurchaseInvoicesIndex({ joinPurchaseInvoices }: Props) {
-    const renderStatusBadge = (status: string) => {
-        switch (status) {
-            case 'draft':
-                return (
-                    <span className="inline-flex items-center rounded-full bg-amber-100/80 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                        Draft
-                    </span>
-                );
-            case 'ready':
-                return (
-                    <span className="inline-flex items-center rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-                        Ready
-                    </span>
-                );
-            default:
-                return (
-                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
-                        {status.toUpperCase()}
-                    </span>
-                );
-        }
-    };
-
+export default function JoinPurchaseInvoicesIndex({
+    joinPurchaseInvoices,
+    filters,
+    summary,
+}: Props) {
     const columns: DataTableColumn<JoinPurchaseInvoice>[] = [
         {
             key: 'join_date',
-            header: 'Date ↕',
-            render: (row) =>
-                row.join_date
-                    ? new Date(row.join_date).toLocaleDateString('id-ID', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                      })
-                    : '-',
+            header: 'Tanggal',
+            render: (row) => formatDate(row.join_date),
         },
         {
             key: 'number',
-            header: 'Number ↕',
+            header: 'No.',
+            copyableKey: (row) => row.number,
             render: (row) => (
                 <Link
                     href={`/purchasing/joins/${row.id}`}
-                    className="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
+                    className="font-semibold text-accent hover:underline"
                 >
                     Join Invoice #{row.number}
                 </Link>
             ),
         },
         {
+            key: 'supplier_name',
+            header: 'Supplier',
+            render: (row) => (
+                <span className="font-medium text-accent">
+                    {row.supplier_name || 'PT. Behaestex'}
+                </span>
+            ),
+        },
+        {
             key: 'status',
-            header: 'Status ↕',
-            render: (row) => renderStatusBadge(row.status),
+            header: 'Status',
+            render: (row) => <PurchasingStatusBadge status={row.status} />,
         },
         {
             key: 'total_amount',
-            header: 'Total ↕',
-            render: (row) => `Rp. ${Number(row.total_amount || 0).toLocaleString('id-ID', { minimumFractionDigits: 2 })}`,
+            header: 'Total',
+            align: 'right',
+            render: (row) => formatCurrency(row.total_amount || 0),
         },
     ];
 
     return (
-        <CompanyLayout>
-            <Head title="Purchases - Join Invoices" />
-            <div className="space-y-6">
-                <PageHeader title="Purchases" actions={<PurchasingHeaderDropdown />} />
-
-                <PurchasingSummaryCards />
-
-                <PurchasingTabs activeTab="joins" />
-
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="w-48">
-                        <select className="block w-full rounded-lg border-slate-300 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">All status</option>
-                            <option value="draft">Draft</option>
-                            <option value="ready">Ready</option>
-                        </select>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <div className="relative w-64">
-                            <input
-                                type="text"
-                                placeholder="Search transaction"
-                                className="w-full rounded-lg border-slate-300 py-2 pl-9 pr-4 text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            />
-                            <svg
-                                className="absolute left-3 top-2.5 size-4 text-slate-400"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                />
-                            </svg>
-                        </div>
-                        <button
-                            type="button"
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                            <svg className="size-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                                />
-                            </svg>
-                            <span>Filter</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    <DataTable<JoinPurchaseInvoice>
-                        columns={columns}
-                        rows={joinPurchaseInvoices.data}
-                        getRowKey={(row) => row.id}
-                        emptyMessage="Belum ada data Tukar Faktur."
-                    />
-                </div>
-            </div>
-        </CompanyLayout>
+        <PurchasingListPage<JoinPurchaseInvoice>
+            headTitle="Pembelian - Tukar Faktur"
+            activeTab="joins"
+            columns={columns}
+            rows={joinPurchaseInvoices.data}
+            getRowKey={(row) => row.id}
+            emptyMessage="Belum ada data Tukar Faktur."
+            filters={filters}
+            pagination={{
+                currentPage: joinPurchaseInvoices.current_page,
+                lastPage: joinPurchaseInvoices.last_page,
+                perPage: joinPurchaseInvoices.per_page,
+                total: joinPurchaseInvoices.total,
+            }}
+            summary={summary}
+        />
     );
 }

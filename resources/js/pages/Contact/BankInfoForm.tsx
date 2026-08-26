@@ -5,7 +5,10 @@ import type { ContactForm } from './types';
 
 type Props = {
     data: ContactForm;
-    setData: <K extends keyof ContactForm>(key: K, value: ContactForm[K]) => void;
+    setData: <K extends keyof ContactForm>(
+        key: K,
+        value: ContactForm[K],
+    ) => void;
     errors: Record<string, string | undefined>;
 };
 
@@ -33,18 +36,28 @@ export default function BankInfoForm({ data, setData, errors }: Props) {
                     />
                 </FormField>
 
-                <FormField label="Pemegang Akun Bank" error={errors.bank_account_name}>
+                <FormField
+                    label="Pemegang Akun Bank"
+                    error={errors.bank_account_name}
+                >
                     <TextInput
                         type="text"
                         value={data.bank_account_name}
-                        onChange={(e) => setData('bank_account_name', e.target.value)}
+                        onChange={(e) =>
+                            setData('bank_account_name', e.target.value)
+                        }
                     />
                 </FormField>
 
-                <FormField label="Nomor Rekening" error={errors.bank_account_number}>
+                <FormField
+                    label="Nomor Rekening"
+                    error={errors.bank_account_number}
+                >
                     <SensitiveInput
                         value={data.bank_account_number}
-                        onChange={(e) => setData('bank_account_number', e.target.value)}
+                        onChange={(e) =>
+                            setData('bank_account_number', e.target.value)
+                        }
                     />
                 </FormField>
             </div>

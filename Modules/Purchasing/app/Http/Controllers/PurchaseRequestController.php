@@ -7,10 +7,10 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Approval\Application\GetTransactionApprovalStatus;
 use Modules\Company\Application\CompanyAccess;
-use Modules\Contact\Application\GetContacts;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
-use Modules\Purchasing\Application\PurchaseRequest\ApprovePurchaseRequest;
+use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseSummary;
 use Modules\Purchasing\Application\PurchaseRequest\CancelPurchaseRequest;
 use Modules\Purchasing\Application\PurchaseRequest\CreatePurchaseRequest;
 use Modules\Purchasing\Application\PurchaseRequest\GetPurchaseRequestDetail;
@@ -23,8 +23,9 @@ class PurchaseRequestController extends Controller
         private readonly GetPurchaseRequests $getPurchaseRequests,
         private readonly GetPurchaseRequestDetail $getPurchaseRequestDetail,
         private readonly CreatePurchaseRequest $createPurchaseRequest,
-        private readonly ApprovePurchaseRequest $approvePurchaseRequest,
         private readonly CancelPurchaseRequest $cancelPurchaseRequest,
+        private readonly GetPurchaseSummary $getPurchaseSummary,
+        private readonly GetTransactionApprovalStatus $getTransactionApprovalStatus,
     ) {}
 
     public function index(): Response
@@ -36,10 +37,12 @@ class PurchaseRequestController extends Controller
         $filters = request()->only(['search', 'status']);
 
         $purchaseRequests = $this->getPurchaseRequests->execute($accessibleBranchIds, $filters);
+        $summary = $this->getPurchaseSummary->execute($accessibleBranchIds);
 
         return Inertia::render('Purchasing/Requests/index', [
             'purchaseRequests' => $purchaseRequests,
             'filters' => $filters,
+            'summary' => $summary,
         ]);
     }
 
@@ -48,11 +51,8 @@ class PurchaseRequestController extends Controller
         $user = request()->user();
         $tenantId = (string) session('active_tenant_id');
 
-        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
-
         return Inertia::render('Purchasing/Requests/create', [
             'branches' => CompanyAccess::accessibleBranches($user, $tenantId),
-            'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
             'productVariants' => app(GetPurchaseVariants::class)->execute(),
         ]);
     }
@@ -76,25 +76,19 @@ class PurchaseRequestController extends Controller
     public function show(int $id): Response
     {
         $purchaseRequest = $this->getPurchaseRequestDetail->execute($id);
+        $approval = $this->getTransactionApprovalStatus->execute('purchase_request', $id, request()->user()?->id);
 
         return Inertia::render('Purchasing/Requests/show', [
             'purchaseRequest' => $purchaseRequest,
+            'approval' => $approval,
         ]);
-    }
-
-    public function approve(int $id): RedirectResponse
-    {
-        $this->approvePurchaseRequest->execute($id);
-
-        return redirect()->route('purchasing.requests.show', $id)
-            ->with('success', 'Permintaan pembelian disetujui.');
     }
 
     public function cancel(int $id): RedirectResponse
     {
         $this->cancelPurchaseRequest->execute($id);
 
-        return redirect()->route('purchasing.requests.index')
+        return redirect()->route('purchasing.requests.show', $id)
             ->with('success', 'Permintaan pembelian dibatalkan.');
     }
 

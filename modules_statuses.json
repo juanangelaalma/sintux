@@ -7,5 +7,6 @@
     "Contact": true,
     "Product": true,
     "Warehouse": true,
-    "Purchasing": true
+    "Purchasing": true,
+    "Approval": true
 }

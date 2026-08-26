@@ -19,6 +19,7 @@ class GetContacts
     public function execute(string $type, array $branchIds): array
     {
         return Contact::query()
+            ->with(['billingAddress'])
             ->where('type', $type)
             ->whereIn('branch_id', $branchIds)
             ->orderBy('name')

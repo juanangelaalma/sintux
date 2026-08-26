@@ -45,22 +45,36 @@ export default function Index({ products, categories, uoms, filters }: Props) {
     };
 
     const changePage = (page: number) => {
-        router.get('/product/products', { ...filters, page }, { preserveState: true });
+        router.get(
+            '/product/products',
+            { ...filters, page },
+            { preserveState: true },
+        );
     };
 
     const columns: DataTableColumn<Product>[] = [
         {
             key: 'code',
             header: 'Kode / SKU',
-            render: (product) => <span className="font-mono text-xs font-semibold">{product.code}</span>,
+            render: (product) => (
+                <span className="font-mono text-xs font-semibold">
+                    {product.code}
+                </span>
+            ),
         },
         {
             key: 'name',
             header: 'Nama',
             render: (product) => (
                 <div>
-                    <div className="font-semibold text-slate-900">{product.name}</div>
-                    {product.barcode && <div className="text-xs text-slate-500 font-mono">Barcode: {product.barcode}</div>}
+                    <div className="font-semibold text-slate-900">
+                        {product.name}
+                    </div>
+                    {product.barcode && (
+                        <div className="font-mono text-xs text-slate-500">
+                            Barcode: {product.barcode}
+                        </div>
+                    )}
                 </div>
             ),
         },
@@ -69,11 +83,11 @@ export default function Index({ products, categories, uoms, filters }: Props) {
             header: 'Tipe Produk',
             render: (product) =>
                 product.product_type === 'bundle' ? (
-                    <span className="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20">
+                    <span className="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-700 ring-1 ring-purple-600/20 ring-inset">
                         BUNDLE
                     </span>
                 ) : (
-                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-blue-600/20 ring-inset">
                         SINGLE
                     </span>
                 ),
@@ -86,7 +100,8 @@ export default function Index({ products, categories, uoms, filters }: Props) {
         {
             key: 'uom',
             header: 'Satuan',
-            render: (product) => (product.uom ? `${product.uom.name} (${product.uom.code})` : '-'),
+            render: (product) =>
+                product.uom ? `${product.uom.name} (${product.uom.code})` : '-',
         },
         {
             key: 'status',
@@ -148,8 +163,14 @@ export default function Index({ products, categories, uoms, filters }: Props) {
                             id="search"
                             defaultValue={filters.search ?? ''}
                             onChange={(e) => {
-                                if (e.target.value.length >= 2 || e.target.value === '') {
-                                    applyFilters({ ...filters, search: e.target.value });
+                                if (
+                                    e.target.value.length >= 2 ||
+                                    e.target.value === ''
+                                ) {
+                                    applyFilters({
+                                        ...filters,
+                                        search: e.target.value,
+                                    });
                                 }
                             }}
                             placeholder="Cari nama / kode..."
@@ -159,7 +180,12 @@ export default function Index({ products, categories, uoms, filters }: Props) {
                         <SelectInput
                             id="category_id"
                             value={filters.category_id ?? ''}
-                            onChange={(e) => applyFilters({ ...filters, category_id: e.target.value })}
+                            onChange={(e) =>
+                                applyFilters({
+                                    ...filters,
+                                    category_id: e.target.value,
+                                })
+                            }
                         >
                             <option value="">Semua Kategori</option>
                             {categories.map((c) => (
@@ -173,7 +199,12 @@ export default function Index({ products, categories, uoms, filters }: Props) {
                         <SelectInput
                             id="product_type"
                             value={filters.product_type ?? ''}
-                            onChange={(e) => applyFilters({ ...filters, product_type: e.target.value })}
+                            onChange={(e) =>
+                                applyFilters({
+                                    ...filters,
+                                    product_type: e.target.value,
+                                })
+                            }
                         >
                             <option value="">Semua Tipe</option>
                             <option value="single">Single</option>

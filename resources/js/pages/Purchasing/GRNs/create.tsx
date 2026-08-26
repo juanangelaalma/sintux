@@ -1,27 +1,54 @@
-import { Head, useForm, Link } from '@inertiajs/react';
-import Button from '@/components/ui/button';
+import { Button } from '@heroui/react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import CompanyLayout from '@/layouts/company/company-layout';
+import { formatCurrency } from '@/lib/format';
 
-type Branch = { id: number; name: string; code: string };
 type Warehouse = { id: number; name: string };
-type Supplier = { id: number; name: string };
-type Variant = { id: number; product_name: string; sku: string; uom_name?: string };
 
-type ItemRow = {
-    purchase_order_item_id?: number;
+type POItem = {
+    id: number;
     product_variant_id: number;
-    description?: string;
+    product_name: string;
+    sku: string;
+    qty: number;
+    qty_ordered: number;
     qty_received: number;
+    unit_price: number;
+    line_total: number;
+};
+
+type OrderOption = {
+    id: number;
+    number: string;
+    branch_id: number;
+    supplier_id: number;
+    note?: string;
+    items: POItem[];
+};
+
+type GRNItemRow = {
+    purchase_order_item_id: number;
+    product_variant_id: number;
+    product_name: string;
+    sku: string;
+    qty_received: number;
+    unit_price: number;
 };
 
 type Props = {
-    branches: Branch[];
-    suppliers: Supplier[];
-    productVariants: Variant[];
-    warehouses?: Warehouse[];
+    warehouses: Warehouse[];
+    purchaseOrders: OrderOption[];
 };
 
-export default function GoodsReceiptsCreate({ branches, suppliers, productVariants }: Props) {
+export default function GoodsReceiptsCreate({
+    warehouses,
+    purchaseOrders,
+}: Props) {
+    const [selectedPoId, setSelectedPoId] = useState<number | string>(
+        purchaseOrders[0]?.id ?? '',
+    );
+
     const { data, setData, post, processing, errors } = useForm<{
         branch_id: number | string;
         supplier_id: number | string;
@@ -29,37 +56,58 @@ export default function GoodsReceiptsCreate({ branches, suppliers, productVarian
         warehouse_id: number | string;
         receipt_date: string;
         note: string;
-        items: ItemRow[];
+        items: GRNItemRow[];
     }>({
-        branch_id: branches[0]?.id ?? '',
-        supplier_id: suppliers[0]?.id ?? '',
-        purchase_order_id: '',
-        warehouse_id: '',
+        branch_id: purchaseOrders[0]?.branch_id ?? '',
+        supplier_id: purchaseOrders[0]?.supplier_id ?? '',
+        purchase_order_id: purchaseOrders[0]?.id ?? '',
+        warehouse_id: warehouses[0]?.id ?? '',
         receipt_date: new Date().toISOString().split('T')[0],
         note: '',
-        items: [{ product_variant_id: productVariants[0]?.id ?? 0, description: '', qty_received: 1 }],
+        items: [],
     });
 
-    const addItem = () => {
-        setData('items', [
-            ...data.items,
-            { product_variant_id: productVariants[0]?.id ?? 0, description: '', qty_received: 1 },
-        ]);
-    };
+    const selectedPo = purchaseOrders.find(
+        (po) => po.id === Number(selectedPoId),
+    );
 
-    const removeItem = (index: number) => {
-        if (data.items.length === 1) {
+    const handleSelectPO = (poId: number | string) => {
+        const po = purchaseOrders.find((p) => p.id === Number(poId));
+
+        if (!po) {
+            setSelectedPoId('');
+            setData({
+                ...data,
+                branch_id: '',
+                supplier_id: '',
+                purchase_order_id: '',
+                items: [],
+            });
+
             return;
         }
 
-        const next = [...data.items];
-        next.splice(index, 1);
-        setData('items', next);
+        setSelectedPoId(po.id);
+        setData({
+            ...data,
+            branch_id: po.branch_id,
+            supplier_id: po.supplier_id,
+            purchase_order_id: po.id,
+            note: po.note || data.note,
+            items: po.items.map((item) => ({
+                purchase_order_item_id: item.id,
+                product_variant_id: item.product_variant_id,
+                product_name: item.product_name,
+                sku: item.sku,
+                qty_received: Math.max(0, item.qty_ordered - item.qty_received),
+                unit_price: item.unit_price,
+            })),
+        });
     };
 
-    const updateItem = (index: number, field: keyof ItemRow, value: string | number) => {
+    const updateQty = (index: number, qty: number) => {
         const next = [...data.items];
-        next[index] = { ...next[index], [field]: value };
+        next[index] = { ...next[index], qty_received: qty };
         setData('items', next);
     };
 
@@ -68,200 +116,253 @@ export default function GoodsReceiptsCreate({ branches, suppliers, productVarian
         post('/purchasing/grns');
     };
 
+    const totalReceived = data.items.reduce(
+        (sum, item) => sum + Number(item.qty_received || 0),
+        0,
+    );
+
     return (
         <CompanyLayout>
-            <Head title="Input Penerimaan Barang" />
-            <div className="space-y-6">
-                {/* Top Bar Header */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
+            <Head title="Buat Penerimaan Barang" />
+            <div className="w-full space-y-6">
+                <div className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wider">Pembelian</p>
-                        <h1 className="text-2xl font-bold text-slate-900">Input Penerimaan Barang (GRN)</h1>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <select className="rounded-lg border-slate-300 py-1.5 px-3 text-sm font-medium text-slate-700 bg-white">
-                            <option value="grn">Penerimaan Barang (GRN)</option>
-                            <option value="po">Pesanan Pembelian</option>
-                        </select>
+                        <p className="text-xs font-semibold tracking-wider text-accent uppercase">
+                            Pembelian
+                        </p>
+                        <h1 className="mt-1 text-2xl font-bold text-foreground">
+                            Buat Penerimaan Barang (Goods Receipt)
+                        </h1>
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                    {/* Header Fields Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-semibold text-slate-700">Supplier *</label>
+                <form
+                    onSubmit={handleSubmit}
+                    className="space-y-6 rounded-xl border border-border bg-surface p-6 shadow-xs"
+                >
+                    <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
+                        <div>
+                            <label className="block text-xs font-semibold text-foreground">
+                                Pesanan Pembelian (PO) *
+                            </label>
                             <select
-                                value={data.supplier_id}
-                                onChange={(e) => setData('supplier_id', Number(e.target.value))}
-                                className="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                value={selectedPoId}
+                                onChange={(e) => handleSelectPO(e.target.value)}
+                                className="mt-1 block w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-accent focus:ring-accent"
                             >
-                                <option value="">Pilih supplier</option>
-                                {suppliers.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.name}
+                                <option value="">Pilih PO</option>
+                                {purchaseOrders.map((po) => (
+                                    <option key={po.id} value={po.id}>
+                                        PO #{po.number}
                                     </option>
                                 ))}
                             </select>
-                            {errors.supplier_id && <p className="text-xs text-rose-600 mt-1">{errors.supplier_id}</p>}
+                            {errors.purchase_order_id && (
+                                <p className="mt-1 text-xs text-danger">
+                                    {errors.purchase_order_id}
+                                </p>
+                            )}
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-700">ID Purchase Order *</label>
-                            <input
-                                type="number"
-                                value={data.purchase_order_id}
-                                onChange={(e) => setData('purchase_order_id', Number(e.target.value))}
-                                placeholder="ID PO"
-                                className="mt-1 block w-full rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            />
-                            {errors.purchase_order_id && <p className="text-xs text-rose-600 mt-1">{errors.purchase_order_id}</p>}
+                            <label className="block text-xs font-semibold text-foreground">
+                                Gudang Tujuan *
+                            </label>
+                            <select
+                                value={data.warehouse_id}
+                                onChange={(e) =>
+                                    setData(
+                                        'warehouse_id',
+                                        Number(e.target.value),
+                                    )
+                                }
+                                className="mt-1 block w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-accent focus:ring-accent"
+                            >
+                                <option value="">Pilih Gudang</option>
+                                {warehouses.map((w) => (
+                                    <option key={w.id} value={w.id}>
+                                        {w.name}
+                                    </option>
+                                ))}
+                            </select>
+                            {errors.warehouse_id && (
+                                <p className="mt-1 text-xs text-danger">
+                                    {errors.warehouse_id}
+                                </p>
+                            )}
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-700">Tgl. Penerimaan *</label>
+                            <label className="block text-xs font-semibold text-foreground">
+                                Tanggal Penerimaan *
+                            </label>
                             <input
                                 type="date"
                                 value={data.receipt_date}
-                                onChange={(e) => setData('receipt_date', e.target.value)}
-                                className="mt-1 block w-full rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                onChange={(e) =>
+                                    setData('receipt_date', e.target.value)
+                                }
+                                className="mt-1 block w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-accent focus:ring-accent"
                             />
-                            {errors.receipt_date && <p className="text-xs text-rose-600 mt-1">{errors.receipt_date}</p>}
-                        </div>
-
-                        <div className="space-y-3">
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700">No Transaksi ⚙</label>
-                                <input
-                                    type="text"
-                                    placeholder="[Auto]"
-                                    className="mt-1 block w-full rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700">Cabang</label>
-                                <select
-                                    value={data.branch_id}
-                                    onChange={(e) => setData('branch_id', Number(e.target.value))}
-                                    className="mt-1 block w-full rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                >
-                                    {branches.map((b) => (
-                                        <option key={b.id} value={b.id}>
-                                            {b.name} ({b.code})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700">Gudang Tujuan *</label>
-                                <input
-                                    type="number"
-                                    value={data.warehouse_id}
-                                    onChange={(e) => setData('warehouse_id', Number(e.target.value))}
-                                    placeholder="ID Warehouse"
-                                    className="mt-1 block w-full rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                />
-                                {errors.warehouse_id && <p className="text-xs text-rose-600 mt-1">{errors.warehouse_id}</p>}
-                            </div>
+                            {errors.receipt_date && (
+                                <p className="mt-1 text-xs text-danger">
+                                    {errors.receipt_date}
+                                </p>
+                            )}
                         </div>
                     </div>
 
-                    {/* Table Item Section */}
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
-                        <table className="w-full text-left text-sm text-slate-600">
-                            <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-700 border-b border-slate-200">
-                                <tr>
-                                    <th className="py-2.5 px-3 w-1/3">Produk Diterima</th>
-                                    <th className="py-2.5 px-3">Deskripsi</th>
-                                    <th className="py-2.5 px-3 w-36">Kuantitas Diterima</th>
-                                    <th className="py-2.5 px-2 w-8"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {data.items.map((row, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50/50">
-                                        <td className="p-2">
-                                            <select
-                                                value={row.product_variant_id}
-                                                onChange={(e) => updateItem(idx, 'product_variant_id', Number(e.target.value))}
-                                                className="w-full rounded-md border-slate-300 text-xs focus:border-indigo-500 focus:ring-indigo-500"
-                                            >
-                                                {productVariants.map((v) => (
-                                                    <option key={v.id} value={v.id}>
-                                                        {v.product_name} ({v.sku})
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                        <td className="p-2">
-                                            <input
-                                                type="text"
-                                                value={row.description || ''}
-                                                onChange={(e) => updateItem(idx, 'description', e.target.value)}
-                                                placeholder="Deskripsi item"
-                                                className="w-full rounded-md border-slate-300 text-xs focus:border-indigo-500 focus:ring-indigo-500"
-                                            />
-                                        </td>
-                                        <td className="p-2">
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={row.qty_received}
-                                                onChange={(e) => updateItem(idx, 'qty_received', Number(e.target.value))}
-                                                className="w-full rounded-md border-slate-300 text-xs text-right focus:border-indigo-500 focus:ring-indigo-500"
-                                            />
-                                        </td>
-                                        <td className="p-2 text-center">
-                                            {data.items.length > 1 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeItem(idx)}
-                                                    className="text-slate-400 hover:text-rose-600"
-                                                >
-                                                    ✕
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <div className="p-3 bg-slate-50 border-t border-slate-200">
-                            <Button type="button" variant="secondary" onClick={addItem} className="text-xs">
-                                + Tambah Data
-                            </Button>
-                        </div>
-                    </div>
-
-                    {/* Footer Details Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700">Catatan Penerimaan</label>
-                                <textarea
-                                    value={data.note}
-                                    onChange={(e) => setData('note', e.target.value)}
-                                    rows={2}
-                                    placeholder="Catatan kondisi fisik barang"
-                                    className="mt-1 block w-full rounded-lg border-slate-300 text-xs focus:border-indigo-500 focus:ring-indigo-500"
-                                />
+                    {selectedPo && (
+                        <div className="rounded-lg border border-border bg-surface-secondary p-4">
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                <h3 className="text-sm font-bold text-foreground">
+                                    Item Diterima — PO #{selectedPo.number}
+                                </h3>
+                                <span className="text-xs font-medium text-muted">
+                                    Total qty: {totalReceived}
+                                </span>
                             </div>
+
+                            {data.items.length === 0 ? (
+                                <p className="text-sm text-muted">
+                                    Pilih PO untuk memuat daftar item.
+                                </p>
+                            ) : (
+                                <div className="overflow-hidden rounded-lg border border-border">
+                                    <table className="w-full text-left text-sm text-foreground">
+                                        <thead className="border-b border-border bg-cyan-500/10 text-xs font-bold text-cyan-950 uppercase dark:bg-cyan-950/40 dark:text-cyan-200">
+                                            <tr>
+                                                <th className="px-4 py-3">
+                                                    Produk
+                                                </th>
+                                                <th className="px-4 py-3">
+                                                    SKU
+                                                </th>
+                                                <th className="px-4 py-3 text-right">
+                                                    Pesanan
+                                                </th>
+                                                <th className="px-4 py-3 text-right">
+                                                    Sudah Diterima
+                                                </th>
+                                                <th className="px-4 py-3 text-right">
+                                                    Harga Satuan
+                                                </th>
+                                                <th className="px-4 py-3 text-right">
+                                                    Terima Sekarang *
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/60">
+                                            {data.items.map((item, index) => {
+                                                const poItem =
+                                                    selectedPo.items.find(
+                                                        (i) =>
+                                                            i.id ===
+                                                            item.purchase_order_item_id,
+                                                    );
+                                                const maxQty = poItem
+                                                    ? Math.max(
+                                                          0,
+                                                          poItem.qty_ordered -
+                                                              poItem.qty_received,
+                                                      )
+                                                    : 0;
+
+                                                return (
+                                                    <tr
+                                                        key={
+                                                            item.purchase_order_item_id
+                                                        }
+                                                        className="hover:bg-surface-secondary/60"
+                                                    >
+                                                        <td className="px-4 py-3 font-semibold text-foreground">
+                                                            {item.product_name}
+                                                        </td>
+                                                        <td className="px-4 py-3 font-mono text-xs text-muted">
+                                                            {item.sku}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-medium">
+                                                            {poItem?.qty_ordered ??
+                                                                0}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-medium text-muted">
+                                                            {poItem?.qty_received ??
+                                                                0}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            {formatCurrency(
+                                                                item.unit_price,
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                max={
+                                                                    maxQty ||
+                                                                    undefined
+                                                                }
+                                                                step="any"
+                                                                value={
+                                                                    item.qty_received
+                                                                }
+                                                                onChange={(e) =>
+                                                                    updateQty(
+                                                                        index,
+                                                                        Number(
+                                                                            e
+                                                                                .target
+                                                                                .value,
+                                                                        ),
+                                                                    )
+                                                                }
+                                                                className="ml-auto block w-28 rounded-lg border-border bg-surface text-right text-sm text-foreground focus:border-accent focus:ring-accent"
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                            {errors.items && (
+                                <p className="mt-2 text-xs text-danger">
+                                    {errors.items}
+                                </p>
+                            )}
+                            {errors['items.0.qty_received'] && (
+                                <p className="mt-2 text-xs text-danger">
+                                    {errors['items.0.qty_received']}
+                                </p>
+                            )}
                         </div>
+                    )}
+
+                    <div>
+                        <label className="block text-xs font-semibold text-foreground">
+                            Catatan Penerimaan
+                        </label>
+                        <textarea
+                            rows={3}
+                            value={data.note}
+                            onChange={(e) => setData('note', e.target.value)}
+                            placeholder="Catatan kondisi fisik barang atau surat jalan supplier"
+                            className="mt-1 block w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-accent focus:ring-accent"
+                        />
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                    <div className="flex justify-end gap-3 border-t border-border/60 pt-4">
                         <Link href="/purchasing/grns">
                             <Button type="button" variant="secondary">
                                 Batal
                             </Button>
                         </Link>
-                        <Button type="submit" variant="primary" disabled={processing}>
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            isDisabled={processing}
+                        >
                             Simpan Penerimaan Barang
                         </Button>
                     </div>

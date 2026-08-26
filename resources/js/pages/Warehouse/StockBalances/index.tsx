@@ -65,7 +65,10 @@ export default function Index({ balances, warehouses, filters }: Props) {
             <Head title={stockBalanceLabels.plural} />
 
             <div className="space-y-6">
-                <PageHeader title={stockBalanceLabels.plural} description={stockBalanceLabels.description} />
+                <PageHeader
+                    title={stockBalanceLabels.plural}
+                    description={stockBalanceLabels.description}
+                />
 
                 <div className="flex flex-wrap gap-3">
                     <div className="w-64">
@@ -73,8 +76,14 @@ export default function Index({ balances, warehouses, filters }: Props) {
                             id="search"
                             defaultValue={filters.search ?? ''}
                             onChange={(e) => {
-                                if (e.target.value.length >= 2 || e.target.value === '') {
-                                    applyFilters({ ...filters, search: e.target.value });
+                                if (
+                                    e.target.value.length >= 2 ||
+                                    e.target.value === ''
+                                ) {
+                                    applyFilters({
+                                        ...filters,
+                                        search: e.target.value,
+                                    });
                                 }
                             }}
                             placeholder="Cari produk / SKU..."
@@ -84,7 +93,12 @@ export default function Index({ balances, warehouses, filters }: Props) {
                         <SelectInput
                             id="warehouse_id"
                             value={filters.warehouse_id ?? ''}
-                            onChange={(e) => applyFilters({ ...filters, warehouse_id: e.target.value })}
+                            onChange={(e) =>
+                                applyFilters({
+                                    ...filters,
+                                    warehouse_id: e.target.value,
+                                })
+                            }
                         >
                             <option value="">Semua Gudang</option>
                             {warehouses.map((warehouse) => (

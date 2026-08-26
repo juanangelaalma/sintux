@@ -7,13 +7,15 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Approval\Application\GetTransactionApprovalStatus;
 use Modules\Company\Application\CompanyAccess;
 use Modules\Contact\Application\GetContacts;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
-use Modules\Purchasing\Application\PurchaseInvoice\ApprovePurchaseInvoice;
 use Modules\Purchasing\Application\PurchaseInvoice\CreatePurchaseInvoice;
 use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseInvoiceDetail;
 use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseInvoices;
+use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseSummary;
+use Modules\Purchasing\Application\PurchaseOrder\GetPurchaseOrderOptions;
 use Modules\Purchasing\Http\Requests\StorePurchaseInvoiceRequest;
 
 class PurchaseInvoiceController extends Controller
@@ -22,7 +24,8 @@ class PurchaseInvoiceController extends Controller
         private readonly GetPurchaseInvoices $getPurchaseInvoices,
         private readonly GetPurchaseInvoiceDetail $getPurchaseInvoiceDetail,
         private readonly CreatePurchaseInvoice $createPurchaseInvoice,
-        private readonly ApprovePurchaseInvoice $approvePurchaseInvoice,
+        private readonly GetPurchaseSummary $getPurchaseSummary,
+        private readonly GetTransactionApprovalStatus $getTransactionApprovalStatus,
     ) {}
 
     public function index(): Response
@@ -34,10 +37,12 @@ class PurchaseInvoiceController extends Controller
         $filters = request()->only(['search', 'status']);
 
         $purchaseInvoices = $this->getPurchaseInvoices->execute($accessibleBranchIds, $filters);
+        $summary = $this->getPurchaseSummary->execute($accessibleBranchIds);
 
         return Inertia::render('Purchasing/Invoices/index', [
             'purchaseInvoices' => $purchaseInvoices,
             'filters' => $filters,
+            'summary' => $summary,
         ]);
     }
 
@@ -52,6 +57,7 @@ class PurchaseInvoiceController extends Controller
             'branches' => CompanyAccess::accessibleBranches($user, $tenantId),
             'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
             'productVariants' => app(GetPurchaseVariants::class)->execute(),
+            'purchaseOrders' => app(GetPurchaseOrderOptions::class)->execute($accessibleBranchIds),
         ]);
     }
 
@@ -74,18 +80,12 @@ class PurchaseInvoiceController extends Controller
     public function show(int $id): Response
     {
         $purchaseInvoice = $this->getPurchaseInvoiceDetail->execute($id);
+        $approval = $this->getTransactionApprovalStatus->execute('purchase_invoice', $id, request()->user()?->id);
 
         return Inertia::render('Purchasing/Invoices/show', [
             'purchaseInvoice' => $purchaseInvoice,
+            'approval' => $approval,
         ]);
-    }
-
-    public function approve(int $id): RedirectResponse
-    {
-        $this->approvePurchaseInvoice->execute($id);
-
-        return redirect()->route('purchasing.invoices.show', $id)
-            ->with('success', 'Faktur pembelian disetujui.');
     }
 
     /**
