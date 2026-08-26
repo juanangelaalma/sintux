@@ -56,7 +56,8 @@ export default function Index({ warehouses, filters }: Props) {
         {
             key: 'type',
             header: 'Tipe',
-            render: (warehouse) => warehouseTypeLabels[warehouse.warehouse_type],
+            render: (warehouse) =>
+                warehouseTypeLabels[warehouse.warehouse_type],
         },
         {
             key: 'status',
@@ -118,8 +119,14 @@ export default function Index({ warehouses, filters }: Props) {
                             id="search"
                             defaultValue={filters.search ?? ''}
                             onChange={(e) => {
-                                if (e.target.value.length >= 2 || e.target.value === '') {
-                                    applyFilters({ ...filters, search: e.target.value });
+                                if (
+                                    e.target.value.length >= 2 ||
+                                    e.target.value === ''
+                                ) {
+                                    applyFilters({
+                                        ...filters,
+                                        search: e.target.value,
+                                    });
                                 }
                             }}
                             placeholder="Cari kode / nama..."
@@ -129,7 +136,12 @@ export default function Index({ warehouses, filters }: Props) {
                         <SelectInput
                             id="warehouse_type"
                             value={filters.warehouse_type ?? ''}
-                            onChange={(e) => applyFilters({ ...filters, warehouse_type: e.target.value })}
+                            onChange={(e) =>
+                                applyFilters({
+                                    ...filters,
+                                    warehouse_type: e.target.value,
+                                })
+                            }
                         >
                             <option value="">Semua Tipe</option>
                             <option value="consignment">Konsinyasi</option>

@@ -128,6 +128,95 @@ class GoodsReceiptTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_store_goods_receipt_via_http_creates_draft_grn_with_items(): void
+    {
+        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        tenancy()->initialize($tenantId);
+
+        [$variantId] = $this->createProductAndVariant('PRD-002', true);
+        $supplierId = $this->createSupplier($branchBId);
+        $warehouseId = DB::table('warehouses')->insertGetId([
+            'branch_id' => $branchBId,
+            'code' => 'WH-STORE-'.uniqid(),
+            'name' => 'Store Warehouse',
+            'warehouse_type' => 'regular',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $po = PurchaseOrder::create([
+            'number' => 'PO-STORE-'.uniqid(),
+            'branch_id' => $branchBId,
+            'supplier_id' => $supplierId,
+            'status' => 'sent',
+            'order_date' => now()->toDateString(),
+            'currency_code' => 'IDR',
+        ]);
+        $poItem = $po->items()->create([
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget Store',
+            'sku' => 'SKU-STORE',
+            'qty_ordered' => 15,
+            'qty_received' => 0,
+            'unit_price' => 25000,
+        ]);
+
+        $payload = [
+            'branch_id' => $branchBId,
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $po->id,
+            'warehouse_id' => $warehouseId,
+            'receipt_date' => now()->toDateString(),
+            'note' => 'Diterima via HTTP form',
+            'items' => [
+                [
+                    'purchase_order_item_id' => $poItem->id,
+                    'product_variant_id' => $variantId,
+                    'product_name' => 'Widget Store',
+                    'sku' => 'SKU-STORE',
+                    'qty_received' => 10,
+                    'unit_price' => 25000,
+                ],
+            ],
+        ];
+
+        $poId = $po->id;
+        tenancy()->end();
+
+        $response = $this->actingAs($user)->post(route('purchasing.grns.store'), $payload);
+        $response->assertSessionHasNoErrors();
+
+        tenancy()->initialize($tenantId);
+        $grn = DB::table('goods_receipts')
+            ->where('purchase_order_id', $poId)
+            ->first();
+        $this->assertNotNull($grn, 'GRN harus dibuat dari form');
+        $this->assertSame('draft', $grn->status);
+        $this->assertEquals($branchBId, $grn->branch_id);
+        $this->assertEquals($supplierId, $grn->supplier_id);
+        $this->assertEquals($warehouseId, $grn->warehouse_id);
+
+        $grnItem = DB::table('goods_receipt_items')
+            ->where('goods_receipt_id', $grn->id)
+            ->first();
+        $this->assertNotNull($grnItem);
+        $this->assertEquals($poItem->id, $grnItem->purchase_order_item_id);
+        $this->assertEquals(10, (float) $grnItem->qty_received);
+
+        // PO item belum berubah sebelum GRN diposting
+        $this->assertEquals(0, (float) DB::table('purchase_order_items')
+            ->where('id', $poItem->id)
+            ->value('qty_received'));
+        tenancy()->end();
+
+        $this->assertSame(
+            route('purchasing.grns.index'),
+            $response->headers->get('Location')
+        );
+    }
+
     /**
      * @return array{0: string|int, 1: int, 2: User}
      */

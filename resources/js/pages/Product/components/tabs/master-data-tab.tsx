@@ -19,7 +19,11 @@ export const MasterDataTab: React.FC<Props> = ({
     uoms,
 }) => {
     const handleSubTabChange = (newSub: string) => {
-        router.get('/product', { tab: 'master', sub: newSub }, { preserveState: true });
+        router.get(
+            '/product',
+            { tab: 'master', sub: newSub },
+            { preserveState: true },
+        );
     };
 
     const handleDeleteCategory = (cat: Category) => {
@@ -38,13 +42,17 @@ export const MasterDataTab: React.FC<Props> = ({
         {
             key: 'name',
             header: 'Nama Kategori',
-            render: (c) => <span className="font-semibold text-slate-900">{c.name}</span>,
+            render: (c) => (
+                <span className="font-semibold text-slate-900">{c.name}</span>
+            ),
         },
         {
             key: 'status',
             header: 'Status',
             render: (c) => (
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${c.is_active ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20' : 'bg-rose-50 text-rose-700'}`}>
+                <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${c.is_active ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20 ring-inset' : 'bg-rose-50 text-rose-700'}`}
+                >
                     {c.is_active ? 'Aktif' : 'Non-aktif'}
                 </span>
             ),
@@ -58,7 +66,12 @@ export const MasterDataTab: React.FC<Props> = ({
                     <Link href={`/product/categories/${c.id}/edit`}>
                         <Button variant="secondary">Edit</Button>
                     </Link>
-                    <Button variant="danger" onClick={() => handleDeleteCategory(c)}>Hapus</Button>
+                    <Button
+                        variant="danger"
+                        onClick={() => handleDeleteCategory(c)}
+                    >
+                        Hapus
+                    </Button>
                 </div>
             ),
         },
@@ -68,18 +81,26 @@ export const MasterDataTab: React.FC<Props> = ({
         {
             key: 'code',
             header: 'Kode Satuan',
-            render: (u) => <span className="font-mono text-xs font-semibold">{u.code}</span>,
+            render: (u) => (
+                <span className="font-mono text-xs font-semibold">
+                    {u.code}
+                </span>
+            ),
         },
         {
             key: 'name',
             header: 'Nama Satuan',
-            render: (u) => <span className="font-semibold text-slate-900">{u.name}</span>,
+            render: (u) => (
+                <span className="font-semibold text-slate-900">{u.name}</span>
+            ),
         },
         {
             key: 'status',
             header: 'Status',
             render: (u) => (
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${u.is_active ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20' : 'bg-rose-50 text-rose-700'}`}>
+                <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${u.is_active ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20 ring-inset' : 'bg-rose-50 text-rose-700'}`}
+                >
                     {u.is_active ? 'Aktif' : 'Non-aktif'}
                 </span>
             ),
@@ -93,7 +114,9 @@ export const MasterDataTab: React.FC<Props> = ({
                     <Link href={`/product/uoms/${u.id}/edit`}>
                         <Button variant="secondary">Edit</Button>
                     </Link>
-                    <Button variant="danger" onClick={() => handleDeleteUom(u)}>Hapus</Button>
+                    <Button variant="danger" onClick={() => handleDeleteUom(u)}>
+                        Hapus
+                    </Button>
                 </div>
             ),
         },
@@ -106,7 +129,7 @@ export const MasterDataTab: React.FC<Props> = ({
                 <button
                     type="button"
                     onClick={() => handleSubTabChange('categories')}
-                    className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all ${
+                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-all ${
                         subTab === 'categories'
                             ? 'bg-indigo-600 text-white shadow-sm'
                             : 'text-slate-600 hover:bg-slate-100'
@@ -117,7 +140,7 @@ export const MasterDataTab: React.FC<Props> = ({
                 <button
                     type="button"
                     onClick={() => handleSubTabChange('uoms')}
-                    className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all ${
+                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-all ${
                         subTab === 'uoms'
                             ? 'bg-indigo-600 text-white shadow-sm'
                             : 'text-slate-600 hover:bg-slate-100'
@@ -148,7 +171,9 @@ export const MasterDataTab: React.FC<Props> = ({
                 <div className="space-y-3">
                     <div className="flex justify-end">
                         <Link href="/product/uoms/create">
-                            <Button variant="primary">+ Tambah Satuan (UOM)</Button>
+                            <Button variant="primary">
+                                + Tambah Satuan (UOM)
+                            </Button>
                         </Link>
                     </div>
                     <DataTable<Uom>

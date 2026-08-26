@@ -49,15 +49,19 @@ class StorePurchaseOrderRequest extends FormRequest
         return [
             'branch_id' => ['required', 'integer', $branchAccessibleRule],
             'supplier_id' => ['required', 'integer', Rule::in($supplierIds)],
+            'warehouse_id' => ['nullable', 'integer', 'exists:warehouses,id'],
             'source_request_id' => ['nullable', 'integer', 'exists:purchase_requests,id'],
             'source_quote_id' => ['nullable', 'integer', 'exists:purchase_quotes,id'],
+            'payment_term' => ['nullable', 'string', 'max:50'],
             'order_date' => ['required', 'date'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:order_date'],
             'expected_date' => ['nullable', 'date', 'after_or_equal:order_date'],
+            'is_tax_inclusive' => ['boolean'],
             'note' => ['nullable', 'string', 'max:1000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_variant_id' => ['required', 'integer', 'distinct', Rule::in($activeVariantIds)],
             'items.*.qty_ordered' => ['required', 'numeric', 'gt:0'],
-            'items.*.unit_price' => ['required', 'numeric', 'gt:0'],
+            'items.*.unit_price' => ['required', 'numeric', 'gte:0'],
             'items.*.tax_id' => ['nullable', 'integer', Rule::in($taxIds)],
         ];
     }

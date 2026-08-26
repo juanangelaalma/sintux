@@ -1,6 +1,12 @@
+import { Button } from '@heroui/react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import Button from '@/components/ui/button';
+import { useState } from 'react';
+import PurchaseConfirmDialog from '@/components/purchasing/purchase-confirm-dialog';
+import PurchaseDocumentDetail from '@/components/purchasing/purchase-document-detail';
+import type { DetailRow } from '@/components/purchasing/purchase-document-detail';
+import PurchaseDocumentHeader from '@/components/purchasing/purchase-document-header';
 import CompanyLayout from '@/layouts/company/company-layout';
+import { formatDate } from '@/lib/format';
 
 type Item = {
     id: number;
@@ -26,87 +32,103 @@ type Props = {
 };
 
 export default function GoodsReceiptsShow({ goodsReceipt }: Props) {
+    const [confirmPost, setConfirmPost] = useState(false);
     const { post: postPost, processing: posting } = useForm({});
 
     const handlePost = () => {
-        if (confirm('POST Penerimaan Barang ini? Stok akan dimasukkan ke gudang dan status PO diperbarui.')) {
-            postPost(`/purchasing/grns/${goodsReceipt.id}/post`);
-        }
+        postPost(`/purchasing/grns/${goodsReceipt.id}/post`);
     };
+
+    const rows: DetailRow[] = [
+        {
+            label: 'Tanggal terima',
+            value: formatDate(goodsReceipt.receipt_date),
+        },
+        { label: 'ID pesanan', value: `#${goodsReceipt.purchase_order_id}` },
+        { label: 'ID gudang', value: `#${goodsReceipt.warehouse_id}` },
+    ];
 
     return (
         <CompanyLayout>
             <Head title={`GRN #${goodsReceipt.number}`} />
-            <div className="space-y-6 max-w-5xl">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
+            <div className="w-full space-y-6">
+                <PurchaseDocumentHeader
+                    eyebrow="Pembelian / Detail Penerimaan"
+                    title={`Goods Receipt #${goodsReceipt.number}`}
+                    actions={
+                        <>
+                            <Link href="/purchasing/grns">
+                                <Button type="button" variant="secondary">
+                                    Kembali
+                                </Button>
+                            </Link>
+                            {goodsReceipt.status === 'draft' && (
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    onPress={() => setConfirmPost(true)}
+                                >
+                                    Posting Stok ke Gudang
+                                </Button>
+                            )}
+                        </>
+                    }
+                />
+
+                <PurchaseDocumentDetail
+                    status={goodsReceipt.status}
+                    statusLabel="Status Penerimaan"
+                    rows={rows}
+                    note={goodsReceipt.note}
+                >
                     <div>
-                        <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wider">Pembelian / Detail Penerimaan</p>
-                        <h1 className="text-2xl font-bold text-slate-900">Goods Receipt #{goodsReceipt.number}</h1>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Link href="/purchasing/grns">
-                            <Button variant="secondary">Kembali</Button>
-                        </Link>
-                        {goodsReceipt.status === 'draft' && (
-                            <Button variant="primary" onClick={handlePost} disabled={posting}>
-                                Posting Stok ke Gudang
-                            </Button>
-                        )}
-                    </div>
-                </div>
-
-                <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
-                    <div className="flex justify-between items-start border-b border-slate-100 pb-6">
-                        <div>
-                            <span className="text-xs uppercase font-semibold text-slate-400">Status GRN</span>
-                            <div className="mt-1">
-                                <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-700/10 uppercase">
-                                    {goodsReceipt.status}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="text-right space-y-1 text-sm">
-                            <p className="text-slate-500">
-                                Tgl Terima: <span className="font-semibold text-slate-900">{goodsReceipt.receipt_date}</span>
-                            </p>
-                            <p className="text-slate-500">
-                                ID PO: <span className="font-semibold text-slate-900">#{goodsReceipt.purchase_order_id}</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    {goodsReceipt.note && (
-                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
-                            <p className="text-xs font-bold text-slate-700 uppercase">Catatan</p>
-                            <p className="text-slate-600 mt-1">{goodsReceipt.note}</p>
-                        </div>
-                    )}
-
-                    <div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-3">Item Diterima</h3>
-                        <div className="border border-slate-200 rounded-lg overflow-hidden">
-                            <table className="w-full text-sm text-left text-slate-600">
-                                <thead className="text-xs uppercase bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                        <h3 className="mb-3 text-sm font-bold text-foreground">
+                            Item Diterima
+                        </h3>
+                        <div className="overflow-hidden rounded-lg border border-border">
+                            <table className="w-full text-left text-sm text-foreground">
+                                <thead className="border-b border-border bg-cyan-500/10 text-xs font-bold text-cyan-950 uppercase dark:bg-cyan-950/40 dark:text-cyan-200">
                                     <tr>
-                                        <th className="py-3 px-4">Produk</th>
-                                        <th className="py-3 px-4">SKU</th>
-                                        <th className="py-3 px-4 text-right">Qty Diterima</th>
+                                        <th className="px-4 py-3">Produk</th>
+                                        <th className="px-4 py-3">SKU</th>
+                                        <th className="px-4 py-3 text-right">
+                                            Jumlah Diterima
+                                        </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-border/60">
                                     {goodsReceipt.items.map((item) => (
-                                        <tr key={item.id} className="hover:bg-slate-50/50">
-                                            <td className="py-3 px-4 font-semibold text-slate-900">{item.product_name}</td>
-                                            <td className="py-3 px-4 text-xs font-mono text-slate-500">{item.sku}</td>
-                                            <td className="py-3 px-4 text-right font-bold text-slate-900">{item.qty_received}</td>
+                                        <tr
+                                            key={item.id}
+                                            className="hover:bg-surface-secondary/60"
+                                        >
+                                            <td className="px-4 py-3 font-semibold text-foreground">
+                                                {item.product_name}
+                                            </td>
+                                            <td className="px-4 py-3 font-mono text-xs text-muted">
+                                                {item.sku}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-bold text-foreground">
+                                                {item.qty_received}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                </div>
+                </PurchaseDocumentDetail>
             </div>
+
+            <PurchaseConfirmDialog
+                open={confirmPost}
+                title="Posting Penerimaan Barang?"
+                description="Stok akan dimasukkan ke gudang dan status pesanan pembelian diperbarui. Tindakan ini tidak dapat dibatalkan."
+                confirmLabel="Posting"
+                processing={posting}
+                onConfirm={handlePost}
+                onClose={() => setConfirmPost(false)}
+            />
         </CompanyLayout>
     );
 }

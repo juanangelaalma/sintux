@@ -45,7 +45,9 @@ export default function Create({ type, branches }: Props) {
                             setData={form.setData}
                             errors={form.errors}
                             updateAddress={form.updateAddress}
-                            handleSameAsBillingChange={form.handleSameAsBillingChange}
+                            handleSameAsBillingChange={
+                                form.handleSameAsBillingChange
+                            }
                         />
                         <BankInfoForm
                             data={form.data}

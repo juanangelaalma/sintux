@@ -13,7 +13,12 @@ import TextInput from '@/components/ui/text-input';
 import CompanyLayout from '@/layouts/company/company-layout';
 import usersRoute from '@/routes/company/users';
 
-type Branch = { id: number; name: string; code: string; is_headquarters: boolean };
+type Branch = {
+    id: number;
+    name: string;
+    code: string;
+    is_headquarters: boolean;
+};
 type Role = { id: number; name: string; slug: string; level: string };
 type Member = {
     id: number;
@@ -135,7 +140,8 @@ export default function Index({
             header: 'Branch',
             render: (member) => {
                 const home =
-                    branches.find((b) => b.id === member.branch_id)?.name ?? '-';
+                    branches.find((b) => b.id === member.branch_id)?.name ??
+                    '-';
                 const extra =
                     member.allowed_branch_ids?.filter(
                         (id) => id !== member.branch_id,
@@ -297,9 +303,7 @@ function UserFields({
             <FormField label="Company Role" error={errors.company_role}>
                 <SelectInput
                     value={data.company_role}
-                    onChange={(e) =>
-                        setData('company_role', e.target.value)
-                    }
+                    onChange={(e) => setData('company_role', e.target.value)}
                 >
                     <option value="admin">Admin</option>
                     <option value="member">Member</option>
@@ -332,26 +336,34 @@ function UserFields({
                 </SelectInput>
             </FormField>
 
-            {!(branches.find((b) => b.id === data.branch_id)?.is_headquarters ?? false) && data.branch_id && (
-                <FormField
-                    label="Allowed Branches"
-                    error={errors.allowed_branch_ids}
-                >
-                    <MultiSelect
-                        values={data.allowed_branch_ids}
-                        options={branches
-                            .filter((b) => b.id !== data.branch_id && !b.is_headquarters)
-                            .map((b) => ({
-                                value: b.id,
-                                label: `${b.name} (${b.code})`,
-                            }))}
-                        onChange={(values) =>
-                            setData('allowed_branch_ids', values)
-                        }
-                        placeholder="Select branches..."
-                    />
-                </FormField>
-            )}
+            {!(
+                branches.find((b) => b.id === data.branch_id)
+                    ?.is_headquarters ?? false
+            ) &&
+                data.branch_id && (
+                    <FormField
+                        label="Allowed Branches"
+                        error={errors.allowed_branch_ids}
+                    >
+                        <MultiSelect
+                            values={data.allowed_branch_ids}
+                            options={branches
+                                .filter(
+                                    (b) =>
+                                        b.id !== data.branch_id &&
+                                        !b.is_headquarters,
+                                )
+                                .map((b) => ({
+                                    value: b.id,
+                                    label: `${b.name} (${b.code})`,
+                                }))}
+                            onChange={(values) =>
+                                setData('allowed_branch_ids', values)
+                            }
+                            placeholder="Select branches..."
+                        />
+                    </FormField>
+                )}
 
             <FormField label="Branch Roles" error={errors.roles}>
                 <MultiSelect

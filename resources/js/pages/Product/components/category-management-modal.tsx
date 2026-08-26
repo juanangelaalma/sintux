@@ -29,7 +29,7 @@ export const CategoryManagementModal: React.FC<Props> = ({
     if (!show) return null;
 
     const filteredCategories = categories.filter((c) =>
-        c.name.toLowerCase().includes(search.toLowerCase())
+        c.name.toLowerCase().includes(search.toLowerCase()),
     );
 
     const handleCreateSubmit = (e: React.FormEvent) => {
@@ -46,7 +46,7 @@ export const CategoryManagementModal: React.FC<Props> = ({
                     setNewCategoryName('');
                     setIsCreating(false);
                 },
-            }
+            },
         );
     };
 
@@ -63,7 +63,7 @@ export const CategoryManagementModal: React.FC<Props> = ({
                     setEditingId(null);
                     setEditingName('');
                 },
-            }
+            },
         );
     };
 
@@ -74,8 +74,18 @@ export const CategoryManagementModal: React.FC<Props> = ({
                 <div className="flex items-center gap-3">
                     <div className="relative flex-1">
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            <svg
+                                className="size-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
                             </svg>
                         </span>
                         <input
@@ -83,7 +93,7 @@ export const CategoryManagementModal: React.FC<Props> = ({
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Cari kategori"
-                            className="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                            className="w-full rounded-lg border border-slate-300 py-2 pr-3 pl-9 text-sm focus:border-indigo-500 focus:outline-none"
                         />
                     </div>
 
@@ -91,7 +101,7 @@ export const CategoryManagementModal: React.FC<Props> = ({
                         <button
                             type="button"
                             onClick={() => setIsCreating(true)}
-                            className="rounded-lg border border-indigo-600 px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors shrink-0"
+                            className="shrink-0 rounded-lg border border-indigo-600 px-4 py-2 text-sm font-semibold text-indigo-600 transition-colors hover:bg-indigo-50"
                         >
                             Tambah kategori
                         </button>
@@ -100,7 +110,10 @@ export const CategoryManagementModal: React.FC<Props> = ({
 
                 {/* Inline Add Category Form */}
                 {isCreating && (
-                    <form onSubmit={handleCreateSubmit} className="flex items-center gap-2 p-3 bg-indigo-50/60 rounded-lg border border-indigo-100">
+                    <form
+                        onSubmit={handleCreateSubmit}
+                        className="flex items-center gap-2 rounded-lg border border-indigo-100 bg-indigo-50/60 p-3"
+                    >
                         <input
                             type="text"
                             value={newCategoryName}
@@ -109,7 +122,11 @@ export const CategoryManagementModal: React.FC<Props> = ({
                             className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
                             autoFocus
                         />
-                        <Button type="submit" variant="primary" className="px-3 py-1 text-xs">
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            className="px-3 py-1 text-xs"
+                        >
                             Simpan
                         </Button>
                         <Button
@@ -127,13 +144,23 @@ export const CategoryManagementModal: React.FC<Props> = ({
                 )}
 
                 {/* Categories List Table (Image 2 style) */}
-                <div className="max-h-72 overflow-y-auto border-t border-b border-slate-200 divide-y divide-slate-100">
-                    <div className="flex items-center justify-between py-2 text-xs font-bold text-slate-700 uppercase tracking-wider sticky top-0 bg-white">
+                <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto border-t border-b border-slate-200">
+                    <div className="sticky top-0 flex items-center justify-between bg-white py-2 text-xs font-bold tracking-wider text-slate-700 uppercase">
                         <span>Nama</span>
                         <span className="flex items-center gap-1">
                             Jumlah
-                            <svg className="size-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <svg
+                                className="size-3.5 text-slate-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
                             </svg>
                         </span>
                     </div>
@@ -144,19 +171,26 @@ export const CategoryManagementModal: React.FC<Props> = ({
                         </div>
                     ) : (
                         filteredCategories.map((c) => (
-                            <div key={c.id} className="flex items-center justify-between py-2.5 group">
+                            <div
+                                key={c.id}
+                                className="group flex items-center justify-between py-2.5"
+                            >
                                 {editingId === c.id ? (
-                                    <div className="flex items-center gap-2 flex-1 mr-4">
+                                    <div className="mr-4 flex flex-1 items-center gap-2">
                                         <input
                                             type="text"
                                             value={editingName}
-                                            onChange={(e) => setEditingName(e.target.value)}
+                                            onChange={(e) =>
+                                                setEditingName(e.target.value)
+                                            }
                                             className="flex-1 rounded-lg border border-slate-300 px-2.5 py-1 text-xs focus:border-indigo-500 focus:outline-none"
                                             autoFocus
                                         />
                                         <button
                                             type="button"
-                                            onClick={() => handleUpdateSubmit(c.id)}
+                                            onClick={() =>
+                                                handleUpdateSubmit(c.id)
+                                            }
                                             className="text-xs font-semibold text-indigo-600 hover:underline"
                                         >
                                             Simpan
@@ -180,11 +214,21 @@ export const CategoryManagementModal: React.FC<Props> = ({
                                                 setEditingId(c.id);
                                                 setEditingName(c.name);
                                             }}
-                                            className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-100 transition-colors opacity-80 group-hover:opacity-100"
+                                            className="rounded p-1 text-slate-400 opacity-80 transition-colors group-hover:opacity-100 hover:bg-slate-100 hover:text-indigo-600"
                                             title="Ubah nama"
                                         >
-                                            <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            <svg
+                                                className="size-3.5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                                />
                                             </svg>
                                         </button>
                                     </div>

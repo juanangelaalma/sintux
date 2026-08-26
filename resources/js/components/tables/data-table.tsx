@@ -30,7 +30,9 @@ function getPageWindow(current: number, last: number): (number | 'ellipsis')[] {
     }
 
     const candidates = new Set([1, last, current - 1, current, current + 1]);
-    const sorted = [...candidates].filter((p) => p >= 1 && p <= last).sort((a, b) => a - b);
+    const sorted = [...candidates]
+        .filter((p) => p >= 1 && p <= last)
+        .sort((a, b) => a - b);
     const window: (number | 'ellipsis')[] = [];
     let previous = 0;
 
@@ -61,7 +63,10 @@ export default function DataTable<T>({
             ? (pagination.currentPage - 1) * pagination.perPage + 1
             : 0;
     const end = pagination
-        ? Math.min(pagination.currentPage * pagination.perPage, pagination.total)
+        ? Math.min(
+              pagination.currentPage * pagination.perPage,
+              pagination.total,
+          )
         : 0;
 
     const pageButtonClass = (active: boolean) =>
@@ -128,38 +133,54 @@ export default function DataTable<T>({
                     <p className="text-theme-sm text-gray-500 dark:text-gray-400">
                         Menampilkan {start}–{end} dari {pagination.total}
                     </p>
-                    <nav className="flex items-center gap-1" aria-label="Pagination">
+                    <nav
+                        className="flex items-center gap-1"
+                        aria-label="Pagination"
+                    >
                         <button
                             type="button"
-                            onClick={() => onPageChange(pagination.currentPage - 1)}
+                            onClick={() =>
+                                onPageChange(pagination.currentPage - 1)
+                            }
                             disabled={pagination.currentPage <= 1}
                             className={pageButtonClass(false)}
                             aria-label="Halaman sebelumnya"
                         >
                             «
                         </button>
-                        {getPageWindow(pagination.currentPage, pagination.lastPage).map(
-                            (item, index) =>
-                                item === 'ellipsis' ? (
-                                    <span key={`ellipsis-${index}`} className="px-2 text-gray-400">
-                                        …
-                                    </span>
-                                ) : (
-                                    <button
-                                        key={item}
-                                        type="button"
-                                        onClick={() => onPageChange(item)}
-                                        disabled={item === pagination.currentPage}
-                                        className={pageButtonClass(item === pagination.currentPage)}
-                                    >
-                                        {item}
-                                    </button>
-                                ),
+                        {getPageWindow(
+                            pagination.currentPage,
+                            pagination.lastPage,
+                        ).map((item, index) =>
+                            item === 'ellipsis' ? (
+                                <span
+                                    key={`ellipsis-${index}`}
+                                    className="px-2 text-gray-400"
+                                >
+                                    …
+                                </span>
+                            ) : (
+                                <button
+                                    key={item}
+                                    type="button"
+                                    onClick={() => onPageChange(item)}
+                                    disabled={item === pagination.currentPage}
+                                    className={pageButtonClass(
+                                        item === pagination.currentPage,
+                                    )}
+                                >
+                                    {item}
+                                </button>
+                            ),
                         )}
                         <button
                             type="button"
-                            onClick={() => onPageChange(pagination.currentPage + 1)}
-                            disabled={pagination.currentPage >= pagination.lastPage}
+                            onClick={() =>
+                                onPageChange(pagination.currentPage + 1)
+                            }
+                            disabled={
+                                pagination.currentPage >= pagination.lastPage
+                            }
                             className={pageButtonClass(false)}
                             aria-label="Halaman berikutnya"
                         >

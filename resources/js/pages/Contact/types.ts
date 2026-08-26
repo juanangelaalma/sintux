@@ -85,7 +85,10 @@ function today(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
-export function toContactForm(contact: Contact | null, defaultBranchId = 0): ContactForm {
+export function toContactForm(
+    contact: Contact | null,
+    defaultBranchId = 0,
+): ContactForm {
     return {
         branch_id: contact?.branch_id ?? defaultBranchId,
         name: contact?.name ?? '',

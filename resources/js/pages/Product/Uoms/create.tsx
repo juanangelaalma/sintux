@@ -38,7 +38,9 @@ export default function Create() {
                         <TextInput
                             id="name"
                             value={form.data.name}
-                            onChange={(e) => form.setData('name', e.target.value)}
+                            onChange={(e) =>
+                                form.setData('name', e.target.value)
+                            }
                             placeholder="Masukkan nama satuan"
                             autoFocus
                         />
@@ -49,7 +51,9 @@ export default function Create() {
                         <TextInput
                             id="code"
                             value={form.data.code}
-                            onChange={(e) => form.setData('code', e.target.value)}
+                            onChange={(e) =>
+                                form.setData('code', e.target.value)
+                            }
                             placeholder="Masukkan kode satuan (contoh: PCS, KG, M)"
                         />
                         <InputError message={form.errors.code} />
@@ -57,14 +61,21 @@ export default function Create() {
 
                     <FormField label="Status">
                         <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 cursor-pointer">
+                            <label className="flex cursor-pointer items-center gap-2">
                                 <input
                                     type="checkbox"
                                     checked={form.data.is_active}
-                                    onChange={(e) => form.setData('is_active', e.target.checked)}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'is_active',
+                                            e.target.checked,
+                                        )
+                                    }
                                     className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                                 />
-                                <span className="text-sm text-gray-700 dark:text-gray-300">Aktif</span>
+                                <span className="text-sm text-gray-700 dark:text-gray-300">
+                                    Aktif
+                                </span>
                             </label>
                         </div>
                     </FormField>

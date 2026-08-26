@@ -1,6 +1,12 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import Button from '@/components/ui/button';
+import { Button } from '@heroui/react';
+import { Head, Link } from '@inertiajs/react';
+import ApprovalHeaderControls from '@/components/approval/approval-header-controls';
+import type { ApprovalStatusProps } from '@/components/approval/approval-header-controls';
+import PurchaseDocumentDetail from '@/components/purchasing/purchase-document-detail';
+import type { DetailRow } from '@/components/purchasing/purchase-document-detail';
+import PurchaseDocumentHeader from '@/components/purchasing/purchase-document-header';
 import CompanyLayout from '@/layouts/company/company-layout';
+import { formatCurrency, formatDate } from '@/lib/format';
 
 type Item = {
     id: number;
@@ -17,110 +23,110 @@ type PurchaseRequest = {
     number: string;
     status: string;
     request_date: string;
-    expected_date?: string;
+    required_date?: string;
     note?: string;
-    subtotal?: number;
-    total?: number;
     items: Item[];
 };
 
 type Props = {
     purchaseRequest: PurchaseRequest;
+    approval?: ApprovalStatusProps | null;
 };
 
-export default function PurchaseRequestsShow({ purchaseRequest }: Props) {
-    const { post: postApprove, processing: approving } = useForm({});
-    const { post: postCancel, processing: cancelling } = useForm({});
-
-    const handleApprove = () => {
-        if (confirm('Setujui Purchase Request ini?')) {
-            postApprove(`/purchasing/requests/${purchaseRequest.id}/approve`);
-        }
-    };
-
-    const handleCancel = () => {
-        if (confirm('Batalkan Purchase Request ini?')) {
-            postCancel(`/purchasing/requests/${purchaseRequest.id}/cancel`);
-        }
-    };
+export default function PurchaseRequestsShow({
+    purchaseRequest,
+    approval,
+}: Props) {
+    const rows: DetailRow[] = [
+        {
+            label: 'Tanggal permintaan',
+            value: formatDate(purchaseRequest.request_date),
+        },
+        {
+            label: 'Tanggal dibutuhkan',
+            value: formatDate(purchaseRequest.required_date),
+        },
+    ];
 
     return (
         <CompanyLayout>
-            <Head title={`PR #${purchaseRequest.number}`} />
-            <div className="space-y-6 max-w-5xl">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
-                    <div>
-                        <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wider">Pembelian / Detail PR</p>
-                        <h1 className="text-2xl font-bold text-slate-900">Purchase Request #{purchaseRequest.number}</h1>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Link href="/purchasing/requests">
-                            <Button variant="secondary">Kembali</Button>
-                        </Link>
-                        {purchaseRequest.status === 'pending' && (
-                            <>
-                                <Button variant="primary" onClick={handleApprove} disabled={approving}>
-                                    Setujui PR
+            <Head title={`Permintaan #${purchaseRequest.number}`} />
+            <div className="w-full space-y-6">
+                <PurchaseDocumentHeader
+                    eyebrow="Pembelian / Detail Permintaan"
+                    title={`Purchase Request #${purchaseRequest.number}`}
+                    actions={
+                        <>
+                            <Link href="/purchasing/requests">
+                                <Button type="button" variant="secondary">
+                                    Kembali
                                 </Button>
-                                <Button variant="danger" onClick={handleCancel} disabled={cancelling}>
-                                    Batalkan
-                                </Button>
-                            </>
-                        )}
-                    </div>
-                </div>
+                            </Link>
+                            <ApprovalHeaderControls
+                                approval={approval}
+                                documentTitle={purchaseRequest.number}
+                            />
+                        </>
+                    }
+                />
 
-                <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
-                    <div className="flex justify-between items-start border-b border-slate-100 pb-6">
-                        <div>
-                            <span className="text-xs uppercase font-semibold text-slate-400">Status PR</span>
-                            <div className="mt-1">
-                                <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-700/10 uppercase">
-                                    {purchaseRequest.status}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="text-right space-y-1 text-sm">
-                            <p className="text-slate-500">
-                                Tgl Permintaan: <span className="font-semibold text-slate-900">{purchaseRequest.request_date}</span>
-                            </p>
-                            <p className="text-slate-500">
-                                Tgl Diharapkan: <span className="font-semibold text-slate-900">{purchaseRequest.expected_date || '-'}</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    {purchaseRequest.note && (
-                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
-                            <p className="text-xs font-bold text-slate-700 uppercase">Catatan</p>
-                            <p className="text-slate-600 mt-1">{purchaseRequest.note}</p>
-                        </div>
-                    )}
-
+                <PurchaseDocumentDetail
+                    status={purchaseRequest.status}
+                    statusLabel="Status Permintaan"
+                    rows={rows}
+                    note={purchaseRequest.note}
+                >
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 mb-3">Item Permintaan</h3>
-                        <div className="border border-slate-200 rounded-lg overflow-hidden">
-                            <table className="w-full text-sm text-left text-slate-600">
-                                <thead className="text-xs uppercase bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                        <h3 className="mb-3 text-sm font-bold text-foreground">
+                            Item Permintaan
+                        </h3>
+                        <div className="overflow-hidden rounded-lg border border-border">
+                            <table className="w-full text-left text-sm text-foreground">
+                                <thead className="border-b border-border bg-cyan-500/10 text-xs font-bold text-cyan-950 uppercase dark:bg-cyan-950/40 dark:text-cyan-200">
                                     <tr>
-                                        <th className="py-3 px-4">Produk</th>
-                                        <th className="py-3 px-4">SKU</th>
-                                        <th className="py-3 px-4 text-right">Qty</th>
-                                        <th className="py-3 px-4 text-right">Est. Harga Satuan</th>
-                                        <th className="py-3 px-4 text-right">Estimasi Total</th>
+                                        <th className="px-4 py-3">Produk</th>
+                                        <th className="px-4 py-3">SKU</th>
+                                        <th className="px-4 py-3 text-right">
+                                            Qty
+                                        </th>
+                                        <th className="px-4 py-3 text-right">
+                                            Est. Harga Satuan
+                                        </th>
+                                        <th className="px-4 py-3 text-right">
+                                            Estimasi Total
+                                        </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-border/60">
                                     {purchaseRequest.items.map((item) => (
-                                        <tr key={item.id} className="hover:bg-slate-50/50">
-                                            <td className="py-3 px-4 font-semibold text-slate-900">{item.product_name}</td>
-                                            <td className="py-3 px-4 text-xs font-mono text-slate-500">{item.sku}</td>
-                                            <td className="py-3 px-4 text-right font-medium">{item.qty_requested}</td>
-                                            <td className="py-3 px-4 text-right">
-                                                {item.unit_price ? `Rp${Number(item.unit_price).toLocaleString('id-ID', { minimumFractionDigits: 2 })}` : '-'}
+                                        <tr
+                                            key={item.id}
+                                            className="hover:bg-surface-secondary/60"
+                                        >
+                                            <td className="px-4 py-3 font-semibold text-foreground">
+                                                {item.product_name}
                                             </td>
-                                            <td className="py-3 px-4 text-right font-bold text-slate-900">
-                                                {item.line_total ? `Rp${Number(item.line_total).toLocaleString('id-ID', { minimumFractionDigits: 2 })}` : '-'}
+                                            <td className="px-4 py-3 font-mono text-xs text-muted">
+                                                {item.sku}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-medium">
+                                                {item.qty_requested}
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                {item.unit_price != null &&
+                                                item.unit_price !== 0
+                                                    ? formatCurrency(
+                                                          item.unit_price,
+                                                      )
+                                                    : '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-bold text-foreground">
+                                                {item.line_total != null &&
+                                                item.line_total !== 0
+                                                    ? formatCurrency(
+                                                          item.line_total,
+                                                      )
+                                                    : '-'}
                                             </td>
                                         </tr>
                                     ))}
@@ -128,7 +134,7 @@ export default function PurchaseRequestsShow({ purchaseRequest }: Props) {
                             </table>
                         </div>
                     </div>
-                </div>
+                </PurchaseDocumentDetail>
             </div>
         </CompanyLayout>
     );

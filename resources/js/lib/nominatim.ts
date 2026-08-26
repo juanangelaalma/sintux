@@ -71,10 +71,7 @@ export function mapNominatimAddress(result: NominatimResult): AddressValue {
         address.town ??
         address.municipality ??
         address.city_district;
-    const regency =
-        address.city ??
-        address.county ??
-        address.state_district;
+    const regency = address.city ?? address.county ?? address.state_district;
     const province = address.state ?? address.province ?? address.region;
 
     return {

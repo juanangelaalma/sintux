@@ -1,0 +1,12 @@
+{
+    "name": "Approval",
+    "alias": "approval",
+    "description": "Multi-layer approval rules, rule matching engine, and approval workflow for company transactions",
+    "keywords": [],
+    "priority": 0,
+    "requires": ["Company"],
+    "providers": [
+        "Modules\\Approval\\Providers\\ApprovalServiceProvider"
+    ],
+    "files": []
+}

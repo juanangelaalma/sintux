@@ -4,6 +4,7 @@ namespace Modules\Purchasing\Application\PurchaseInvoice;
 
 use Illuminate\Support\Facades\DB;
 use Modules\Accounting\Application\GetPurchaseTaxes;
+use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Purchasing\Models\PurchaseInvoice;
 
@@ -12,17 +13,21 @@ class CreatePurchaseInvoice
     public function __construct(
         private readonly GetPurchaseVariants $purchaseVariants,
         private readonly GetPurchaseTaxes $getPurchaseTaxes,
+        private readonly ApprovalEngine $approvalEngine,
+        private readonly ValidateInvoiceQuantities $validateInvoiceQuantities,
     ) {}
 
     /**
      * @param  array<string, mixed>  $data
      */
-    public function execute(array $data, string $branchCode): PurchaseInvoice
+    public function execute(array $data, string $branchCode, ?int $userId = null, ?string $userName = null): PurchaseInvoice
     {
         $variants = collect($this->purchaseVariants->execute())->keyBy('id');
         $taxes = collect($this->getPurchaseTaxes->execute())->keyBy('id');
+        $creatorId = $userId ?? (int) auth()->id();
+        $creatorName = $userName ?? auth()->user()?->name;
 
-        return DB::transaction(function () use ($data, $branchCode, $variants, $taxes) {
+        return DB::transaction(function () use ($data, $branchCode, $variants, $taxes, $creatorId, $creatorName) {
             $sequence = PurchaseInvoice::where('branch_id', $data['branch_id'])->count() + 1;
             $number = 'INV-'.$branchCode.'-'.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
 
@@ -40,19 +45,21 @@ class CreatePurchaseInvoice
                 $taxAmount += $lineSubtotal * ($taxRate / 100);
             }
 
+            $total = $subtotal + $taxAmount;
+
             $inv = PurchaseInvoice::create([
                 'number' => $number,
                 'branch_id' => $data['branch_id'],
                 'supplier_id' => $data['supplier_id'],
                 'purchase_order_id' => $data['purchase_order_id'] ?? null,
-                'status' => 'draft',
+                'status' => 'pending',
                 'invoice_date' => $data['invoice_date'],
                 'due_date' => $data['due_date'] ?? null,
                 'note' => $data['note'] ?? null,
                 'currency_code' => 'IDR',
                 'subtotal' => $subtotal,
                 'tax_amount' => $taxAmount,
-                'total' => $subtotal + $taxAmount,
+                'total' => $total,
             ]);
 
             foreach ($data['items'] as $item) {
@@ -75,6 +82,25 @@ class CreatePurchaseInvoice
                     'tax_rate' => $taxRate,
                     'line_total' => $lineTotal,
                 ]);
+            }
+
+            $mapping = $this->approvalEngine->evaluateAndMap([
+                'transaction_type' => 'purchase_invoice',
+                'transaction_id' => $inv->id,
+                'document_number' => $inv->number,
+                'created_by' => $creatorId,
+                'created_by_name' => $creatorName,
+                'branch_id' => $inv->branch_id,
+                'total' => $total,
+                'currency_code' => 'IDR',
+            ]);
+
+            if (! $mapping) {
+                // Auto-final: run 3-way match validation now
+                $this->validateInvoiceQuantities->execute($inv);
+                $inv->update(['status' => 'approved']);
+            } else {
+                $inv->update(['status' => 'pending']);
             }
 
             return $inv->load('items');

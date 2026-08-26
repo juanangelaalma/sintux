@@ -10,7 +10,10 @@ import type { ContactForm } from './types';
 
 type Props = {
     data: ContactForm;
-    setData: <K extends keyof ContactForm>(key: K, value: ContactForm[K]) => void;
+    setData: <K extends keyof ContactForm>(
+        key: K,
+        value: ContactForm[K],
+    ) => void;
     errors: Record<string, string | undefined>;
     updateAddress: (
         key: 'billing_address' | 'shipping_address',
@@ -36,7 +39,9 @@ export default function GeneralInfoForm({
                 <FormField label="Identitas" error={errors.identity_type}>
                     <SelectInput
                         value={data.identity_type}
-                        onChange={(e) => setData('identity_type', e.target.value)}
+                        onChange={(e) =>
+                            setData('identity_type', e.target.value)
+                        }
                     >
                         <option value="">- Pilih Jenis Identitas -</option>
                         {identityTypeOptions.map((option) => (
@@ -47,10 +52,15 @@ export default function GeneralInfoForm({
                     </SelectInput>
                 </FormField>
 
-                <FormField label="Nomor Identitas" error={errors.identity_number}>
+                <FormField
+                    label="Nomor Identitas"
+                    error={errors.identity_number}
+                >
                     <SensitiveInput
                         value={data.identity_number}
-                        onChange={(e) => setData('identity_number', e.target.value)}
+                        onChange={(e) =>
+                            setData('identity_number', e.target.value)
+                        }
                         placeholder="Contoh: 3171012345670001"
                     />
                 </FormField>
@@ -67,7 +77,9 @@ export default function GeneralInfoForm({
                     <TextInput
                         type="text"
                         value={data.company_name}
-                        onChange={(e) => setData('company_name', e.target.value)}
+                        onChange={(e) =>
+                            setData('company_name', e.target.value)
+                        }
                     />
                 </FormField>
 
@@ -75,7 +87,9 @@ export default function GeneralInfoForm({
                     <TextInput
                         type="text"
                         value={data.mobile_phone}
-                        onChange={(e) => setData('mobile_phone', e.target.value)}
+                        onChange={(e) =>
+                            setData('mobile_phone', e.target.value)
+                        }
                     />
                 </FormField>
 
@@ -110,7 +124,9 @@ export default function GeneralInfoForm({
                         <input
                             type="checkbox"
                             checked={data.shipping_same_as_billing}
-                            onChange={(e) => handleSameAsBillingChange(e.target.checked)}
+                            onChange={(e) =>
+                                handleSameAsBillingChange(e.target.checked)
+                            }
                             className="rounded border-gray-300"
                         />
                         Alamat pengiriman sama dengan alamat penagihan
@@ -123,7 +139,9 @@ export default function GeneralInfoForm({
                         prefix="billing_address"
                         value={data.billing_address}
                         errors={errors}
-                        onChange={(patch) => updateAddress('billing_address', patch)}
+                        onChange={(patch) =>
+                            updateAddress('billing_address', patch)
+                        }
                     />
 
                     {!data.shipping_same_as_billing && (
@@ -132,7 +150,9 @@ export default function GeneralInfoForm({
                             prefix="shipping_address"
                             value={data.shipping_address}
                             errors={errors}
-                            onChange={(patch) => updateAddress('shipping_address', patch)}
+                            onChange={(patch) =>
+                                updateAddress('shipping_address', patch)
+                            }
                         />
                     )}
                 </div>
@@ -149,12 +169,23 @@ type AddressSectionProps = {
     onChange: (patch: Partial<AddressValue>) => void;
 };
 
-function AddressSection({ title, prefix, value, errors, onChange }: AddressSectionProps) {
+function AddressSection({
+    title,
+    prefix,
+    value,
+    errors,
+    onChange,
+}: AddressSectionProps) {
     return (
         <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{title}</h4>
+            <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+                {title}
+            </h4>
 
-            <FormField label="Cari lokasi" error={errors[`${prefix}.kelurahan`]}>
+            <FormField
+                label="Cari lokasi"
+                error={errors[`${prefix}.kelurahan`]}
+            >
                 <AddressSearch
                     onSelect={(address) => onChange({ ...address })}
                     placeholder="Ketik nama desa / kelurahan / kecamatan..."
@@ -166,7 +197,10 @@ function AddressSection({ title, prefix, value, errors, onChange }: AddressSecti
             </div>
 
             <div className="mt-4">
-                <FormField label="Detail / Jalan" error={errors[`${prefix}.detail`]}>
+                <FormField
+                    label="Detail / Jalan"
+                    error={errors[`${prefix}.detail`]}
+                >
                     <TextInput
                         type="text"
                         placeholder="Jl. Melati No. 5, RT/RW opsional di kolom bawah"
@@ -178,42 +212,68 @@ function AddressSection({ title, prefix, value, errors, onChange }: AddressSecti
 
             <div className="mt-4 grid grid-cols-2 gap-4">
                 <FormField label="RT" error={errors[`${prefix}.rt`]}>
-                    <TextInput type="text" value={value.rt} onChange={(e) => onChange({ rt: e.target.value })} />
+                    <TextInput
+                        type="text"
+                        value={value.rt}
+                        onChange={(e) => onChange({ rt: e.target.value })}
+                    />
                 </FormField>
 
                 <FormField label="RW" error={errors[`${prefix}.rw`]}>
-                    <TextInput type="text" value={value.rw} onChange={(e) => onChange({ rw: e.target.value })} />
+                    <TextInput
+                        type="text"
+                        value={value.rw}
+                        onChange={(e) => onChange({ rw: e.target.value })}
+                    />
                 </FormField>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-4">
-                <FormField label="Desa / Kelurahan" error={errors[`${prefix}.kelurahan`]}>
+                <FormField
+                    label="Desa / Kelurahan"
+                    error={errors[`${prefix}.kelurahan`]}
+                >
                     <TextInput
                         type="text"
                         value={value.kelurahan}
-                        onChange={(e) => onChange({ kelurahan: e.target.value })}
+                        onChange={(e) =>
+                            onChange({ kelurahan: e.target.value })
+                        }
                     />
                 </FormField>
 
-                <FormField label="Kecamatan" error={errors[`${prefix}.kecamatan`]}>
+                <FormField
+                    label="Kecamatan"
+                    error={errors[`${prefix}.kecamatan`]}
+                >
                     <TextInput
                         type="text"
                         value={value.kecamatan}
-                        onChange={(e) => onChange({ kecamatan: e.target.value })}
+                        onChange={(e) =>
+                            onChange({ kecamatan: e.target.value })
+                        }
                     />
                 </FormField>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-4">
-                <FormField label="Kabupaten / Kota" error={errors[`${prefix}.kabupaten`]}>
+                <FormField
+                    label="Kabupaten / Kota"
+                    error={errors[`${prefix}.kabupaten`]}
+                >
                     <TextInput
                         type="text"
                         value={value.kabupaten}
-                        onChange={(e) => onChange({ kabupaten: e.target.value })}
+                        onChange={(e) =>
+                            onChange({ kabupaten: e.target.value })
+                        }
                     />
                 </FormField>
 
-                <FormField label="Provinsi" error={errors[`${prefix}.provinsi`]}>
+                <FormField
+                    label="Provinsi"
+                    error={errors[`${prefix}.provinsi`]}
+                >
                     <TextInput
                         type="text"
                         value={value.provinsi}
@@ -223,11 +283,17 @@ function AddressSection({ title, prefix, value, errors, onChange }: AddressSecti
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-4">
-                <FormField label="Latitude" error={errors[`${prefix}.latitude`]}>
+                <FormField
+                    label="Latitude"
+                    error={errors[`${prefix}.latitude`]}
+                >
                     <TextInput type="text" readOnly value={value.latitude} />
                 </FormField>
 
-                <FormField label="Longitude" error={errors[`${prefix}.longitude`]}>
+                <FormField
+                    label="Longitude"
+                    error={errors[`${prefix}.longitude`]}
+                >
                     <TextInput type="text" readOnly value={value.longitude} />
                 </FormField>
             </div>

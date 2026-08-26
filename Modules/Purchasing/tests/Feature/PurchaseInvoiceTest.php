@@ -5,8 +5,9 @@ namespace Modules\Purchasing\Tests\Feature;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Modules\Approval\Application\CreateApprovalRule;
+use Modules\Approval\Models\ApprovalTransactionType;
 use Modules\Company\Models\CompanyUser;
-use Modules\Purchasing\Models\PurchaseInvoice;
 use Modules\Purchasing\Models\PurchaseOrder;
 use Tests\TestCase;
 
@@ -66,35 +67,47 @@ class PurchaseInvoiceTest extends TestCase
         tenancy()->initialize($tenantId);
         $inv = DB::table('purchase_invoices')->where('branch_id', $branchBId)->first();
         $this->assertNotNull($inv);
-        $this->assertSame('draft', $inv->status);
+        $this->assertSame('approved', $inv->status);
         $this->assertSame('INV-'.$branchCode.'-0001', (string) $inv->number);
         $this->assertEquals(500000, (float) $inv->subtotal);
         tenancy()->end();
     }
 
-    public function test_approve_invoice_transitions_draft_to_approved(): void
+    public function test_invoice_with_matching_rule_transitions_to_pending(): void
     {
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
+        [$variantId] = $this->createProductAndVariant('PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
 
-        $inv = PurchaseInvoice::create([
-            'number' => 'INV-HQ-0001',
-            'branch_id' => $branchBId,
-            'supplier_id' => $supplierId,
-            'status' => 'draft',
-            'invoice_date' => now()->toDateString(),
-            'currency_code' => 'IDR',
-        ]);
-        $invId = $inv->id;
+        $type = ApprovalTransactionType::where('key', 'purchase_invoice')->firstOrFail();
+        app(CreateApprovalRule::class)->execute([
+            'transaction_type_id' => $type->id,
+            'name' => 'INV Rule',
+            'min_amount' => 100000,
+            'stages' => [
+                ['approval_type' => 'any', 'approver_ids' => [$user->id + 999]],
+            ],
+        ], $user->id);
+
         tenancy()->end();
 
-        $response = $this->actingAs($user)->post(route('purchasing.invoices.approve', $invId));
-        $response->assertRedirect(route('purchasing.invoices.show', $invId));
+        $response = $this->actingAs($user)->post(route('purchasing.invoices.store'), [
+            'branch_id' => $branchBId,
+            'supplier_id' => $supplierId,
+            'invoice_date' => '2026-08-18',
+            'items' => [
+                ['product_variant_id' => $variantId, 'qty' => 10, 'unit_price' => 50000],
+            ],
+        ]);
+
+        $response->assertRedirect(route('purchasing.invoices.index'));
 
         tenancy()->initialize($tenantId);
-        $this->assertSame('approved', DB::table('purchase_invoices')->where('id', $invId)->value('status'));
+        $inv = DB::table('purchase_invoices')->where('branch_id', $branchBId)->first();
+        $this->assertNotNull($inv);
+        $this->assertSame('pending', $inv->status);
         tenancy()->end();
     }
 
@@ -123,33 +136,24 @@ class PurchaseInvoiceTest extends TestCase
             'qty_received' => 5, // Only 5 received
             'unit_price' => 50000,
         ]);
+        tenancy()->end();
 
-        $inv = PurchaseInvoice::create([
-            'number' => 'INV-BRB-0010',
+        $response = $this->actingAs($user)->post(route('purchasing.invoices.store'), [
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
-            'status' => 'draft',
             'invoice_date' => now()->toDateString(),
-            'currency_code' => 'IDR',
+            'items' => [
+                [
+                    'purchase_order_item_id' => $poItem->id,
+                    'product_variant_id' => $variantId,
+                    'qty' => 10, // Trying to invoice 10 > 5 received!
+                    'unit_price' => 50000,
+                ],
+            ],
         ]);
-        $inv->items()->create([
-            'purchase_order_item_id' => $poItem->id,
-            'product_variant_id' => $variantId,
-            'product_name' => 'Widget PRD',
-            'sku' => 'SKU-PRD',
-            'qty' => 10, // Trying to invoice 10 > 5 received!
-            'unit_price' => 50000,
-        ]);
-        $invId = $inv->id;
-        tenancy()->end();
 
-        $response = $this->actingAs($user)->post(route('purchasing.invoices.approve', $invId));
         $response->assertSessionHasErrors(['invoice']);
-
-        tenancy()->initialize($tenantId);
-        $this->assertSame('draft', DB::table('purchase_invoices')->where('id', $invId)->value('status'));
-        tenancy()->end();
     }
 
     /**
