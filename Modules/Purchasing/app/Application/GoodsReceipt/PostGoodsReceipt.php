@@ -54,17 +54,27 @@ class PostGoodsReceipt
                 }
             }
 
-            // 3. Update PO status if all items received fully
+            // 3. Update PO status: received if all fulfilled, partially_received if any received but not all
             $poId = $grn->purchase_order_id;
             $unfulfilled = DB::table('purchase_order_items')
                 ->where('purchase_order_id', $poId)
                 ->whereRaw('qty_received < qty_ordered')
                 ->count();
 
+            $anyReceived = DB::table('purchase_order_items')
+                ->where('purchase_order_id', $poId)
+                ->where('qty_received', '>', 0)
+                ->exists();
+
             if ($unfulfilled === 0) {
                 DB::table('purchase_orders')
                     ->where('id', $poId)
                     ->update(['status' => 'received', 'updated_at' => now()]);
+            } elseif ($anyReceived) {
+                DB::table('purchase_orders')
+                    ->where('id', $poId)
+                    ->whereIn('status', ['sent', 'partially_received'])
+                    ->update(['status' => 'partially_received', 'updated_at' => now()]);
             }
 
             // 4. Update GRN status to posted

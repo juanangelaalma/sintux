@@ -3,6 +3,8 @@
 namespace Modules\Contact\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Inertia\Inertia;
 use Modules\Company\Application\CompanyAccess;
@@ -13,6 +15,7 @@ use Modules\Contact\Application\GetContacts;
 use Modules\Contact\Application\UpdateContact;
 use Modules\Contact\Http\Requests\StoreContactRequest;
 use Modules\Contact\Http\Requests\UpdateContactRequest;
+use Modules\Contact\Models\Contact;
 
 class ContactController extends Controller
 {
@@ -132,6 +135,30 @@ class ContactController extends Controller
         $this->deleteContact->execute($id, $this->branchIds(), $dbType);
 
         return redirect()->back()->with('success', 'Contact removed successfully.');
+    }
+
+    /**
+     * Toggle the is_ho_only flag for a contact (supplier only).
+     */
+    public function toggleHoOnly(Request $request, string $type, int $id): JsonResponse
+    {
+        abort_unless($type === 'suppliers', 404);
+
+        $tenantId = (string) tenant('id');
+        $branchIds = $this->branchIds();
+
+        $contact = Contact::query()
+            ->where('id', $id)
+            ->where('type', 'supplier')
+            ->whereIn('branch_id', $branchIds)
+            ->firstOrFail();
+
+        $contact->update(['is_ho_only' => ! $contact->is_ho_only]);
+
+        return response()->json([
+            'id' => $contact->id,
+            'is_ho_only' => $contact->is_ho_only,
+        ]);
     }
 
     /**

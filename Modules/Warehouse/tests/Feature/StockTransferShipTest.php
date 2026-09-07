@@ -229,19 +229,26 @@ class StockTransferShipTest extends TestCase
         );
 
         /*
-         * Destination stock increased.
+         * Destination stock NOT increased during ship.
+         * Branch stock only increases when Branch receives.
          */
         $destinationStock = DB::table('stock_balances')
             ->where('warehouse_id', $branchBWarehouseId)
             ->where('product_variant_id', $variant1Id)
             ->first();
 
-        $this->assertNotNull($destinationStock);
+        $this->assertNull($destinationStock);
 
-        $this->assertSame(
-            5,
-            (int) $destinationStock->qty_on_hand
-        );
+        /*
+         * qty_shipped is set on the transfer item.
+         */
+        $transferItem = DB::table('stock_transfer_items')
+            ->where('id', $transferItemId)
+            ->first();
+
+        $this->assertNotNull($transferItem);
+        $this->assertSame(5, (int) $transferItem->qty_shipped);
+        $this->assertSame(0, (int) $transferItem->qty_received);
 
         /*
          * Layer remaining quantity.
@@ -558,19 +565,15 @@ class StockTransferShipTest extends TestCase
         );
 
         /*
-         * Destination receives 15.
+         * Destination stock NOT increased during ship.
+         * Branch stock only increases when Branch receives.
          */
         $destinationStock = DB::table('stock_balances')
             ->where('product_variant_id', $variant1Id)
             ->where('warehouse_id', $branchBWarehouseId)
             ->first();
 
-        $this->assertNotNull($destinationStock);
-
-        $this->assertSame(
-            15,
-            (int) $destinationStock->qty_on_hand
-        );
+        $this->assertNull($destinationStock);
 
         tenancy()->end();
     }
@@ -886,7 +889,8 @@ class StockTransferShipTest extends TestCase
     }
 
     /**
-     * Source stock must decrease and destination stock must increase.
+     * Source stock must decrease during ship.
+     * Destination stock must NOT increase until receive.
      */
     public function test_stock_balance_decreases_correctly_after_ship(): void
     {
@@ -992,19 +996,15 @@ class StockTransferShipTest extends TestCase
         );
 
         /*
-         * Destination: 0 + 30 = 30
+         * Destination: NOT increased during ship.
+         * Branch stock only increases when Branch receives.
          */
         $destStock = DB::table('stock_balances')
             ->where('warehouse_id', $branchBWarehouseId)
             ->where('product_variant_id', $variant1Id)
             ->first();
 
-        $this->assertNotNull($destStock);
-
-        $this->assertSame(
-            30,
-            (int) $destStock->qty_on_hand
-        );
+        $this->assertNull($destStock);
 
         /*
          * Layer: 100 - 30 = 70
@@ -1279,7 +1279,7 @@ class StockTransferShipTest extends TestCase
             'branch_id' => $hqBranchId,
             'code' => 'WH-HQ-'.uniqid(),
             'name' => 'HQ Central Warehouse',
-            'warehouse_type' => 'general',
+            'warehouse_type' => 'regular',
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
@@ -1323,6 +1323,7 @@ class StockTransferShipTest extends TestCase
          * Product.
          */
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $hqBranchId,
             'code' => 'PRD-'.uniqid(),
             'name' => 'Widget '.uniqid(),
             'category_id' => $catId,
@@ -1336,6 +1337,7 @@ class StockTransferShipTest extends TestCase
          * Product variant.
          */
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $hqBranchId,
             'product_id' => $productId,
             'sku' => 'SKU-'.uniqid(),
             'variant_name' => 'Widget Variant '.uniqid(),

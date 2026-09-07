@@ -34,6 +34,7 @@ class ContactPresenter
             'mobile_phone' => $contact->mobile_phone,
             'telephone' => $contact->telephone,
             'is_active' => $contact->is_active,
+            'is_ho_only' => $contact->is_ho_only ?? false,
             'billing_address' => $billingAddress,
         ];
     }

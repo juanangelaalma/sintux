@@ -41,6 +41,7 @@ export const UnitCombobox: React.FC<Props> = ({
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
+
         return () =>
             document.removeEventListener('mousedown', handleClickOutside);
     }, []);
@@ -58,7 +59,9 @@ export const UnitCombobox: React.FC<Props> = ({
     );
 
     const handleCreateNewUom = async () => {
-        if (!search.trim() || creating) return;
+        if (!search.trim() || creating) {
+return;
+}
 
         setCreating(true);
         const name = search.trim();
@@ -87,6 +90,7 @@ export const UnitCombobox: React.FC<Props> = ({
             });
 
             const newUom = await res.json();
+
             if (res.ok && newUom.id) {
                 const created: UomOption = {
                     id: newUom.id,
@@ -95,7 +99,11 @@ export const UnitCombobox: React.FC<Props> = ({
                 };
                 setUomOptions((prev) => [...prev, created]);
                 onChange(created.id);
-                if (onOptionAdded) onOptionAdded(created);
+
+                if (onOptionAdded) {
+onOptionAdded(created);
+}
+
                 setSearch('');
                 setOpen(false);
             }
@@ -123,7 +131,10 @@ export const UnitCombobox: React.FC<Props> = ({
                     }
                     onChange={(e) => {
                         setSearch(e.target.value);
-                        if (!open) setOpen(true);
+
+                        if (!open) {
+setOpen(true);
+}
                     }}
                     onFocus={() => {
                         setOpen(true);

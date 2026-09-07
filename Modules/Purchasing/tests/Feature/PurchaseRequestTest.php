@@ -46,7 +46,7 @@ class PurchaseRequestTest extends TestCase
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
         $branchCode = DB::table('branches')->where('id', $branchBId)->value('code');
         tenancy()->end();
@@ -86,7 +86,7 @@ class PurchaseRequestTest extends TestCase
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $branchCode = DB::table('branches')->where('id', $branchBId)->value('code');
         tenancy()->end();
 
@@ -117,7 +117,7 @@ class PurchaseRequestTest extends TestCase
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         tenancy()->end();
 
         $response = $this->actingAs($user)->post(route('purchasing.requests.store'), [
@@ -134,7 +134,7 @@ class PurchaseRequestTest extends TestCase
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         tenancy()->end();
 
         $response = $this->actingAs($user)->post(route('purchasing.requests.store'), [
@@ -154,7 +154,7 @@ class PurchaseRequestTest extends TestCase
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        [$inactiveVariantId] = $this->createProductAndVariant('PRD-INACTIVE', false);
+        [$inactiveVariantId] = $this->createProductAndVariant($branchBId, 'PRD-INACTIVE', false);
         tenancy()->end();
 
         $response = $this->actingAs($user)->post(route('purchasing.requests.store'), [
@@ -171,7 +171,7 @@ class PurchaseRequestTest extends TestCase
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $outOfScopeBranchId = DB::table('branches')->insertGetId([
             'name' => 'Branch X',
             'code' => 'BRX-'.uniqid(),
@@ -196,7 +196,7 @@ class PurchaseRequestTest extends TestCase
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
 
         $type = ApprovalTransactionType::where('key', 'purchase_request')->firstOrFail();
@@ -258,7 +258,7 @@ class PurchaseRequestTest extends TestCase
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         tenancy()->end();
 
         $outsider = User::factory()->create([
@@ -343,7 +343,7 @@ class PurchaseRequestTest extends TestCase
     /**
      * @return array{0: int, 1: int}
      */
-    private function createProductAndVariant(string $codePrefix = 'PRD', bool $variantActive = true): array
+    private function createProductAndVariant(int $branchId, string $codePrefix = 'PRD', bool $variantActive = true): array
     {
         $catId = DB::table('product_categories')->insertGetId([
             'name' => 'Category '.uniqid(),
@@ -359,6 +359,7 @@ class PurchaseRequestTest extends TestCase
             'updated_at' => now(),
         ]);
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $branchId,
             'code' => $codePrefix.'-'.uniqid(),
             'name' => 'Widget '.uniqid(),
             'category_id' => $catId,
@@ -368,6 +369,7 @@ class PurchaseRequestTest extends TestCase
             'updated_at' => now(),
         ]);
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $branchId,
             'product_id' => $productId,
             'sku' => 'SKU-'.uniqid(),
             'variant_name' => 'Widget Variant '.uniqid(),

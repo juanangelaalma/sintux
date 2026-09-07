@@ -378,7 +378,7 @@ class StockRequestApprovalTest extends TestCase
             'branch_id' => $hqBranchId,
             'code' => 'WH-HQ-'.uniqid(),
             'name' => 'HQ Central Warehouse',
-            'warehouse_type' => 'general',
+            'warehouse_type' => 'regular',
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
@@ -410,6 +410,7 @@ class StockRequestApprovalTest extends TestCase
         ]);
 
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $hqBranchId,
             'code' => 'PRD-'.uniqid(),
             'name' => 'Widget '.uniqid(),
             'category_id' => $catId,
@@ -420,6 +421,7 @@ class StockRequestApprovalTest extends TestCase
         ]);
 
         $variant1Id = DB::table('product_variants')->insertGetId([
+            'branch_id' => $hqBranchId,
             'product_id' => $productId,
             'sku' => 'SKU-V1-'.uniqid(),
             'variant_name' => 'Variant 1',
@@ -430,6 +432,7 @@ class StockRequestApprovalTest extends TestCase
         ]);
 
         $variant2Id = DB::table('product_variants')->insertGetId([
+            'branch_id' => $hqBranchId,
             'product_id' => $productId,
             'sku' => 'SKU-V2-'.uniqid(),
             'variant_name' => 'Variant 2',

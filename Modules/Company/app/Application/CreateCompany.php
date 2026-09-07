@@ -6,9 +6,11 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Modules\Company\Application\Exceptions\CompanyCreationFailed;
 use Modules\Company\Models\CompanyUser;
+use Modules\Warehouse\Application\Warehouse\CreateWarehousesForBranch;
 
 class CreateCompany
 {
@@ -80,7 +82,7 @@ class CreateCompany
                 $existing = DB::table('branches')->where('code', 'HQ')->first();
 
                 if (! $existing) {
-                    DB::table('branches')->insert([
+                    $branchId = DB::table('branches')->insertGetId([
                         'name' => 'Headquarters',
                         'code' => 'HQ',
                         'is_headquarters' => true,
@@ -88,6 +90,27 @@ class CreateCompany
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+
+                    // Auto-create 3 system warehouses for HQ
+                    try {
+                        app(CreateWarehousesForBranch::class)->execute(
+                            (int) $branchId,
+                            'HQ',
+                            'Headquarters'
+                        );
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to auto-create HQ warehouses: '.$e->getMessage());
+                    }
+                } else {
+                    // Ensure HQ has 3 warehouses even if branch already existed (e.g., after migration)
+                    try {
+                        app(CreateWarehousesForBranch::class)->execute(
+                            (int) $existing->id,
+                            (string) $existing->code,
+                            (string) $existing->name
+                        );
+                    } catch (\Throwable $e) {
+                    }
                 }
             }
         } finally {

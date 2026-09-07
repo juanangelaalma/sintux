@@ -52,13 +52,13 @@ class ReceivePurchaseStockTest extends TestCase
             'branch_id' => $branchId,
             'code' => 'WH-PUR-'.uniqid(),
             'name' => 'Purchasing Warehouse',
-            'warehouse_type' => 'general',
+            'warehouse_type' => 'regular',
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        [$productId, $variantId] = $this->createProductAndVariant('PRD-PUR-'.uniqid());
+        [$productId, $variantId] = $this->createProductAndVariant($branchId, 'PRD-PUR-'.uniqid());
 
         $referenceId = 42;
 
@@ -161,7 +161,7 @@ class ReceivePurchaseStockTest extends TestCase
     /**
      * @return array{0: int, 1: int} [productId, variantId]
      */
-    private function createProductAndVariant(string $sku): array
+    private function createProductAndVariant(int $branchId, string $sku): array
     {
         $categoryId = DB::table('product_categories')->insertGetId([
             'name' => 'Category '.uniqid(),
@@ -177,6 +177,7 @@ class ReceivePurchaseStockTest extends TestCase
         ]);
 
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $branchId,
             'code' => 'P-'.$sku,
             'name' => 'Product '.$sku,
             'category_id' => $categoryId,
@@ -191,6 +192,7 @@ class ReceivePurchaseStockTest extends TestCase
         ]);
 
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $branchId,
             'product_id' => $productId,
             'sku' => $sku,
             'variant_name' => 'Default',

@@ -76,7 +76,7 @@ export default function LineItemsEditor({
                 <div className="overflow-x-auto">
                     {/* Header Row */}
                     <div
-                        className={`grid ${GRID_COLS} min-w-[860px] items-center gap-3 border-b border-border bg-surface-secondary/40 px-3 py-2.5 text-xs font-semibold text-foreground`}
+                        className={`grid ${GRID_COLS} min-w-[980px] items-center gap-3 border-b border-border bg-surface-secondary/40 px-3 py-2.5 text-xs font-semibold text-foreground`}
                     >
                         <span>Produk</span>
                         <span>Deskripsi</span>
@@ -89,7 +89,7 @@ export default function LineItemsEditor({
                     </div>
 
                     {/* Table Body */}
-                    <div className="min-w-[860px] divide-y divide-border/60">
+                    <div className="min-w-[980px] divide-y divide-border/60">
                         {items.map((row, idx) => {
                             const selectedVariant = productVariants.find(
                                 (v) => v.id === row.product_variant_id,

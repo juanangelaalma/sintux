@@ -5,12 +5,14 @@ namespace Modules\Company\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Modules\Company\Application\CompanyAccess;
 use Modules\Company\Http\Requests\StoreCompanyBranchRequest;
 use Modules\Company\Http\Requests\UpdateCompanyBranchRequest;
 use Modules\Company\Models\Branch;
+use Modules\Warehouse\Application\Warehouse\CreateWarehousesForBranch;
 
 class CompanyBranchController extends Controller
 {
@@ -31,7 +33,19 @@ class CompanyBranchController extends Controller
      */
     public function store(StoreCompanyBranchRequest $request)
     {
-        Branch::create($request->validated());
+        $branch = Branch::create($request->validated());
+
+        // Auto-create 3 system warehouses (REG/RIT/KON) — idempotent via observer, but ensure here for direct DB cases
+        try {
+            app(CreateWarehousesForBranch::class)->execute(
+                (int) $branch->id,
+                (string) $branch->code,
+                (string) $branch->name
+            );
+        } catch (\Throwable $e) {
+            // Do not fail branch creation if warehouse seeding fails; log for later backfill
+            Log::warning('Failed to auto-create warehouses for branch '.$branch->id.': '.$e->getMessage());
+        }
 
         return redirect()->route('company.branches.index')->with('success', 'Branch created successfully.');
     }

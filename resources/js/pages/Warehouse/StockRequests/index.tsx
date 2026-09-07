@@ -117,6 +117,7 @@ export default function StockRequestsIndex({ stockRequests }: Props) {
                             sum + Number(item.qty_requested),
                         0,
                     ) ?? 0;
+
                 return (
                     <span className="text-sm text-slate-700">
                         {itemCount} jenis ({totalQty} total)

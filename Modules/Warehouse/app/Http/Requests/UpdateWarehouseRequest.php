@@ -22,7 +22,7 @@ class UpdateWarehouseRequest extends FormRequest
             'branch_id' => ['required', 'integer', $this->branchAccessibleRule()],
             'code' => ['required', 'string', 'max:50', Rule::unique('warehouses', 'code')->ignore($warehouseId)],
             'name' => ['required', 'string', 'max:255'],
-            'warehouse_type' => ['required', 'string', 'in:consignment,regular,general'],
+            'warehouse_type' => ['required', 'string', 'in:regular,retail,consignment'],
             'address' => ['nullable', 'string'],
             'is_active' => ['sometimes', 'boolean'],
         ];

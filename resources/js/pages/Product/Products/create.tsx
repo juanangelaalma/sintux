@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useRef } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import CompanyLayout from '@/layouts/company/company-layout';
+import React, { useState, useMemo, useRef } from 'react';
 import Button from '@/components/ui/button';
+import CompanyLayout from '@/layouts/company/company-layout';
 import { UnitCombobox } from '@/pages/Product/components/unit-combobox';
 import type { ProductForm } from './types';
 
@@ -16,13 +16,22 @@ type AvailableProduct = {
     uom?: { code: string };
 };
 
+type BranchOption = {
+    id: number;
+    name: string;
+    code: string;
+    is_headquarters: boolean;
+};
+
 type Props = {
+    activeBranch: BranchOption | null;
     categories: CategoryOption[];
     uoms: UomOption[];
     availableProducts: AvailableProduct[];
 };
 
 export default function Create({
+    activeBranch,
     categories,
     uoms,
     availableProducts = [],
@@ -36,6 +45,7 @@ export default function Create({
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const form = useForm<ProductForm>({
+        branch_id: activeBranch?.id ?? 0,
         code: '',
         name: '',
         barcode: '',
@@ -63,7 +73,10 @@ export default function Create({
         e: React.ChangeEvent<HTMLInputElement>,
     ) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+
+        if (!file) {
+            return;
+        }
 
         setImageError(null);
 
@@ -82,15 +95,24 @@ export default function Create({
             setImageError(
                 'Format file tidak diizinkan! Hanya diperbolehkan berkas gambar JPG (.jpg, .jpeg) dan PNG (.png).',
             );
-            if (fileInputRef.current) fileInputRef.current.value = '';
+
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+
             return;
         }
 
         // Security Validation 3: File size check (Max 5MB)
         const maxSizeInBytes = 5 * 1024 * 1024;
+
         if (file.size > maxSizeInBytes) {
             setImageError('Ukuran berkas melebihi batas maksimal 5 MB.');
-            if (fileInputRef.current) fileInputRef.current.value = '';
+
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+
             return;
         }
 
@@ -128,7 +150,7 @@ export default function Create({
             } else if (data.url) {
                 form.setData('image_path', data.url);
             }
-        } catch (err) {
+        } catch {
             setImageError('Terjadi kesalahan saat mengunggah berkas.');
         } finally {
             setUploadingImage(false);
@@ -136,11 +158,17 @@ export default function Create({
     };
 
     const handleAddBundleItem = (selectedProductId: number) => {
-        if (!selectedProductId) return;
+        if (!selectedProductId) {
+            return;
+        }
+
         const exists = form.data.bundle_items.some(
             (i) => i.item_product_id === selectedProductId,
         );
-        if (exists) return;
+
+        if (exists) {
+            return;
+        }
 
         form.setData('bundle_items', [
             ...form.data.bundle_items,
@@ -174,6 +202,7 @@ export default function Create({
                 (p) => p.id === item.item_product_id,
             );
             const price = prod?.selling_price ?? prod?.purchase_price ?? 0;
+
             return sum + price * item.quantity;
         }, 0);
     }, [form.data.bundle_items, availableProducts]);
@@ -814,6 +843,7 @@ export default function Create({
                                                 (prod?.selling_price ??
                                                     prod?.purchase_price ??
                                                     0) * item.quantity;
+
                                             return (
                                                 <div
                                                     key={item.item_product_id}

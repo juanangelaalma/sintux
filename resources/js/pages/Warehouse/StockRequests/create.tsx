@@ -54,7 +54,10 @@ export default function Create({
     };
 
     const handleRemoveItem = (index: number) => {
-        if (form.data.items.length <= 1) return;
+        if (form.data.items.length <= 1) {
+return;
+}
+
         const updated = [...form.data.items];
         updated.splice(index, 1);
         form.setData('items', updated);

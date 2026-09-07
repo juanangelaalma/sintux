@@ -9,6 +9,7 @@ use Modules\Approval\Application\CreateApprovalRule;
 use Modules\Approval\Models\ApprovalTransactionType;
 use Modules\Company\Models\CompanyUser;
 use Modules\Purchasing\Models\PurchaseOrder;
+use Modules\Warehouse\Application\Warehouse\CreateWarehousesForBranch;
 use Tests\TestCase;
 
 class PurchaseInvoiceTest extends TestCase
@@ -46,7 +47,7 @@ class PurchaseInvoiceTest extends TestCase
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
         $branchCode = DB::table('branches')->where('id', $branchBId)->value('code');
         tenancy()->end();
@@ -78,7 +79,7 @@ class PurchaseInvoiceTest extends TestCase
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
 
         $type = ApprovalTransactionType::where('key', 'purchase_invoice')->firstOrFail();
@@ -117,18 +118,23 @@ class PurchaseInvoiceTest extends TestCase
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
 
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
 
+        $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
         $po = PurchaseOrder::create([
             'number' => 'PO-BRB-0010',
             'branch_id' => $branchBId,
+            'warehouse_id' => $destWarehouseId,
             'supplier_id' => $supplierId,
             'status' => 'sent',
             'order_date' => now()->toDateString(),
             'currency_code' => 'IDR',
+            'branch_mode' => 'single',
         ]);
         $poItem = $po->items()->create([
+            'destination_branch_id' => $branchBId,
+            'destination_warehouse_id' => $destWarehouseId,
             'product_variant_id' => $variantId,
             'product_name' => 'Widget PRD',
             'sku' => 'SKU-PRD',
@@ -186,14 +192,20 @@ class PurchaseInvoiceTest extends TestCase
                 'updated_at' => now(),
             ]);
 
+        $branchBCode = 'BRB_'.uniqid();
         $branchBId = DB::table('branches')->insertGetId([
             'name' => 'Branch B',
-            'code' => 'BRB_'.uniqid(),
+            'code' => $branchBCode,
             'is_headquarters' => false,
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        // Create 3 system warehouses per branch
+        $warehouseService = app(CreateWarehousesForBranch::class);
+        $warehouseService->execute((int) $hqBranchId, 'HQ', 'HQ Branch');
+        $warehouseService->execute((int) $branchBId, $branchBCode, 'Branch B');
 
         tenancy()->end();
 
@@ -224,7 +236,7 @@ class PurchaseInvoiceTest extends TestCase
     /**
      * @return array{0: int, 1: int}
      */
-    private function createProductAndVariant(string $codePrefix = 'PRD', bool $variantActive = true): array
+    private function createProductAndVariant(int $branchId, string $codePrefix = 'PRD', bool $variantActive = true): array
     {
         $catId = DB::table('product_categories')->insertGetId([
             'name' => 'Category '.uniqid(),
@@ -240,6 +252,7 @@ class PurchaseInvoiceTest extends TestCase
             'updated_at' => now(),
         ]);
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $branchId,
             'code' => $codePrefix.'-'.uniqid(),
             'name' => 'Widget '.uniqid(),
             'category_id' => $catId,
@@ -249,6 +262,7 @@ class PurchaseInvoiceTest extends TestCase
             'updated_at' => now(),
         ]);
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $branchId,
             'product_id' => $productId,
             'sku' => 'SKU-'.uniqid(),
             'variant_name' => 'Widget Variant '.uniqid(),

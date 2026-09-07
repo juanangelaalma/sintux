@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\Company\Models\CompanyUser;
 use Modules\Purchasing\Models\GoodsReceipt;
 use Modules\Purchasing\Models\PurchaseOrder;
+use Modules\Warehouse\Application\Warehouse\CreateWarehousesForBranch;
 use Tests\TestCase;
 
 class GoodsReceiptTest extends TestCase
@@ -42,31 +43,46 @@ class GoodsReceiptTest extends TestCase
 
     public function test_post_goods_receipt_receives_stock_into_warehouse_and_updates_po_status(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
 
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
-        $warehouseId = DB::table('warehouses')->insertGetId([
-            'branch_id' => $branchBId,
-            'code' => 'WH-BRB-'.uniqid(),
-            'name' => 'Branch B Warehouse',
-            'warehouse_type' => 'regular',
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        // Ensure system warehouses exist (in case helper didn't create due to observer)
+        app(CreateWarehousesForBranch::class)->ensureForAllBranches();
+        $warehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
+        // Ensure HQ warehouse exists for PO header
+        if (! $hqWarehouseId) {
+            $hqWarehouseId = $warehouseId;
+        }
+        if (! $warehouseId) {
+            $branchCode = DB::table('branches')->where('id', $branchBId)->value('code');
+            $warehouseId = DB::table('warehouses')->insertGetId([
+                'branch_id' => $branchBId,
+                'code' => 'GD-'.$branchCode.'-REG',
+                'name' => 'Gudang Regular Branch B',
+                'warehouse_type' => 'regular',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         $po = PurchaseOrder::create([
             'number' => 'PO-BRB-0001',
-            'branch_id' => $branchBId,
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
             'supplier_id' => $supplierId,
             'status' => 'sent',
             'order_date' => now()->toDateString(),
             'currency_code' => 'IDR',
+            'branch_mode' => 'single',
         ]);
         $poItem = $po->items()->create([
+            'destination_branch_id' => $branchBId,
+            'destination_warehouse_id' => $warehouseId,
             'product_variant_id' => $variantId,
             'product_name' => 'Widget PRD',
             'sku' => 'SKU-PRD',
@@ -130,31 +146,29 @@ class GoodsReceiptTest extends TestCase
 
     public function test_store_goods_receipt_via_http_creates_draft_grn_with_items(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
 
-        [$variantId] = $this->createProductAndVariant('PRD-002', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-002', true);
         $supplierId = $this->createSupplier($branchBId);
-        $warehouseId = DB::table('warehouses')->insertGetId([
-            'branch_id' => $branchBId,
-            'code' => 'WH-STORE-'.uniqid(),
-            'name' => 'Store Warehouse',
-            'warehouse_type' => 'regular',
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
+        $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
+        $warehouseId = $hqWarehouseId ?? $destWarehouseId;
 
         $po = PurchaseOrder::create([
             'number' => 'PO-STORE-'.uniqid(),
-            'branch_id' => $branchBId,
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
             'supplier_id' => $supplierId,
             'status' => 'sent',
             'order_date' => now()->toDateString(),
             'currency_code' => 'IDR',
+            'branch_mode' => 'single',
         ]);
         $poItem = $po->items()->create([
+            'destination_branch_id' => $branchBId,
+            'destination_warehouse_id' => $destWarehouseId,
             'product_variant_id' => $variantId,
             'product_name' => 'Widget Store',
             'sku' => 'SKU-STORE',
@@ -164,10 +178,10 @@ class GoodsReceiptTest extends TestCase
         ]);
 
         $payload = [
-            'branch_id' => $branchBId,
+            'branch_id' => $hqBranchId,
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
-            'warehouse_id' => $warehouseId,
+            'warehouse_id' => $hqWarehouseId,
             'receipt_date' => now()->toDateString(),
             'note' => 'Diterima via HTTP form',
             'items' => [
@@ -194,9 +208,9 @@ class GoodsReceiptTest extends TestCase
             ->first();
         $this->assertNotNull($grn, 'GRN harus dibuat dari form');
         $this->assertSame('draft', $grn->status);
-        $this->assertEquals($branchBId, $grn->branch_id);
+        $this->assertEquals($hqBranchId, $grn->branch_id);
         $this->assertEquals($supplierId, $grn->supplier_id);
-        $this->assertEquals($warehouseId, $grn->warehouse_id);
+        $this->assertEquals($hqWarehouseId, $grn->warehouse_id);
 
         $grnItem = DB::table('goods_receipt_items')
             ->where('goods_receipt_id', $grn->id)
@@ -217,8 +231,103 @@ class GoodsReceiptTest extends TestCase
         );
     }
 
+    public function test_post_partial_goods_receipt_updates_po_status_to_partially_received(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        tenancy()->initialize($tenantId);
+
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-PARTIAL', true);
+        $supplierId = $this->createSupplier($branchBId);
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
+        $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
+
+        $po = PurchaseOrder::create([
+            'number' => 'PO-PARTIAL-'.uniqid(),
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
+            'supplier_id' => $supplierId,
+            'status' => 'sent',
+            'order_date' => now()->toDateString(),
+            'currency_code' => 'IDR',
+            'branch_mode' => 'single',
+        ]);
+        $poItem = $po->items()->create([
+            'destination_branch_id' => $branchBId,
+            'destination_warehouse_id' => $destWarehouseId,
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget Partial',
+            'sku' => 'SKU-PARTIAL',
+            'qty_ordered' => 20,
+            'qty_received' => 0,
+            'unit_price' => 50000,
+        ]);
+
+        // GRN 1: partial (10 of 20)
+        $grn1 = GoodsReceipt::create([
+            'number' => 'GRN-P1-'.uniqid(),
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $po->id,
+            'warehouse_id' => $hqWarehouseId,
+            'status' => 'draft',
+            'receipt_date' => now()->toDateString(),
+        ]);
+        $grn1->items()->create([
+            'purchase_order_item_id' => $poItem->id,
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget Partial',
+            'sku' => 'SKU-PARTIAL',
+            'qty_received' => 10,
+        ]);
+        $grn1Id = $grn1->id;
+        $poId = $po->id;
+        tenancy()->end();
+
+        $this->actingAs($user)->post(route('purchasing.grns.post', $grn1Id));
+
+        tenancy()->initialize($tenantId);
+        $poDb = DB::table('purchase_orders')->where('id', $poId)->first();
+        $this->assertSame('partially_received', $poDb->status);
+        $this->assertEquals(10, (float) DB::table('purchase_order_items')->where('id', $poItem->id)->value('qty_received'));
+
+        // Attempt cancel while partially_received -> should fail
+        tenancy()->end();
+        $cancelResponse = $this->actingAs($user)->post(route('purchasing.orders.cancel', $poId));
+        $cancelResponse->assertSessionHasErrors(['order']);
+
+        // GRN 2: complete remaining 10
+        tenancy()->initialize($tenantId);
+        $grn2 = GoodsReceipt::create([
+            'number' => 'GRN-P2-'.uniqid(),
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $poId,
+            'warehouse_id' => $hqWarehouseId,
+            'status' => 'draft',
+            'receipt_date' => now()->toDateString(),
+        ]);
+        $grn2->items()->create([
+            'purchase_order_item_id' => $poItem->id,
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget Partial',
+            'sku' => 'SKU-PARTIAL',
+            'qty_received' => 10,
+        ]);
+        $grn2Id = $grn2->id;
+        tenancy()->end();
+
+        $this->actingAs($user)->post(route('purchasing.grns.post', $grn2Id));
+
+        tenancy()->initialize($tenantId);
+        $poDbFinal = DB::table('purchase_orders')->where('id', $poId)->first();
+        $this->assertSame('received', $poDbFinal->status);
+        $this->assertEquals(20, (float) DB::table('purchase_order_items')->where('id', $poItem->id)->value('qty_received'));
+        tenancy()->end();
+    }
+
     /**
-     * @return array{0: string|int, 1: int, 2: User}
+     * @return array{0: string|int, 1: int, 2: int, 3: User}
      */
     private function createCompanyWithMemberAndBranches(): array
     {
@@ -256,6 +365,8 @@ class GoodsReceiptTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        app(CreateWarehousesForBranch::class)->ensureForAllBranches();
+
         tenancy()->end();
 
         $user = User::factory()->create([
@@ -279,13 +390,13 @@ class GoodsReceiptTest extends TestCase
             'branch_id' => $branchBId,
         ]);
 
-        return [$tenant->id, (int) $branchBId, $user];
+        return [$tenant->id, (int) $hqBranchId, (int) $branchBId, $user];
     }
 
     /**
      * @return array{0: int, 1: int}
      */
-    private function createProductAndVariant(string $codePrefix = 'PRD', bool $variantActive = true): array
+    private function createProductAndVariant(int $branchId, string $codePrefix = 'PRD', bool $variantActive = true): array
     {
         $catId = DB::table('product_categories')->insertGetId([
             'name' => 'Category '.uniqid(),
@@ -301,6 +412,7 @@ class GoodsReceiptTest extends TestCase
             'updated_at' => now(),
         ]);
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $branchId,
             'code' => $codePrefix.'-'.uniqid(),
             'name' => 'Widget '.uniqid(),
             'category_id' => $catId,
@@ -310,6 +422,7 @@ class GoodsReceiptTest extends TestCase
             'updated_at' => now(),
         ]);
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $branchId,
             'product_id' => $productId,
             'sku' => 'SKU-'.uniqid(),
             'variant_name' => 'Widget Variant '.uniqid(),

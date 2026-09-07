@@ -40,8 +40,27 @@ export type StockTransferItem = {
     stock_transfer_id: number;
     product_variant_id: number;
     qty: number;
+    qty_shipped?: number | null;
+    qty_received?: number | null;
     product_variant?: ProductVariant;
     layers?: StockTransferItemLayer[];
+    discrepancies?: StockTransferDiscrepancy[];
+};
+
+export type StockTransferDiscrepancy = {
+    id: number;
+    stock_transfer_id: number;
+    stock_transfer_item_id: number;
+    product_variant_id: number;
+    shipped_qty: number;
+    received_qty: number;
+    difference_qty: number;
+    reason?: string | null;
+    status: 'pending' | 'investigating' | 'resolved';
+    resolution_note?: string | null;
+    resolved_at?: string | null;
+    created_at: string;
+    updated_at: string;
 };
 
 export type StockTransfer = {

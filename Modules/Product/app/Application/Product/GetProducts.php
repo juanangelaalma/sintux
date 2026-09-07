@@ -14,7 +14,7 @@ class GetProducts
 
     /**
      * @param  array<string, mixed>  $filters
-     * @param  list<int>|null  $branchIds  Warehouse branch scope for total_stock. Null = all warehouses.
+     * @param  list<int>|null  $branchIds  Branch scope for filtering products and stock. Null = all.
      * @return array<string, mixed>
      */
     public function execute(array $filters = [], ?array $branchIds = null): array
@@ -25,6 +25,10 @@ class GetProducts
             'variants' => fn ($q) => $q->where('is_active', true),
             'bundleItems.itemProduct.variants' => fn ($q) => $q->where('is_active', true),
         ]);
+
+        if (! empty($branchIds)) {
+            $query->whereIn('branch_id', $branchIds);
+        }
 
         if (! empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {

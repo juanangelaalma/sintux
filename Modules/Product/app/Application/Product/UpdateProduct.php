@@ -44,6 +44,7 @@ class UpdateProduct
             ProductVariant::updateOrCreate(
                 ['product_id' => $product->id],
                 [
+                    'branch_id' => $product->branch_id,
                     'sku' => $product->code,
                     'variant_name' => $product->name,
                     'is_active' => $product->is_active,

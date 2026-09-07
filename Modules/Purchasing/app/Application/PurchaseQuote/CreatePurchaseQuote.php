@@ -18,10 +18,11 @@ class CreatePurchaseQuote
      * Create a new purchase quote with snapshot product data.
      *
      * @param  array<string, mixed>  $data
+     * @param  list<int>|null  $branchIds  Branch scope for variant resolution. Null = all.
      */
-    public function execute(array $data, string $branchCode): PurchaseQuote
+    public function execute(array $data, string $branchCode, ?array $branchIds = null): PurchaseQuote
     {
-        $variants = collect($this->purchaseVariants->execute())->keyBy('id');
+        $variants = collect($this->purchaseVariants->execute($branchIds))->keyBy('id');
         $taxes = collect($this->getPurchaseTaxes->execute())->keyBy('id');
 
         return DB::transaction(function () use ($data, $branchCode, $variants, $taxes) {

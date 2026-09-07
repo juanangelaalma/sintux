@@ -40,6 +40,7 @@ function getPageWindow(current: number, last: number): (number | 'ellipsis')[] {
         if (page - previous > 1) {
             window.push('ellipsis');
         }
+
         window.push(page);
         previous = page;
     }

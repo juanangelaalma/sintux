@@ -20,10 +20,11 @@ class CreatePurchaseRequest
      * Create a new purchase request with snapshot product data.
      *
      * @param  array<string, mixed>  $data
+     * @param  list<int>|null  $branchIds  Branch scope for variant resolution. Null = all.
      */
-    public function execute(array $data, string $branchCode, ?int $userId = null, ?string $userName = null): PurchaseRequest
+    public function execute(array $data, string $branchCode, ?int $userId = null, ?string $userName = null, ?array $branchIds = null): PurchaseRequest
     {
-        $variants = collect($this->purchaseVariants->execute())->keyBy('id');
+        $variants = collect($this->purchaseVariants->execute($branchIds))->keyBy('id');
         $creatorId = $userId ?? (int) auth()->id();
         $creatorName = $userName ?? auth()->user()?->name;
 

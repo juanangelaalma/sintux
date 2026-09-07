@@ -2,6 +2,7 @@
 
 namespace Modules\Warehouse\Application\Warehouse;
 
+use Illuminate\Validation\ValidationException;
 use Modules\Warehouse\Models\Warehouse;
 
 class UpdateWarehouse
@@ -16,6 +17,34 @@ class UpdateWarehouse
 
         if (! $warehouse) {
             return null;
+        }
+
+        // System warehouses cannot be deactivated
+        if (array_key_exists('is_active', $data) && $data['is_active'] === false) {
+            if (in_array($warehouse->warehouse_type, ['regular', 'retail', 'consignment'], true) && str_starts_with($warehouse->code, 'GD-')) {
+                throw ValidationException::withMessages([
+                    'warehouse' => 'Gudang sistem (Regular/Ritel/Konsinyasi) tidak dapat dinonaktifkan.',
+                ]);
+            }
+        }
+
+        // System warehouses code/type should not be changed arbitrarily — allow name/address only
+        if (in_array($warehouse->warehouse_type, ['regular', 'retail', 'consignment'], true) && str_starts_with($warehouse->code, 'GD-')) {
+            if (isset($data['code']) && $data['code'] !== $warehouse->code) {
+                throw ValidationException::withMessages([
+                    'code' => 'Kode gudang sistem tidak dapat diubah.',
+                ]);
+            }
+            if (isset($data['warehouse_type']) && $data['warehouse_type'] !== $warehouse->warehouse_type) {
+                throw ValidationException::withMessages([
+                    'warehouse_type' => 'Tipe gudang sistem tidak dapat diubah.',
+                ]);
+            }
+            if (isset($data['branch_id']) && (int) $data['branch_id'] !== (int) $warehouse->branch_id) {
+                throw ValidationException::withMessages([
+                    'branch_id' => 'Cabang gudang sistem tidak dapat dipindah.',
+                ]);
+            }
         }
 
         $warehouse->update([

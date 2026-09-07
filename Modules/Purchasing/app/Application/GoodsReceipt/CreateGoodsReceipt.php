@@ -14,10 +14,11 @@ class CreateGoodsReceipt
 
     /**
      * @param  array<string, mixed>  $data
+     * @param  list<int>|null  $branchIds  Branch scope for variant resolution. Null = all.
      */
-    public function execute(array $data, string $branchCode): GoodsReceipt
+    public function execute(array $data, string $branchCode, ?array $branchIds = null): GoodsReceipt
     {
-        $variants = collect($this->purchaseVariants->execute())->keyBy('id');
+        $variants = collect($this->purchaseVariants->execute($branchIds))->keyBy('id');
 
         return DB::transaction(function () use ($data, $branchCode, $variants) {
             $sequence = GoodsReceipt::where('branch_id', $data['branch_id'])->count() + 1;

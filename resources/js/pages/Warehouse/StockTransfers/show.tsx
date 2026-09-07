@@ -1,14 +1,19 @@
-import React, { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import CompanyLayout from '@/layouts/company/company-layout';
-import PageHeader from '@/components/ui/page-header';
+import React, { useState } from 'react';
+import InputError from '@/components/input-error';
 import Button from '@/components/ui/button';
 import Modal from '@/components/ui/modal';
-import InputError from '@/components/input-error';
-import type { StockTransfer } from './types';
+import PageHeader from '@/components/ui/page-header';
+import CompanyLayout from '@/layouts/company/company-layout';
+import type { StockTransfer, StockTransferItem } from './types';
 
 type Props = {
     stockTransfer: StockTransfer;
+};
+
+type ReceiveItem = {
+    stock_transfer_item_id: number;
+    qty_received: number;
 };
 
 export default function StockTransferShow({ stockTransfer }: Props) {
@@ -17,6 +22,13 @@ export default function StockTransferShow({ stockTransfer }: Props) {
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isReceiving, setIsReceiving] = useState(false);
     const [showReceiveModal, setShowReceiveModal] = useState(false);
+    const [receiveItems, setReceiveItems] = useState<ReceiveItem[]>(
+        stockTransfer.items?.map((item) => ({
+            stock_transfer_item_id: item.id,
+            qty_received:
+                (item.qty_shipped ?? item.qty) - (item.qty_received ?? 0),
+        })) ?? [],
+    );
 
     const handleShip = () => {
         setIsShipping(true);
@@ -36,7 +48,9 @@ export default function StockTransferShow({ stockTransfer }: Props) {
         setIsReceiving(true);
         router.post(
             `/warehouse/stock-transfers/${stockTransfer.id}/receive`,
-            {},
+            {
+                received_items: receiveItems,
+            },
             {
                 onFinish: () => {
                     setIsReceiving(false);
@@ -44,6 +58,23 @@ export default function StockTransferShow({ stockTransfer }: Props) {
                 },
             },
         );
+    };
+
+    const updateReceiveQty = (itemId: number, qty: number) => {
+        setReceiveItems((prev) =>
+            prev.map((item) =>
+                item.stock_transfer_item_id === itemId
+                    ? { ...item, qty_received: qty }
+                    : item,
+            ),
+        );
+    };
+
+    const getRemainingQty = (item: StockTransferItem) => {
+        const shipped = item.qty_shipped ?? item.qty;
+        const received = item.qty_received ?? 0;
+
+        return shipped - received;
     };
 
     const statusBadges: Record<string, { label: string; className: string }> = {
@@ -219,12 +250,28 @@ export default function StockTransferShow({ stockTransfer }: Props) {
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-xs text-slate-500">
-                                            Jumlah Qty
-                                        </div>
-                                        <div className="text-lg font-bold text-indigo-600">
-                                            {item.qty}
-                                        </div>
+                                        {item.qty_shipped !== null &&
+                                        item.qty_shipped !== undefined ? (
+                                            <>
+                                                <div className="text-xs text-slate-500">
+                                                    Dikirim / Diterima / Sisa
+                                                </div>
+                                                <div className="text-lg font-bold text-indigo-600">
+                                                    {item.qty_shipped} /{' '}
+                                                    {item.qty_received ?? 0} /{' '}
+                                                    {getRemainingQty(item)}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="text-xs text-slate-500">
+                                                    Jumlah Qty
+                                                </div>
+                                                <div className="text-lg font-bold text-indigo-600">
+                                                    {item.qty}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
@@ -260,6 +307,33 @@ export default function StockTransferShow({ stockTransfer }: Props) {
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Discrepancy display */}
+                                {item.discrepancies &&
+                                    item.discrepancies.length > 0 && (
+                                        <div className="mt-2 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs">
+                                            <div className="font-semibold text-amber-700">
+                                                Discrepancy:
+                                            </div>
+                                            {item.discrepancies.map((d) => (
+                                                <div
+                                                    key={d.id}
+                                                    className="rounded border border-amber-200 bg-white px-2.5 py-1 text-amber-800"
+                                                >
+                                                    <span>
+                                                        Dikirim: {d.shipped_qty}{' '}
+                                                        / Diterima:{' '}
+                                                        {d.received_qty} /
+                                                        Selisih:{' '}
+                                                        {d.difference_qty}
+                                                    </span>
+                                                    <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium uppercase">
+                                                        {d.status}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                             </div>
                         ))}
                     </div>
@@ -301,18 +375,78 @@ export default function StockTransferShow({ stockTransfer }: Props) {
                 </Modal>
             )}
 
-            {/* Receive Confirmation Modal */}
+            {/* Receive Modal */}
             {showReceiveModal && (
                 <Modal
-                    title="Konfirmasi Penerimaan Stok"
+                    title="Terima Stock Transfer"
                     onClose={() => setShowReceiveModal(false)}
                 >
                     <div className="space-y-4">
                         <p className="text-sm text-slate-600">
-                            Apakah Anda yakin ingin menerima stock transfer ini?
-                            Stok akan tercatat di gudang tujuan sesuai rincian
-                            FIFO dari pengiriman.
+                            Masukkan jumlah yang diterima untuk setiap item.
+                            Jika ada selisih, sistem akan mencatat sebagai
+                            discrepancy.
                         </p>
+
+                        <div className="space-y-3">
+                            {stockTransfer.items?.map((item) => {
+                                const remaining = getRemainingQty(item);
+                                const receiveItem = receiveItems.find(
+                                    (r) => r.stock_transfer_item_id === item.id,
+                                );
+
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className="rounded-lg border border-slate-200 p-3"
+                                    >
+                                        <div className="mb-2 text-sm font-medium text-slate-900">
+                                            {
+                                                item.product_variant?.product
+                                                    ?.name
+                                            }{' '}
+                                            -{' '}
+                                            {item.product_variant?.variant_name}
+                                        </div>
+                                        <div className="text-xs text-slate-500">
+                                            Dikirim:{' '}
+                                            {item.qty_shipped ?? item.qty} |
+                                            Sisa: {remaining}
+                                        </div>
+                                        <div className="mt-2">
+                                            <label className="block text-xs font-medium text-slate-700">
+                                                Qty Diterima
+                                            </label>
+                                            <input
+                                                type="number"
+                                                step="0.0001"
+                                                min="0"
+                                                max={remaining}
+                                                value={
+                                                    receiveItem?.qty_received ??
+                                                    remaining
+                                                }
+                                                onChange={(e) =>
+                                                    updateReceiveQty(
+                                                        item.id,
+                                                        parseFloat(
+                                                            e.target.value,
+                                                        ) || 0,
+                                                    )
+                                                }
+                                                className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {errors.qty_received && (
+                            <InputError
+                                message={errors.qty_received as string}
+                            />
+                        )}
 
                         <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
                             <Button

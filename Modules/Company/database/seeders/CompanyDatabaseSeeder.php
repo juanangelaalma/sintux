@@ -3,6 +3,7 @@
 namespace Modules\Company\Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Modules\Warehouse\Database\Seeders\WarehouseSystemSeeder;
 
 class CompanyDatabaseSeeder extends Seeder
 {
@@ -12,5 +13,6 @@ class CompanyDatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(RolePermissionSeeder::class);
+        $this->call(WarehouseSystemSeeder::class);
     }
 }
