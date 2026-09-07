@@ -4,6 +4,7 @@ namespace Modules\Product\Tests\Feature;
 
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Modules\Accounting\Tests\Support\EligibleChartOfAccountFixture;
@@ -97,8 +98,8 @@ class ProductCrudTest extends TestCase
             ->get(route('product.products.create'))
             ->assertInertia(
                 fn ($page) => $page
-                    ->has('purchaseTaxes', fn ($taxes) => $taxes->where('id', $purchaseTaxId))
-                    ->has('salesTaxes', fn ($taxes) => $taxes->where('id', $salesTaxId))
+                    ->where('purchaseTaxes', fn (Collection $taxes) => $taxes->contains('id', $purchaseTaxId))
+                    ->where('salesTaxes', fn (Collection $taxes) => $taxes->contains('id', $salesTaxId))
             );
 
         $this->actingAs($user)
