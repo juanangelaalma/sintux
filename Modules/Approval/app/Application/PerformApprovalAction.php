@@ -4,6 +4,7 @@ namespace Modules\Approval\Application;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Approval\Enums\ApprovalStatus;
 use Modules\Approval\Events\TransactionApprovalFinalized;
 use Modules\Approval\Models\ApprovalAction;
 use Modules\Approval\Models\ApprovalMapping;
@@ -29,7 +30,7 @@ class PerformApprovalAction
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($mapping->overall_status !== 'pending') {
+            if ($mapping->overall_status !== ApprovalStatus::Pending) {
                 throw ValidationException::withMessages([
                     'approval' => 'Transaksi ini sudah selesai diproses dan tidak membutuhkan persetujuan lagi.',
                 ]);
@@ -84,13 +85,13 @@ class PerformApprovalAction
 
             if ($action === 'reject') {
                 $mapping->update([
-                    'overall_status' => 'rejected',
+                    'overall_status' => ApprovalStatus::Rejected,
                 ]);
 
                 TransactionApprovalFinalized::dispatch(
                     $mapping->transaction_type,
                     (int) $mapping->transaction_id,
-                    'rejected',
+                    ApprovalStatus::Rejected->value,
                 );
 
                 return $mapping->fresh(['rule', 'actions']);
@@ -130,13 +131,13 @@ class PerformApprovalAction
                     ]);
                 } else {
                     $mapping->update([
-                        'overall_status' => 'approved',
+                        'overall_status' => ApprovalStatus::Approved,
                     ]);
 
                     TransactionApprovalFinalized::dispatch(
                         $mapping->transaction_type,
                         (int) $mapping->transaction_id,
-                        'approved',
+                        ApprovalStatus::Approved->value,
                     );
                 }
             }

@@ -3,6 +3,7 @@
 namespace Modules\Approval\Application;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Approval\Enums\ApprovalStatus;
 use Modules\Approval\Models\ApprovalMapping;
 use Modules\Approval\Models\ApprovalRule;
 use Modules\Approval\Models\ApprovalTransactionType;
@@ -118,7 +119,7 @@ class ApprovalEngine
                 ->first();
 
             if ($existingMapping) {
-                if ($existingMapping->overall_status !== 'pending') {
+                if ($existingMapping->overall_status !== ApprovalStatus::Pending) {
                     return $existingMapping;
                 }
 
@@ -162,7 +163,7 @@ class ApprovalEngine
                 'total' => $facts['total'] ?? null,
                 'currency_code' => $facts['currency_code'] ?? 'IDR',
                 'current_stage_order' => $firstEffectiveStageOrder,
-                'overall_status' => 'pending',
+                'overall_status' => ApprovalStatus::Pending,
                 'mapped_at' => now(),
             ]);
         });
@@ -174,7 +175,7 @@ class ApprovalEngine
             ->where('transaction_id', $transactionId)
             ->first();
 
-        if ($existing && $existing->overall_status === 'pending') {
+        if ($existing && $existing->overall_status === ApprovalStatus::Pending) {
             $existing->actions()->delete();
             $existing->delete();
         }
