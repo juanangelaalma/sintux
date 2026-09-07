@@ -2,6 +2,7 @@
 
 namespace Modules\Accounting\Tests\Support;
 
+use Modules\Accounting\Database\Seeders\ChartOfAccountsSeeder;
 use Modules\Accounting\Models\ChartOfAccount;
 use Modules\Accounting\Models\Tax;
 
@@ -12,6 +13,7 @@ final class EligibleTaxFixture
      */
     public static function create(string $suffix): array
     {
+        app(ChartOfAccountsSeeder::class)->run();
         $accountId = ChartOfAccount::query()->value('id');
 
         return [
