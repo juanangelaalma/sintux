@@ -61,6 +61,7 @@ class ProductHubStockTest extends TestCase
         ]);
 
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $branchId,
             'code' => 'LAPTOP-'.$suffix,
             'name' => 'Laptop Pro-'.$suffix,
             'category_id' => $categoryId,
@@ -70,6 +71,7 @@ class ProductHubStockTest extends TestCase
         ]);
 
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $branchId,
             'product_id' => $productId,
             'sku' => 'LAPTOP-'.$suffix,
             'variant_name' => 'Primary',
@@ -80,7 +82,7 @@ class ProductHubStockTest extends TestCase
             'code' => 'WH-HQ-'.$suffix,
             'name' => 'Gudang HQ-'.$suffix,
             'branch_id' => $branchId,
-            'warehouse_type' => 'general',
+            'warehouse_type' => 'regular',
             'is_active' => true,
         ]);
 
@@ -142,6 +144,7 @@ class ProductHubStockTest extends TestCase
         ]);
 
         $componentId = DB::table('products')->insertGetId([
+            'branch_id' => $branchId,
             'code' => 'COMP-'.$suffix,
             'name' => 'A Komponen-'.$suffix,
             'category_id' => $categoryId,
@@ -151,6 +154,7 @@ class ProductHubStockTest extends TestCase
         ]);
 
         $componentVariantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $branchId,
             'product_id' => $componentId,
             'sku' => 'COMP-'.$suffix,
             'variant_name' => 'Primary',
@@ -158,6 +162,7 @@ class ProductHubStockTest extends TestCase
         ]);
 
         $bundleId = DB::table('products')->insertGetId([
+            'branch_id' => $branchId,
             'code' => 'BUNDLE-'.$suffix,
             'name' => 'B Paket-'.$suffix,
             'category_id' => $categoryId,
@@ -170,7 +175,7 @@ class ProductHubStockTest extends TestCase
             'code' => 'WH-HQ-'.$suffix,
             'name' => 'Gudang HQ-'.$suffix,
             'branch_id' => $branchId,
-            'warehouse_type' => 'general',
+            'warehouse_type' => 'regular',
             'is_active' => true,
         ]);
 

@@ -6,9 +6,17 @@ use Modules\Product\Models\ProductVariant;
 
 class GetVariants
 {
-    public function execute(int $productId, array $filters = []): array
+    /**
+     * @param  array<string, mixed>  $filters
+     * @param  list<int>|null  $branchIds  Branch scope. Null = all.
+     */
+    public function execute(int $productId, array $filters = [], ?array $branchIds = null): array
     {
         $query = ProductVariant::where('product_id', $productId);
+
+        if (! empty($branchIds)) {
+            $query->whereIn('branch_id', $branchIds);
+        }
 
         if (! empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {

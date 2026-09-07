@@ -78,6 +78,7 @@ class StockBalanceViewTest extends TestCase
         ]);
 
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $branchId,
             'code' => 'LAPTOP-'.$suffix,
             'name' => 'Laptop Pro-'.$suffix,
             'category_id' => $categoryId,
@@ -86,6 +87,7 @@ class StockBalanceViewTest extends TestCase
         ]);
 
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $branchId,
             'product_id' => $productId,
             'sku' => 'LAPTOP-BLK-'.$suffix,
             'variant_name' => 'Black',
@@ -96,7 +98,7 @@ class StockBalanceViewTest extends TestCase
             'code' => 'WH-HQ-'.$suffix,
             'name' => 'Gudang HQ-'.$suffix,
             'branch_id' => $branchId,
-            'warehouse_type' => 'general',
+            'warehouse_type' => 'regular',
             'is_active' => true,
         ]);
 
@@ -177,6 +179,7 @@ class StockBalanceViewTest extends TestCase
         ]);
 
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $nonHqBranchId,
             'code' => 'PHONE-'.$suffix,
             'name' => 'Smartphone-'.$suffix,
             'category_id' => $categoryId,
@@ -185,6 +188,7 @@ class StockBalanceViewTest extends TestCase
         ]);
 
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $nonHqBranchId,
             'product_id' => $productId,
             'sku' => 'PHONE-BLK-'.$suffix,
             'variant_name' => 'Black',
@@ -195,7 +199,7 @@ class StockBalanceViewTest extends TestCase
             'code' => 'WH-A-'.$suffix,
             'name' => 'Gudang A-'.$suffix,
             'branch_id' => $nonHqBranchId,
-            'warehouse_type' => 'general',
+            'warehouse_type' => 'regular',
             'is_active' => true,
         ]);
 
@@ -203,7 +207,7 @@ class StockBalanceViewTest extends TestCase
             'code' => 'WH-B-'.$suffix,
             'name' => 'Gudang B-'.$suffix,
             'branch_id' => $branchBId,
-            'warehouse_type' => 'general',
+            'warehouse_type' => 'regular',
             'is_active' => true,
         ]);
 

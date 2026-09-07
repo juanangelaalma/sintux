@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
+import React, { useState } from 'react';
 import DataTable from '@/components/tables/data-table';
 import type { DataTableColumn } from '@/components/tables/data-table';
 import Button from '@/components/ui/button';
@@ -128,6 +128,7 @@ export const WarehouseTab: React.FC<Props> = ({
         setSelectedBalanceForLayers(balance);
         setLayersLoading(true);
         setLayersData([]);
+
         try {
             const res = await fetch(
                 `/warehouse/stock-layers/${balance.warehouse_id}/${balance.product_variant_id}`,
@@ -431,6 +432,7 @@ export const WarehouseTab: React.FC<Props> = ({
                     label: t.status,
                     className: 'bg-slate-100 text-slate-700',
                 };
+
                 return (
                     <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${info.className}`}

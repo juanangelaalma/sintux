@@ -57,6 +57,7 @@ class StockRequestController extends Controller
             ->get();
 
         $productVariants = ProductVariant::with('product')
+            ->whereIn('branch_id', $accessibleBranchIds)
             ->where('is_active', true)
             ->get();
 

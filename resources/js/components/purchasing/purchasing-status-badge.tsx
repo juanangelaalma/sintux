@@ -12,6 +12,7 @@ const STATUS_MAP: Record<string, StatusStyle> = {
     draft: { label: 'Draft', color: 'default' },
     approved: { label: 'Disetujui', color: 'accent' },
     sent: { label: 'Terkirim', color: 'accent' },
+    partially_received: { label: 'Sebagian Diterima', color: 'warning' },
     received: { label: 'Diterima', color: 'success' },
     posted: { label: 'Dipotong', color: 'success' },
     ready: { label: 'Siap', color: 'success' },

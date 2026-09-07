@@ -24,10 +24,14 @@ const CompanyLayoutContent: React.FC<{ children: React.ReactNode }> = ({
     );
 
     const getMarginLeft = () => {
-        if (isMobileOpen) return 'ml-0';
+        if (isMobileOpen) {
+return 'ml-0';
+}
+
         if (isSettingsContext) {
             return isExpanded || isHovered ? 'lg:ml-[530px]' : 'lg:ml-[330px]';
         }
+
         return isExpanded || isHovered ? 'lg:ml-[290px]' : 'lg:ml-[90px]';
     };
 

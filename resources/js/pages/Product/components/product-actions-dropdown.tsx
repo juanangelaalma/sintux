@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
+import React, { useState, useRef, useEffect } from 'react';
 
 export const ProductActionsDropdown: React.FC = () => {
     const [open, setOpen] = useState(false);
@@ -15,6 +15,7 @@ export const ProductActionsDropdown: React.FC = () => {
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
+
         return () =>
             document.removeEventListener('mousedown', handleClickOutside);
     }, []);

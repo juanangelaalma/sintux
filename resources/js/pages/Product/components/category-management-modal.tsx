@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
 import { router } from '@inertiajs/react';
-import Modal from '@/components/ui/modal';
+import React, { useState } from 'react';
 import Button from '@/components/ui/button';
+import Modal from '@/components/ui/modal';
 
 type Category = {
     id: number;
@@ -26,7 +26,9 @@ export const CategoryManagementModal: React.FC<Props> = ({
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editingName, setEditingName] = useState('');
 
-    if (!show) return null;
+    if (!show) {
+return null;
+}
 
     const filteredCategories = categories.filter((c) =>
         c.name.toLowerCase().includes(search.toLowerCase()),
@@ -34,7 +36,10 @@ export const CategoryManagementModal: React.FC<Props> = ({
 
     const handleCreateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newCategoryName.trim()) return;
+
+        if (!newCategoryName.trim()) {
+return;
+}
 
         router.post(
             '/product/categories',
@@ -51,7 +56,9 @@ export const CategoryManagementModal: React.FC<Props> = ({
     };
 
     const handleUpdateSubmit = (id: number) => {
-        if (!editingName.trim()) return;
+        if (!editingName.trim()) {
+return;
+}
 
         router.put(
             `/product/categories/${id}`,

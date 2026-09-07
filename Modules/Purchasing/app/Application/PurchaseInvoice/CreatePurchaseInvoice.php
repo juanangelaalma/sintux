@@ -19,10 +19,11 @@ class CreatePurchaseInvoice
 
     /**
      * @param  array<string, mixed>  $data
+     * @param  list<int>|null  $branchIds  Branch scope for variant resolution. Null = all.
      */
-    public function execute(array $data, string $branchCode, ?int $userId = null, ?string $userName = null): PurchaseInvoice
+    public function execute(array $data, string $branchCode, ?int $userId = null, ?string $userName = null, ?array $branchIds = null): PurchaseInvoice
     {
-        $variants = collect($this->purchaseVariants->execute())->keyBy('id');
+        $variants = collect($this->purchaseVariants->execute($branchIds))->keyBy('id');
         $taxes = collect($this->getPurchaseTaxes->execute())->keyBy('id');
         $creatorId = $userId ?? (int) auth()->id();
         $creatorName = $userName ?? auth()->user()?->name;

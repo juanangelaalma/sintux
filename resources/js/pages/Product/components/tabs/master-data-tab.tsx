@@ -1,5 +1,5 @@
-import React from 'react';
 import { Link, router } from '@inertiajs/react';
+import React from 'react';
 import DataTable from '@/components/tables/data-table';
 import type { DataTableColumn } from '@/components/tables/data-table';
 import Button from '@/components/ui/button';

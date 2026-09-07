@@ -24,10 +24,10 @@ class GetPurchaseQuotes
         }
 
         if (! empty($filters['search'])) {
-            $search = $filters['search'];
+            $search = strtolower((string) $filters['search']);
             $query->where(function ($q) use ($search) {
-                $q->where('number', 'ilike', "%{$search}%")
-                    ->orWhere('note', 'ilike', "%{$search}%");
+                $q->whereRaw('LOWER(number) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(note) LIKE ?', ["%{$search}%"]);
             });
         }
 

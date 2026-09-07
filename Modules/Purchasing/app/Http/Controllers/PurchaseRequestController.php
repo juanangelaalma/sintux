@@ -50,10 +50,11 @@ class PurchaseRequestController extends Controller
     {
         $user = request()->user();
         $tenantId = (string) session('active_tenant_id');
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
 
         return Inertia::render('Purchasing/Requests/create', [
             'branches' => CompanyAccess::accessibleBranches($user, $tenantId),
-            'productVariants' => app(GetPurchaseVariants::class)->execute(),
+            'productVariants' => app(GetPurchaseVariants::class)->execute($accessibleBranchIds),
         ]);
     }
 
@@ -62,12 +63,13 @@ class PurchaseRequestController extends Controller
         $validated = $request->validated();
         $user = $request->user();
         $tenantId = (string) session('active_tenant_id');
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
 
         $branchCode = collect(CompanyAccess::accessibleBranches($user, $tenantId))
             ->firstWhere('id', $validated['branch_id'])
             ->code ?? '';
 
-        $this->createPurchaseRequest->execute($validated, (string) $branchCode);
+        $this->createPurchaseRequest->execute($validated, (string) $branchCode, null, null, $accessibleBranchIds);
 
         return redirect()->route('purchasing.requests.index')
             ->with('success', 'Permintaan pembelian berhasil dibuat.');

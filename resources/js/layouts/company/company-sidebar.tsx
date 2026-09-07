@@ -33,50 +33,51 @@ type NavItem = {
     subItems?: SubItem[];
 };
 
-const companyNavItems: NavItem[] = [
-    {
-        icon: <GridIcon />,
-        name: 'Dashboard',
-        path: '/dashboard',
-    },
-    {
-        icon: <GroupIcon />,
-        name: 'Contact',
-        subItems: [
-            { name: 'Customer', path: '/company/contacts/customers' },
-            { name: 'Supplier', path: '/company/contacts/suppliers' },
-            { name: 'Employee', path: '/company/contacts/employees' },
-        ],
-    },
-    {
-        icon: <ListIcon />,
-        name: 'Chart of Accounts',
-        path: '/accounting/chart-of-accounts',
-        permission: 'accounting.account.view',
-    },
-    {
-        icon: <BoxCubeIcon />,
-        name: 'Produk',
-        path: '/product',
-        permission: 'product.view',
-    },
-    {
-        icon: <BoxIcon />,
-        name: 'Purchasing',
-        path: '/purchasing/orders',
-        permission: 'purchasing.po.view',
-    },
-    {
-        icon: <ListIcon />,
-        name: 'Approval Inbox',
-        path: '/approval/inbox',
-    },
-    {
-        icon: <UserIcon />,
-        name: 'Pengaturan',
-        path: '/company/branches',
-    },
-];
+function getCompanyNavItems(): NavItem[] {
+    return [
+        {
+            icon: <GridIcon />,
+            name: 'Dashboard',
+            path: '/dashboard',
+        },
+        {
+            icon: <GroupIcon />,
+            name: 'Contact',
+            subItems: [
+                { name: 'Customer', path: '/company/contacts/customers' },
+                { name: 'Supplier', path: '/company/contacts/suppliers' },
+                { name: 'Employee', path: '/company/contacts/employees' },
+            ],
+        },
+        {
+            icon: <ListIcon />,
+            name: 'Chart of Accounts',
+            path: '/accounting/chart-of-accounts',
+            permission: 'accounting.account.view',
+        },
+        {
+            icon: <BoxCubeIcon />,
+            name: 'Produk',
+            path: '/product',
+            permission: 'product.view',
+        },
+        {
+            icon: <BoxIcon />,
+            name: 'Purchasing',
+            path: '/purchasing/invoices',
+        },
+        {
+            icon: <ListIcon />,
+            name: 'Approval Inbox',
+            path: '/approval/inbox',
+        },
+        {
+            icon: <UserIcon />,
+            name: 'Pengaturan',
+            path: '/company/branches',
+        },
+    ];
+}
 
 function isGroupSubItem(sub: SubItem): sub is GroupSubItem {
     return 'subItems' in sub && Array.isArray((sub as GroupSubItem).subItems);
@@ -89,6 +90,7 @@ function hasPermission(
     if (item.subItems && item.subItems.length > 0) {
         return item.subItems.some((child) => hasPermission(child, perms));
     }
+
     return !item.permission || perms.includes(item.permission);
 }
 
@@ -96,12 +98,16 @@ const CompanySidebar: React.FC = () => {
     const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
     const { url, props } = usePage();
 
-    const auth = (props.auth ?? {}) as { permissions?: string[] };
+    const auth = (props.auth ?? {}) as {
+        permissions?: string[];
+    };
     const perms = useMemo(() => auth.permissions ?? [], [auth.permissions]);
+
+    const companyNavItems = getCompanyNavItems();
 
     const visibleNavItems = useMemo(() => {
         return companyNavItems.filter((n) => hasPermission(n, perms));
-    }, [perms]);
+    }, [companyNavItems, perms]);
 
     const [manualSubmenu, setManualSubmenu] = useState<{
         type: 'main';
@@ -153,6 +159,7 @@ const CompanySidebar: React.FC = () => {
             if (prev && prev.type === menuType && prev.index === index) {
                 return null;
             }
+
             return { type: menuType, index };
         });
     };
@@ -161,6 +168,7 @@ const CompanySidebar: React.FC = () => {
         if (manualSubGroups[groupKey] !== undefined) {
             return manualSubGroups[groupKey];
         }
+
         return group.subItems.some((leaf) => isActive(leaf.path));
     };
 
@@ -183,7 +191,9 @@ const CompanySidebar: React.FC = () => {
                     !leaf.permission || permissions.includes(leaf.permission),
             );
 
-            if (visibleLeaves.length === 0) return null;
+            if (visibleLeaves.length === 0) {
+                return null;
+            }
 
             const groupKey = `${parentName}-${sub.name}`;
             const open = isSubGroupOpen(groupKey, sub);

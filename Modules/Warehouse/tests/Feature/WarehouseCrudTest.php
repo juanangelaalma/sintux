@@ -117,7 +117,7 @@ class WarehouseCrudTest extends TestCase
                     'branch_id' => $branchId,
                     'code' => $updateCode,
                     'name' => 'Gudang Cadangan-'.$suffix,
-                    'warehouse_type' => 'general',
+                    'warehouse_type' => 'retail',
                     'address' => 'Jl. Thamrin',
                     'is_active' => false,
                 ]
@@ -137,7 +137,7 @@ class WarehouseCrudTest extends TestCase
             $updated->name
         );
         $this->assertSame(
-            'general',
+            'retail',
             $updated->warehouse_type
         );
         $this->assertFalse((bool) $updated->is_active);
@@ -186,7 +186,7 @@ class WarehouseCrudTest extends TestCase
                 'branch_id' => $branchId,
                 'code' => $duplicateCode,
                 'name' => 'Gudang 1-'.$suffix,
-                'warehouse_type' => 'general',
+                'warehouse_type' => 'regular',
             ])
             ->assertRedirect();
 
@@ -253,14 +253,14 @@ class WarehouseCrudTest extends TestCase
                 'branch_id' => $nonHqBranchId,
                 'code' => $ownWarehouseCode,
                 'name' => 'Own Warehouse-'.$suffix,
-                'warehouse_type' => 'general',
+                'warehouse_type' => 'regular',
                 'is_active' => true,
             ],
             [
                 'branch_id' => $otherBranchId,
                 'code' => $otherWarehouseCode,
                 'name' => 'Other Warehouse-'.$suffix,
-                'warehouse_type' => 'general',
+                'warehouse_type' => 'regular',
                 'is_active' => true,
             ],
         ]);

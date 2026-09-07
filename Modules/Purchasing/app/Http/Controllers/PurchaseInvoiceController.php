@@ -56,7 +56,7 @@ class PurchaseInvoiceController extends Controller
         return Inertia::render('Purchasing/Invoices/create', [
             'branches' => CompanyAccess::accessibleBranches($user, $tenantId),
             'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
-            'productVariants' => app(GetPurchaseVariants::class)->execute(),
+            'productVariants' => app(GetPurchaseVariants::class)->execute($accessibleBranchIds),
             'purchaseOrders' => app(GetPurchaseOrderOptions::class)->execute($accessibleBranchIds),
         ]);
     }
@@ -66,12 +66,13 @@ class PurchaseInvoiceController extends Controller
         $validated = $request->validated();
         $user = $request->user();
         $tenantId = (string) session('active_tenant_id');
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
 
         $branchCode = collect(CompanyAccess::accessibleBranches($user, $tenantId))
             ->firstWhere('id', $validated['branch_id'])
             ->code ?? '';
 
-        $this->createPurchaseInvoice->execute($validated, (string) $branchCode);
+        $this->createPurchaseInvoice->execute($validated, (string) $branchCode, null, null, $accessibleBranchIds);
 
         return redirect()->route('purchasing.invoices.index')
             ->with('success', 'Faktur pembelian berhasil dibuat.');

@@ -30,7 +30,15 @@ type TaxOption = {
     rate: string;
 };
 
+type BranchOption = {
+    id: number;
+    name: string;
+    code: string;
+    is_headquarters: boolean;
+};
+
 type Props = {
+    activeBranch: BranchOption | null;
     categories: CategoryOption[];
     uoms: UomOption[];
     availableProducts: AvailableProduct[];
@@ -40,6 +48,7 @@ type Props = {
 };
 
 export default function Create({
+    activeBranch,
     categories,
     uoms,
     availableProducts = [],
@@ -66,6 +75,7 @@ export default function Create({
     }));
 
     const form = useForm<ProductForm>({
+        branch_id: activeBranch?.id ?? 0,
         code: '',
         name: '',
         barcode: '',

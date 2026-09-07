@@ -57,6 +57,8 @@ class HandleInertiaRequests extends Middleware
                 $isHq = (bool) $branches
                     ->firstWhere('id', $membershipBranchId)
                     ?->is_headquarters;
+            } else {
+                $isHq = $branches->contains('is_headquarters', true);
             }
 
             $accessibleBranchIds = CompanyAccess::accessibleBranchIds($request->user(), $tenantId);

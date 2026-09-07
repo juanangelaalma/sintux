@@ -12,6 +12,7 @@ class CreateProduct
     {
         return DB::transaction(function () use ($data) {
             $product = Product::create([
+                'branch_id' => $data['branch_id'],
                 'code' => $data['code'],
                 'name' => $data['name'],
                 'barcode' => $data['barcode'] ?? null,
@@ -38,6 +39,7 @@ class CreateProduct
             ProductVariant::updateOrCreate(
                 ['product_id' => $product->id],
                 [
+                    'branch_id' => $product->branch_id,
                     'sku' => $product->code,
                     'variant_name' => $product->name,
                     'is_active' => $product->is_active,

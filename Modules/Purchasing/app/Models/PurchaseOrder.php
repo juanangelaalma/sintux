@@ -4,6 +4,7 @@ namespace Modules\Purchasing\Models;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -12,9 +13,13 @@ use Illuminate\Support\Carbon;
  * @property string $number
  * @property int $branch_id
  * @property int $supplier_id
+ * @property string|null $supplier_email
+ * @property string|null $supplier_reference
+ * @property string|null $billing_address
  * @property int|null $warehouse_id
  * @property int|null $source_request_id
  * @property int|null $source_quote_id
+ * @property string $branch_mode
  * @property string $status
  * @property string|null $payment_term
  * @property string $order_date
@@ -29,6 +34,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property-read Collection<int, PurchaseOrderItem> $items
+ * @property-read Collection<int, PurchaseTag> $tags
  */
 class PurchaseOrder extends Model
 {
@@ -36,9 +42,13 @@ class PurchaseOrder extends Model
         'number',
         'branch_id',
         'supplier_id',
+        'supplier_email',
+        'supplier_reference',
+        'billing_address',
         'warehouse_id',
         'source_request_id',
         'source_quote_id',
+        'branch_mode',
         'status',
         'payment_term',
         'order_date',
@@ -71,5 +81,13 @@ class PurchaseOrder extends Model
     public function items(): HasMany
     {
         return $this->hasMany(PurchaseOrderItem::class);
+    }
+
+    /**
+     * @return BelongsToMany<PurchaseTag, $this>
+     */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(PurchaseTag::class);
     }
 }

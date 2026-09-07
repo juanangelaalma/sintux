@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import DataTable from '@/components/tables/data-table';
 import type { DataTableColumn } from '@/components/tables/data-table';
 import Button from '@/components/ui/button';
@@ -14,10 +15,43 @@ type Props = {
 
 export default function ContactList({ contacts, type }: Props) {
     const labels = contactLabels[type];
+    const [togglingId, setTogglingId] = useState<number | null>(null);
 
     const handleDelete = (contact: Contact) => {
         if (confirm(`Remove ${contact.name} from contacts?`)) {
             router.delete(`/company/contacts/${type}/${contact.id}`);
+        }
+    };
+
+    const handleToggleHoOnly = async (contact: Contact) => {
+        setTogglingId(contact.id);
+
+        try {
+            const csrfToken =
+                (
+                    document.querySelector(
+                        'meta[name="csrf-token"]',
+                    ) as HTMLMetaElement
+                )?.content ?? '';
+
+            const res = await fetch(
+                `/company/contacts/suppliers/${contact.id}/toggle-ho-only`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-HTTP-Method-Override': 'PATCH',
+                    },
+                },
+            );
+
+            if (res.ok) {
+                router.reload({ only: ['contacts'] });
+            }
+        } finally {
+            setTogglingId(null);
         }
     };
 
@@ -54,6 +88,26 @@ export default function ContactList({ contacts, type }: Props) {
                 </span>
             ),
         },
+        ...(type === 'suppliers'
+            ? [
+                  {
+                      key: 'ho_only',
+                      header: 'HO Only',
+                      render: (contact: Contact) => (
+                          <label className="relative inline-flex cursor-pointer items-center">
+                              <input
+                                  type="checkbox"
+                                  checked={contact.is_ho_only ?? false}
+                                  onChange={() => handleToggleHoOnly(contact)}
+                                  disabled={togglingId === contact.id}
+                                  className="peer sr-only"
+                              />
+                              <div className="peer h-5 w-9 rounded-full bg-gray-200 peer-checked:bg-accent peer-disabled:cursor-not-allowed peer-disabled:opacity-50 after:absolute after:top-[2px] after:left-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-gray-600" />
+                          </label>
+                      ),
+                  } as DataTableColumn<Contact>,
+              ]
+            : []),
         {
             key: 'actions',
             header: 'Actions',

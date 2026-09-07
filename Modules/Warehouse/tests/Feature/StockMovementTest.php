@@ -66,7 +66,7 @@ class StockMovementTest extends TestCase
             'branch_id' => $hqBranchId,
             'code' => 'WH-TEST-'.uniqid(),
             'name' => 'Test Warehouse',
-            'warehouse_type' => 'general',
+            'warehouse_type' => 'regular',
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
@@ -88,6 +88,7 @@ class StockMovementTest extends TestCase
         ]);
 
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $hqBranchId,
             'code' => 'PRD-'.uniqid(),
             'name' => 'Movement Item '.uniqid(),
             'category_id' => $catId,
@@ -98,6 +99,7 @@ class StockMovementTest extends TestCase
         ]);
 
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $hqBranchId,
             'product_id' => $productId,
             'sku' => 'SKU-MVT-'.uniqid(),
             'variant_name' => 'Variant Mvt '.uniqid(),

@@ -64,11 +64,12 @@ class GoodsReceiptController extends Controller
         $user = $request->user();
         $tenantId = (string) session('active_tenant_id');
 
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
         $branchCode = collect(CompanyAccess::accessibleBranches($user, $tenantId))
             ->first()
             ->code ?? '';
 
-        $this->createGoodsReceipt->execute($validated, (string) $branchCode);
+        $this->createGoodsReceipt->execute($validated, (string) $branchCode, $accessibleBranchIds);
 
         return redirect()->route('purchasing.grns.index')
             ->with('success', 'Penerimaan barang berhasil dibuat.');

@@ -5,6 +5,7 @@ namespace Modules\Purchasing\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Accounting\Application\GetPurchaseTaxes;
@@ -18,9 +19,8 @@ use Modules\Purchasing\Application\PurchaseOrder\CreatePurchaseOrder;
 use Modules\Purchasing\Application\PurchaseOrder\GetPurchaseOrderDetail;
 use Modules\Purchasing\Application\PurchaseOrder\GetPurchaseOrders;
 use Modules\Purchasing\Application\PurchaseOrder\SendPurchaseOrder;
-use Modules\Purchasing\Application\PurchaseRequest\GetPurchaseRequests;
+use Modules\Purchasing\Application\PurchaseTag\GetPurchaseTags;
 use Modules\Purchasing\Http\Requests\StorePurchaseOrderRequest;
-use Modules\Warehouse\Application\Warehouse\GetWarehouses;
 
 class PurchaseOrderController extends Controller
 {
@@ -58,12 +58,22 @@ class PurchaseOrderController extends Controller
         $tenantId = (string) session('active_tenant_id');
 
         $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
-        $activeBranchId = $accessibleBranchIds[0] ?? null;
-        $branchWarehouses = $activeBranchId
-            ? app(GetWarehouses::class)->all([$activeBranchId])
-            : [];
+        $allBranches = CompanyAccess::accessibleBranches($user, $tenantId);
+        $hqBranch = collect($allBranches)->firstWhere('is_headquarters', true) ?? $allBranches[0] ?? null;
+        $hqBranchId = $hqBranch?->id;
 
-        $purchaseRequests = app(GetPurchaseRequests::class)->execute($accessibleBranchIds, ['status' => 'approved'], 100);
+        // Warehouses grouped by branch (only Regular for PO)
+        $allRegularWarehouses = DB::table('warehouses')
+            ->whereIn('branch_id', $accessibleBranchIds)
+            ->where('warehouse_type', 'regular')
+            ->where('is_active', true)
+            ->get(['id', 'branch_id', 'code', 'name']);
+
+        $warehousesByBranch = collect($allRegularWarehouses)->groupBy('branch_id')->map(
+            fn ($group) => $group->map(fn ($w) => ['id' => (int) $w->id, 'code' => $w->code, 'name' => $w->name])->values()->all()
+        )->all();
+
+        $hqWarehouse = $hqBranchId ? ($warehousesByBranch[$hqBranchId][0] ?? null) : null;
 
         $paymentTerms = [
             ['id' => 'COD', 'name' => 'Cash on Delivery (COD)'],
@@ -78,18 +88,17 @@ class PurchaseOrderController extends Controller
         ];
 
         return Inertia::render('Purchasing/Orders/create', [
-            'activeBranch' => collect(CompanyAccess::accessibleBranches($user, $tenantId))->firstWhere('id', $activeBranchId),
-            'branches' => CompanyAccess::accessibleBranches($user, $tenantId),
-            'warehouses' => $branchWarehouses,
+            'hqBranch' => $hqBranch,
+            'activeBranch' => $hqBranch,
+            'branches' => $allBranches,
+            'warehouses' => $hqWarehouse ? [$hqWarehouse] : [],
+            'warehousesByBranch' => $warehousesByBranch,
+            'hqWarehouse' => $hqWarehouse,
             'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
-            'purchaseRequests' => collect($purchaseRequests->items())->map(fn ($pr) => [
-                'id' => $pr->id,
-                'number' => $pr->number,
-                'items' => $pr->items,
-            ]),
             'paymentTerms' => $paymentTerms,
             'taxes' => app(GetPurchaseTaxes::class)->execute(),
-            'productVariants' => app(GetPurchaseVariants::class)->execute(),
+            'productVariants' => app(GetPurchaseVariants::class)->execute($accessibleBranchIds),
+            'tags' => app(GetPurchaseTags::class)->execute(),
         ]);
     }
 
@@ -98,12 +107,13 @@ class PurchaseOrderController extends Controller
         $validated = $request->validated();
         $user = $request->user();
         $tenantId = (string) session('active_tenant_id');
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
 
         $branchCode = collect(CompanyAccess::accessibleBranches($user, $tenantId))
             ->firstWhere('id', $validated['branch_id'])
             ->code ?? '';
 
-        $this->createPurchaseOrder->execute($validated, (string) $branchCode);
+        $this->createPurchaseOrder->execute($validated, (string) $branchCode, null, null, $accessibleBranchIds);
 
         return redirect()->route('purchasing.orders.index')
             ->with('success', 'Pesanan pembelian berhasil dibuat.');
@@ -112,6 +122,7 @@ class PurchaseOrderController extends Controller
     public function show(int $id): Response
     {
         $purchaseOrder = $this->getPurchaseOrderDetail->execute($id);
+        $this->ensureBranchAccess($purchaseOrder->branch_id);
         $approval = $this->getTransactionApprovalStatus->execute('purchase_order', $id, request()->user()?->id);
 
         return Inertia::render('Purchasing/Orders/show', [
@@ -122,6 +133,8 @@ class PurchaseOrderController extends Controller
 
     public function send(int $id): RedirectResponse
     {
+        $purchaseOrder = $this->getPurchaseOrderDetail->execute($id);
+        $this->ensureBranchAccess($purchaseOrder->branch_id);
         $this->sendPurchaseOrder->execute($id);
 
         return redirect()->route('purchasing.orders.show', $id)
@@ -130,10 +143,25 @@ class PurchaseOrderController extends Controller
 
     public function cancel(int $id): RedirectResponse
     {
+        $purchaseOrder = $this->getPurchaseOrderDetail->execute($id);
+        $this->ensureBranchAccess($purchaseOrder->branch_id);
         $this->cancelPurchaseOrder->execute($id);
 
         return redirect()->route('purchasing.orders.show', $id)
             ->with('success', 'Pesanan pembelian dibatalkan.');
+    }
+
+    private function ensureBranchAccess(int $branchId): void
+    {
+        $user = request()->user();
+        if (! $user) {
+            abort(403, 'Akses ditolak.');
+        }
+        $tenantId = (string) session('active_tenant_id');
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
+        if (! in_array($branchId, $accessibleBranchIds, true)) {
+            abort(403, 'Cabang tidak berada dalam cakupan akses Anda.');
+        }
     }
 
     /**

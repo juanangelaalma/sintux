@@ -28,6 +28,7 @@ class Contact extends Model
         'bank_account_name',
         'bank_account_number',
         'is_active',
+        'is_ho_only',
         'shipping_same_as_billing',
     ];
 
@@ -37,6 +38,7 @@ class Contact extends Model
             'branch_id' => 'integer',
             'registered_at' => 'date:Y-m-d',
             'is_active' => 'boolean',
+            'is_ho_only' => 'boolean',
             'shipping_same_as_billing' => 'boolean',
         ];
     }

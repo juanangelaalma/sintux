@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Modules\Accounting\Application\ChartOfAccountQuery;
 use Modules\Accounting\Application\TaxQuery;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Product\Application\Category\GetCategories;
 use Modules\Product\Application\Product\CreateProduct;
 use Modules\Product\Application\Product\DeleteProduct;
@@ -36,8 +37,13 @@ class ProductController extends Controller
 
     public function index()
     {
+        $user = request()->user();
+        $tenantId = (string) session('active_tenant_id');
+        $branchIds = CompanyAccess::contextBranchIds($user, $tenantId)
+            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+
         $filters = request()->only(['search', 'category_id', 'product_type', 'is_active']);
-        $products = $this->getProducts->execute($filters);
+        $products = $this->getProducts->execute($filters, $branchIds);
 
         return Inertia::render('Product/Products/index', [
             'products' => $products,
@@ -49,12 +55,18 @@ class ProductController extends Controller
 
     public function create()
     {
-        // Get all single products for bundle selection
-        $allProducts = $this->getProducts->execute(['is_active' => true]);
+        $user = request()->user();
+        $tenantId = (string) session('active_tenant_id');
+        $branchIds = CompanyAccess::contextBranchIds($user, $tenantId)
+            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+        $activeBranchId = $branchIds[0] ?? null;
+
+        $allProducts = $this->getProducts->execute(['is_active' => true], $branchIds);
 
         $chartOfAccounts = $this->chartOfAccountQuery->listChartOfAccounts();
 
         return Inertia::render('Product/Products/create', [
+            'activeBranch' => collect(CompanyAccess::accessibleBranches($user, $tenantId))->firstWhere('id', $activeBranchId),
             'categories' => $this->getCategories->all(),
             'uoms' => $this->getUoms->all(),
             'availableProducts' => $allProducts['data'] ?? [],
@@ -74,9 +86,14 @@ class ProductController extends Controller
 
     public function edit(int $id)
     {
+        $user = request()->user();
+        $tenantId = (string) session('active_tenant_id');
+        $branchIds = CompanyAccess::contextBranchIds($user, $tenantId)
+            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+
         $product = $this->getProduct->execute($id);
         $variants = $this->getVariants->execute($id);
-        $allProducts = $this->getProducts->execute(['is_active' => true]);
+        $allProducts = $this->getProducts->execute(['is_active' => true], $branchIds);
 
         return Inertia::render('Product/Products/edit', [
             'product' => $product,
