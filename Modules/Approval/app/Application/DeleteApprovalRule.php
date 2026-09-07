@@ -4,6 +4,7 @@ namespace Modules\Approval\Application;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Approval\Enums\ApprovalStatus;
 use Modules\Approval\Events\ApprovalRuleChanged;
 use Modules\Approval\Models\ApprovalRule;
 use Modules\Approval\Models\ApprovalRuleLog;
@@ -14,7 +15,7 @@ class DeleteApprovalRule
     {
         $rule = ApprovalRule::with(['transactionType', 'mappings'])->findOrFail($ruleId);
 
-        $pendingMappings = $rule->mappings()->where('overall_status', 'pending')->get();
+        $pendingMappings = $rule->mappings()->where('overall_status', ApprovalStatus::Pending)->get();
 
         if ($pendingMappings->isNotEmpty()) {
             $numbers = $pendingMappings->pluck('document_number')->filter()->implode(', ');

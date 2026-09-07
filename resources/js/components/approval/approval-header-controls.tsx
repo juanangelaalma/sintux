@@ -1,5 +1,7 @@
 import { router } from '@inertiajs/react';
 import React, { useState } from 'react';
+import { ApprovalActionType, ApprovalStatus, APPROVAL_STATUS_LABEL  } from '@/lib/approval/status';
+import type {ApprovalStatusType} from '@/lib/approval/status';
 
 type Approver = {
     id: number;
@@ -10,7 +12,7 @@ type Approver = {
 type Action = {
     id: number;
     user_id: number;
-    action: 'approve' | 'reject';
+    action: ApprovalActionType;
     comment?: string | null;
     acted_at?: string | null;
 };
@@ -44,7 +46,7 @@ export type ApprovalStatusProps = {
     creator_id: number;
     creator_name?: string | null;
     current_stage_order: number;
-    overall_status: 'pending' | 'approved' | 'rejected';
+    overall_status: ApprovalStatusType;
     can_user_approve: boolean;
     stages: Stage[];
     comments?: CommentItem[];
@@ -182,16 +184,17 @@ export default function ApprovalHeaderControls({
                         <div className="flex flex-col gap-4">
                             {approval.stages.map((stage, idx) => {
                                 const isCurrent =
-                                    stage.stage_order ===
-                                        approval.current_stage_order &&
-                                    approval.overall_status === 'pending';
+                                    stage.stage_order === approval.current_stage_order && approval.overall_status === ApprovalStatus.Pending;
                                 const isPassed =
-                                    stage.stage_order <
-                                        approval.current_stage_order ||
-                                    approval.overall_status === 'approved';
+                                    stage.stage_order < approval.current_stage_order || approval.overall_status === ApprovalStatus.Approved;
+                                const isRejected =
+                                    approval.overall_status === ApprovalStatus.Rejected && stage.stage_order === approval.current_stage_order;
 
                                 const lastApproveAction = stage.actions
-                                    .filter((a) => a.action === 'approve')
+                                    .filter((a) => a.action === ApprovalActionType.Approve)
+                                    .pop();
+                                const lastRejectAction = stage.actions
+                                    .filter((a) => a.action === ApprovalActionType.Reject)
                                     .pop();
 
                                 return (
@@ -200,11 +203,13 @@ export default function ApprovalHeaderControls({
                                             {/* Stepper Dot */}
                                             <span
                                                 className={`absolute top-1 left-0 size-3 rounded-full ${
-                                                    isPassed
-                                                        ? 'bg-emerald-500'
-                                                        : isCurrent
-                                                          ? 'animate-pulse bg-amber-500'
-                                                          : 'bg-gray-300 dark:bg-gray-700'
+                                                    isRejected
+                                                        ? 'bg-rose-500'
+                                                        : isPassed
+                                                          ? 'bg-emerald-500'
+                                                          : isCurrent
+                                                            ? 'animate-pulse bg-amber-500'
+                                                            : 'bg-gray-300 dark:bg-gray-700'
                                                 }`}
                                             />
 
@@ -220,31 +225,28 @@ export default function ApprovalHeaderControls({
                                             </div>
 
                                             <div className="mt-1 text-[11px] font-medium text-gray-500">
-                                                {isPassed &&
-                                                lastApproveAction ? (
+                                                {isRejected && lastRejectAction ? (
+                                                    <span className="text-rose-600 dark:text-rose-400">
+                                                        {APPROVAL_STATUS_LABEL[ApprovalStatus.Rejected]} -{' '}
+                                                        {lastRejectAction.comment ? `"${lastRejectAction.comment}"` : ''}
+                                                    </span>
+                                                ) : isPassed && lastApproveAction ? (
                                                     <span className="text-emerald-600 dark:text-emerald-400">
-                                                        Disetujui -{' '}
+                                                        {APPROVAL_STATUS_LABEL[ApprovalStatus.Approved]} -{' '}
                                                         {lastApproveAction.acted_at
-                                                            ? new Date(
-                                                                  lastApproveAction.acted_at,
-                                                              ).toLocaleDateString(
-                                                                  'id-ID',
-                                                                  {
-                                                                      day: '2-digit',
-                                                                      month: 'short',
-                                                                      year: 'numeric',
-                                                                  },
-                                                              )
+                                                            ? new Date(lastApproveAction.acted_at).toLocaleDateString('id-ID', {
+                                                                  day: '2-digit',
+                                                                  month: 'short',
+                                                                  year: 'numeric',
+                                                              })
                                                             : ''}
                                                     </span>
                                                 ) : isCurrent ? (
                                                     <span className="text-amber-600 dark:text-amber-400">
-                                                        Menunggu
+                                                        {APPROVAL_STATUS_LABEL[ApprovalStatus.Pending]}
                                                     </span>
                                                 ) : (
-                                                    <span className="text-gray-400">
-                                                        Belum diproses
-                                                    </span>
+                                                    <span className="text-gray-400">Belum diproses</span>
                                                 )}
                                             </div>
                                         </div>
