@@ -2,6 +2,7 @@
 
 namespace Modules\Approval\Application;
 
+use Modules\Approval\Enums\ApprovalStatus;
 use Modules\Approval\Models\ApprovalComment;
 use Modules\Approval\Models\ApprovalMapping;
 
@@ -29,7 +30,7 @@ class GetTransactionApprovalStatus
             ->firstWhere('stage_order', $mapping->current_stage_order);
 
         $canUserApprove = false;
-        if ($currentUserId && $mapping->overall_status === 'pending' && (int) $mapping->creator_id !== $currentUserId && $currentStage) {
+        if ($currentUserId && $mapping->overall_status === ApprovalStatus::Pending && (int) $mapping->creator_id !== $currentUserId && $currentStage) {
             $approverIds = $currentStage->approverAssignments->pluck('user_id')->map(fn ($id) => (int) $id)->all();
             $alreadyActed = $mapping->actions
                 ->where('approval_stage_id', $currentStage->id)
@@ -92,7 +93,7 @@ class GetTransactionApprovalStatus
             'creator_id' => $mapping->creator_id,
             'creator_name' => $mapping->creator_name,
             'current_stage_order' => $mapping->current_stage_order,
-            'overall_status' => $mapping->overall_status,
+            'overall_status' => $mapping->overall_status instanceof ApprovalStatus ? $mapping->overall_status->value : $mapping->overall_status,
             'can_user_approve' => $canUserApprove,
             'stages' => $stagesData,
             'comments' => $comments,

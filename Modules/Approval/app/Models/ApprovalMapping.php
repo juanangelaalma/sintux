@@ -5,6 +5,7 @@ namespace Modules\Approval\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Approval\Enums\ApprovalStatus;
 
 class ApprovalMapping extends Model
 {
@@ -29,6 +30,7 @@ class ApprovalMapping extends Model
             'total' => 'decimal:4',
             'current_stage_order' => 'integer',
             'mapped_at' => 'datetime',
+            'overall_status' => ApprovalStatus::class,
         ];
     }
 

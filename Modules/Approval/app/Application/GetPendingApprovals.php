@@ -3,6 +3,7 @@
 namespace Modules\Approval\Application;
 
 use Illuminate\Support\Collection;
+use Modules\Approval\Enums\ApprovalStatus;
 use Modules\Approval\Models\ApprovalMapping;
 
 class GetPendingApprovals
@@ -16,7 +17,7 @@ class GetPendingApprovals
     public function execute(int $userId): Collection
     {
         $mappings = ApprovalMapping::with(['rule.transactionType', 'rule.stages.approverAssignments', 'actions'])
-            ->where('overall_status', 'pending')
+            ->where('overall_status', ApprovalStatus::Pending)
             ->where('creator_id', '!=', $userId)
             ->get();
 

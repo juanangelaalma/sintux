@@ -4,6 +4,7 @@ namespace Modules\Approval\Application;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Approval\Enums\ApprovalStatus;
 use Modules\Approval\Events\ApprovalRuleChanged;
 use Modules\Approval\Models\ApprovalRule;
 use Modules\Approval\Models\ApprovalRuleLog;
@@ -29,7 +30,7 @@ class UpdateApprovalRule
             ->findOrFail($ruleId);
 
         $beforeState = $rule->toArray();
-        $hasPendingDrafts = $rule->mappings()->where('overall_status', 'pending')->exists();
+        $hasPendingDrafts = $rule->mappings()->where('overall_status', ApprovalStatus::Pending)->exists();
 
         if ($hasPendingDrafts) {
             // Field-lock: if pending drafts exist, only approver lists can be changed

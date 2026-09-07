@@ -10,6 +10,7 @@ use Modules\Approval\Application\ApprovalEngine;
 use Modules\Approval\Application\CreateApprovalRule;
 use Modules\Approval\Application\DeleteApprovalRule;
 use Modules\Approval\Application\PerformApprovalAction;
+use Modules\Approval\Enums\ApprovalStatus;
 use Modules\Approval\Models\ApprovalMapping;
 use Modules\Approval\Models\ApprovalRule;
 use Modules\Approval\Models\ApprovalTransactionType;
@@ -94,7 +95,7 @@ class ApprovalRuleTest extends TestCase
         ]);
 
         $this->assertInstanceOf(ApprovalMapping::class, $mapping);
-        $this->assertSame('pending', $mapping->overall_status);
+        $this->assertSame(ApprovalStatus::Pending, $mapping->overall_status);
         $this->assertSame(1, $mapping->current_stage_order);
     }
 
@@ -135,12 +136,12 @@ class ApprovalRuleTest extends TestCase
         $mapping = $performAction->execute($mapping->id, $approver1->id, 'approve', 'OK Stage 1');
 
         $this->assertSame(2, $mapping->current_stage_order);
-        $this->assertSame('pending', $mapping->overall_status);
+        $this->assertSame(ApprovalStatus::Pending, $mapping->overall_status);
 
         // Approver 2 approves Stage 2 ('all' type -> workflow approved)
         $mapping = $performAction->execute($mapping->id, $approver2->id, 'approve', 'OK Final');
 
-        $this->assertSame('approved', $mapping->overall_status);
+        $this->assertSame(ApprovalStatus::Approved, $mapping->overall_status);
     }
 
     public function test_reject_action_stops_workflow(): void
@@ -171,7 +172,7 @@ class ApprovalRuleTest extends TestCase
         $performAction = app(PerformApprovalAction::class);
         $mapping = $performAction->execute($mapping->id, $approver1->id, 'reject', 'Harga Terlalu Mahal');
 
-        $this->assertSame('rejected', $mapping->overall_status);
+        $this->assertSame(ApprovalStatus::Rejected, $mapping->overall_status);
     }
 
     public function test_cannot_delete_rule_with_pending_mappings(): void
