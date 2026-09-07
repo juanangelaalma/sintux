@@ -59,7 +59,7 @@ class PurchaseQuoteController extends Controller
         return Inertia::render('Purchasing/Quotes/create', [
             'branches' => CompanyAccess::accessibleBranches($user, $tenantId),
             'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
-            'productVariants' => app(GetPurchaseVariants::class)->execute(),
+            'productVariants' => app(GetPurchaseVariants::class)->execute($accessibleBranchIds),
         ]);
     }
 
@@ -68,12 +68,13 @@ class PurchaseQuoteController extends Controller
         $validated = $request->validated();
         $user = $request->user();
         $tenantId = (string) session('active_tenant_id');
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
 
         $branchCode = collect(CompanyAccess::accessibleBranches($user, $tenantId))
             ->firstWhere('id', $validated['branch_id'])
             ->code ?? '';
 
-        $this->createPurchaseQuote->execute($validated, (string) $branchCode);
+        $this->createPurchaseQuote->execute($validated, (string) $branchCode, $accessibleBranchIds);
 
         return redirect()->route('purchasing.quotes.index')
             ->with('success', 'Penawaran harga berhasil dibuat.');

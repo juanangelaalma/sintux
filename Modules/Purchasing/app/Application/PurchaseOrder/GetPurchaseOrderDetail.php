@@ -8,7 +8,7 @@ class GetPurchaseOrderDetail
 {
     public function execute(int $id): PurchaseOrder
     {
-        return PurchaseOrder::with(['items'])
+        return PurchaseOrder::with(['items.destinationBranch', 'items.destinationWarehouse', 'tags'])
             ->findOrFail($id);
     }
 }

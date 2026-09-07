@@ -286,7 +286,7 @@ class StockAdjustmentTest extends TestCase
             'branch_id' => $branchId,
             'code' => 'WH-'.$suffix,
             'name' => 'Main Warehouse '.$suffix,
-            'warehouse_type' => 'general',
+            'warehouse_type' => 'regular',
             'is_active' => true,
         ]);
 
@@ -294,6 +294,7 @@ class StockAdjustmentTest extends TestCase
         $uomId = DB::table('uoms')->insertGetId(['name' => 'Pcs '.$suffix, 'code' => 'PCS-'.$suffix, 'is_active' => true]);
 
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $branchId,
             'code' => 'PROD-'.$suffix,
             'name' => 'Product '.$suffix,
             'category_id' => $categoryId,
@@ -302,6 +303,7 @@ class StockAdjustmentTest extends TestCase
         ]);
 
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $branchId,
             'product_id' => $productId,
             'sku' => 'SKU-'.$suffix,
             'variant_name' => 'Default Variant '.$suffix,

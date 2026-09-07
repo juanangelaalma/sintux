@@ -2,6 +2,8 @@
 
 namespace Modules\Warehouse\Providers;
 
+use Modules\Company\Models\Branch;
+use Modules\Warehouse\Observers\BranchWarehouseObserver;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class WarehouseServiceProvider extends ModuleServiceProvider
@@ -14,4 +16,9 @@ class WarehouseServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function boot(): void
+    {
+        Branch::observe(BranchWarehouseObserver::class);
+    }
 }

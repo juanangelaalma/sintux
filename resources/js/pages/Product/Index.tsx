@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
+import React, { useState } from 'react';
 import PageHeader from '@/components/ui/page-header';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { ProductActionsDropdown } from './components/product-actions-dropdown';

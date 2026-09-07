@@ -34,7 +34,7 @@ class StorePurchaseRequestRequest extends FormRequest
             }
         };
 
-        $activeVariantIds = collect(app(GetPurchaseVariants::class)->execute())
+        $activeVariantIds = collect(app(GetPurchaseVariants::class)->execute($branchIds))
             ->pluck('id')
             ->all();
 

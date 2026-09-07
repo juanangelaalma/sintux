@@ -52,11 +52,22 @@ class ShipStockTransfer
              */
             foreach ($stockTransfer->items as $item) {
                 $this->processItem($item);
+
+                /*
+                 * Set qty_shipped pada item.
+                 * qty_received masih 0 (belum diterima).
+                 */
+                $item->update([
+                    'qty_shipped' => $item->qty,
+                    'qty_received' => 0,
+                ]);
             }
 
             /*
              * Semua item berhasil diproses.
              * Baru ubah status menjadi shipped.
+             *
+             * SHIPPED = in-transit, belum masuk branch stock.
              */
             $stockTransfer->update([
                 'status' => 'shipped',
@@ -78,7 +89,6 @@ class ShipStockTransfer
         $stockTransfer = $item->stockTransfer;
 
         $fromWarehouseId = (int) $stockTransfer->from_warehouse_id;
-        $toWarehouseId = (int) $stockTransfer->to_warehouse_id;
         $productVariantId = (int) $item->product_variant_id;
         $qtyToShip = (float) $item->qty;
 
@@ -137,33 +147,13 @@ class ShipStockTransfer
         }
 
         /*
-         * 4. Tambahkan stock ke warehouse tujuan.
+         * CATATAN: Stock warehouse tujuan TIDAK ditambahkan di sini.
+         * Branch stock hanya bertambah saat Branch melakukan Receive.
+         * Lihat ReceiveStockTransfer untuk logic penerimaan.
          */
-        DB::statement(
-            <<<'SQL'
-            INSERT INTO stock_balances (
-                warehouse_id,
-                product_variant_id,
-                qty_on_hand,
-                created_at,
-                updated_at
-            )
-            VALUES (?, ?, ?, NOW(), NOW())
-            ON CONFLICT (warehouse_id, product_variant_id)
-            DO UPDATE SET
-                qty_on_hand =
-                    stock_balances.qty_on_hand + EXCLUDED.qty_on_hand,
-                updated_at = NOW()
-            SQL,
-            [
-                $toWarehouseId,
-                $productVariantId,
-                $qtyToShip,
-            ]
-        );
 
         /*
-         * 5. Record stock movement (audit trail / kartu stok) per layer konsumsi FIFO.
+         * Record stock movement (audit trail / kartu stok) per layer konsumsi FIFO.
          */
         foreach ($breakdown as $layer) {
             StockMovement::create([

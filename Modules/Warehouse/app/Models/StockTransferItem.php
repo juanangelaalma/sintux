@@ -13,6 +13,8 @@ class StockTransferItem extends Model
         'stock_transfer_id',
         'product_variant_id',
         'qty',
+        'qty_shipped',
+        'qty_received',
     ];
 
     protected function casts(): array
@@ -21,6 +23,8 @@ class StockTransferItem extends Model
             'stock_transfer_id' => 'integer',
             'product_variant_id' => 'integer',
             'qty' => 'decimal:4',
+            'qty_shipped' => 'decimal:4',
+            'qty_received' => 'decimal:4',
         ];
     }
 
@@ -37,5 +41,10 @@ class StockTransferItem extends Model
     public function layers(): HasMany
     {
         return $this->hasMany(StockTransferItemLayer::class, 'stock_transfer_item_id');
+    }
+
+    public function discrepancies(): HasMany
+    {
+        return $this->hasMany(StockTransferDiscrepancy::class, 'stock_transfer_item_id');
     }
 }

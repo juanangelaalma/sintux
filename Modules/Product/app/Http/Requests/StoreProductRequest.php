@@ -23,8 +23,13 @@ class StoreProductRequest extends FormRequest
         };
 
         return [
-            'code' => ['required', 'string', 'max:50', Rule::unique('products', 'code')->whereNull('deleted_at')],
-            'name' => ['required', 'string', 'max:255'],
+            'branch_id' => ['required', 'integer', 'exists:branches,id'],
+            'code' => ['required', 'string', 'max:50', Rule::unique('products', 'code')
+                ->where('branch_id', $this->input('branch_id'))
+                ->whereNull('deleted_at')],
+            'name' => ['required', 'string', 'max:255', Rule::unique('products', 'name')
+                ->where('branch_id', $this->input('branch_id'))
+                ->whereNull('deleted_at')],
             'barcode' => ['nullable', 'string', 'max:100'],
             'category_id' => ['required', 'integer', 'exists:product_categories,id'],
             'uom_id' => ['required', 'integer', 'exists:uoms,id'],

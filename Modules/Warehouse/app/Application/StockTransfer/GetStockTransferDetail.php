@@ -15,6 +15,7 @@ class GetStockTransferDetail
             'receivedBy',
             'items.productVariant.product.uom',
             'items.layers.stockLayer.warehouse',
+            'items.discrepancies',
         ])->findOrFail($id);
     }
 }

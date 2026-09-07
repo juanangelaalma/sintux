@@ -38,9 +38,9 @@ class StockRequestTest extends TestCase
         [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        $hqWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $hqBranchId, 'code' => 'WH-HQ-'.uniqid(), 'name' => 'HQ Central Warehouse', 'warehouse_type' => 'general', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $hqWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $hqBranchId, 'code' => 'WH-HQ-'.uniqid(), 'name' => 'HQ Central Warehouse', 'warehouse_type' => 'regular', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         $branchBWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $branchBId, 'code' => 'WH-BRB-'.uniqid(), 'name' => 'Branch B Warehouse', 'warehouse_type' => 'regular', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        [$productId, $variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$productId, $variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         tenancy()->end();
         $response = $this->actingAs($user)->post(route('warehouse.stock-requests.store'), ['requesting_warehouse_id' => $branchBWarehouseId, 'destination_warehouse_id' => $hqWarehouseId, 'note' => 'Butuh pasokan tambahan barang', 'items' => [['product_variant_id' => $variantId, 'qty_requested' => 10]]]);
         $response->assertRedirect(route('warehouse.stock-requests.index'));
@@ -60,9 +60,9 @@ class StockRequestTest extends TestCase
         [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        $hqWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $hqBranchId, 'code' => 'WH-HQ-'.uniqid(), 'name' => 'HQ Central Warehouse', 'warehouse_type' => 'general', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $hqWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $hqBranchId, 'code' => 'WH-HQ-'.uniqid(), 'name' => 'HQ Central Warehouse', 'warehouse_type' => 'regular', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         $branchBWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $branchBId, 'code' => 'WH-BRB-'.uniqid(), 'name' => 'Branch B Warehouse', 'warehouse_type' => 'regular', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        [$productId, $variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$productId, $variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         tenancy()->end();
         $response = $this->actingAs($user)->post(route('warehouse.stock-requests.store'), ['requesting_warehouse_id' => $branchBWarehouseId, 'destination_warehouse_id' => $hqWarehouseId, 'items' => [['product_variant_id' => $variantId, 'qty_requested' => 0]]]);
         $response->assertSessionHasErrors(['items.0.qty_requested']);
@@ -76,7 +76,7 @@ class StockRequestTest extends TestCase
         $branchCId = DB::table('branches')->insertGetId(['name' => 'Branch C', 'code' => 'BR-C-'.uniqid(), 'is_headquarters' => false, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         $branchCWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $branchCId, 'code' => 'WH-BRC-'.uniqid(), 'name' => 'Branch C Warehouse', 'warehouse_type' => 'regular', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         $branchBWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $branchBId, 'code' => 'WH-BRB-'.uniqid(), 'name' => 'Branch B Warehouse', 'warehouse_type' => 'regular', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        [$productId, $variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$productId, $variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         tenancy()->end();
         $response = $this->actingAs($user)->post(route('warehouse.stock-requests.store'), ['requesting_warehouse_id' => $branchBWarehouseId, 'destination_warehouse_id' => $branchCWarehouseId, 'items' => [['product_variant_id' => $variantId, 'qty_requested' => 5]]]);
         $response->assertSessionHasErrors(['destination_warehouse_id']);
@@ -87,8 +87,8 @@ class StockRequestTest extends TestCase
         [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
-        $hqWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $hqBranchId, 'code' => 'WH-HQ-'.uniqid(), 'name' => 'HQ Central Warehouse', 'warehouse_type' => 'general', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        [$productId, $variantId] = $this->createProductAndVariant('PRD-001', true);
+        $hqWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $hqBranchId, 'code' => 'WH-HQ-'.uniqid(), 'name' => 'HQ Central Warehouse', 'warehouse_type' => 'regular', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        [$productId, $variantId] = $this->createProductAndVariant($hqBranchId, 'PRD-001', true);
         tenancy()->end();
         $response = $this->actingAs($user)->post(route('warehouse.stock-requests.store'), ['requesting_warehouse_id' => $hqWarehouseId, 'destination_warehouse_id' => $hqWarehouseId, 'items' => [['product_variant_id' => $variantId, 'qty_requested' => 5]]]);
         $response->assertSessionHasErrors(['requesting_warehouse_id']);
@@ -99,9 +99,9 @@ class StockRequestTest extends TestCase
         [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        $hqWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $hqBranchId, 'code' => 'WH-HQ-'.uniqid(), 'name' => 'HQ Central Warehouse', 'warehouse_type' => 'general', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $hqWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $hqBranchId, 'code' => 'WH-HQ-'.uniqid(), 'name' => 'HQ Central Warehouse', 'warehouse_type' => 'regular', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         $branchBWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $branchBId, 'code' => 'WH-BRB-'.uniqid(), 'name' => 'Branch B Warehouse', 'warehouse_type' => 'regular', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        [$productId, $variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$productId, $variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         tenancy()->end();
         $response = $this->actingAs($user)->post(route('warehouse.stock-requests.store'), ['requesting_warehouse_id' => $branchBWarehouseId, 'destination_warehouse_id' => $hqWarehouseId, 'items' => [['product_variant_id' => $variantId, 'qty_requested' => 5], ['product_variant_id' => $variantId, 'qty_requested' => 10]]]);
         $response->assertSessionHasErrors(['items.0.product_variant_id', 'items.1.product_variant_id']);
@@ -112,9 +112,9 @@ class StockRequestTest extends TestCase
         [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
-        $hqWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $hqBranchId, 'code' => 'WH-HQ-'.uniqid(), 'name' => 'HQ Central Warehouse', 'warehouse_type' => 'general', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $hqWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $hqBranchId, 'code' => 'WH-HQ-'.uniqid(), 'name' => 'HQ Central Warehouse', 'warehouse_type' => 'regular', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         $branchBWarehouseId = DB::table('warehouses')->insertGetId(['branch_id' => $branchBId, 'code' => 'WH-BRB-'.uniqid(), 'name' => 'Branch B Warehouse', 'warehouse_type' => 'regular', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        [$productId, $inactiveVariantId] = $this->createProductAndVariant('PRD-INACTIVE', false);
+        [$productId, $inactiveVariantId] = $this->createProductAndVariant($branchBId, 'PRD-INACTIVE', false);
         tenancy()->end();
         $response = $this->actingAs($user)->post(route('warehouse.stock-requests.store'), ['requesting_warehouse_id' => $branchBWarehouseId, 'destination_warehouse_id' => $hqWarehouseId, 'items' => [['product_variant_id' => $inactiveVariantId, 'qty_requested' => 5]]]);
         $response->assertSessionHasErrors(['items.0.product_variant_id']);
@@ -141,12 +141,12 @@ class StockRequestTest extends TestCase
     }
 
     /** * Create product category, UOM, product and variant * inside the currently initialized tenant. */
-    private function createProductAndVariant(string $codePrefix = 'PRD', bool $variantActive = true): array
+    private function createProductAndVariant(int $branchId, string $codePrefix = 'PRD', bool $variantActive = true): array
     {
         $catId = DB::table('product_categories')->insertGetId(['name' => 'Category '.uniqid(), 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         $uomId = DB::table('uoms')->insertGetId(['name' => 'PCS '.uniqid(), 'code' => 'PCS'.uniqid(), 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        $productId = DB::table('products')->insertGetId(['code' => $codePrefix.'-'.uniqid(), 'name' => 'Widget '.uniqid(), 'category_id' => $catId, 'uom_id' => $uomId, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        $variantId = DB::table('product_variants')->insertGetId(['product_id' => $productId, 'sku' => 'SKU-'.uniqid(), 'variant_name' => 'Widget Variant '.uniqid(), 'attributes' => json_encode(['color' => 'blue']), 'is_active' => $variantActive, 'created_at' => now(), 'updated_at' => now()]);
+        $productId = DB::table('products')->insertGetId(['branch_id' => $branchId, 'code' => $codePrefix.'-'.uniqid(), 'name' => 'Widget '.uniqid(), 'category_id' => $catId, 'uom_id' => $uomId, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $variantId = DB::table('product_variants')->insertGetId(['branch_id' => $branchId, 'product_id' => $productId, 'sku' => 'SKU-'.uniqid(), 'variant_name' => 'Widget Variant '.uniqid(), 'attributes' => json_encode(['color' => 'blue']), 'is_active' => $variantActive, 'created_at' => now(), 'updated_at' => now()]);
 
         return [$productId, $variantId];
     }

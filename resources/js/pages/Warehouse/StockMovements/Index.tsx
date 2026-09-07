@@ -1,9 +1,9 @@
-import React from 'react';
 import { Head, router } from '@inertiajs/react';
-import CompanyLayout from '@/layouts/company/company-layout';
-import PageHeader from '@/components/ui/page-header';
+import React from 'react';
 import DataTable from '@/components/tables/data-table';
 import type { DataTableColumn } from '@/components/tables/data-table';
+import PageHeader from '@/components/ui/page-header';
+import CompanyLayout from '@/layouts/company/company-layout';
 
 type StockMovement = {
     id: number;
@@ -125,6 +125,7 @@ export default function StockMovementsIndex({
                     label: m.movement_type.toUpperCase(),
                     className: 'bg-slate-100 text-slate-700',
                 };
+
                 return (
                     <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${info.className}`}

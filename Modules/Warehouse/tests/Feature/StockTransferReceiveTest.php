@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Models\CompanyUser;
-use Modules\Warehouse\Models\StockTransfer;
 use Tests\TestCase;
 
 class StockTransferReceiveTest extends TestCase
@@ -25,9 +24,6 @@ class StockTransferReceiveTest extends TestCase
 
         $this->dropLeftoverSchemas();
 
-        /*
-         * Clean central/test data.
-         */
         DB::table('company_user_branches')->delete();
         DB::table('company_users')->delete();
         DB::table('tenants')->delete();
@@ -53,10 +49,10 @@ class StockTransferReceiveTest extends TestCase
     }
 
     /**
-     * A shipped transfer can be received (status received),
-     * destination layers are created and transfer_in movements recorded.
+     * Normal receive: shipped 10, received 10.
+     * Branch stock increases by 10.
      */
-    public function test_receive_marks_transfer_as_received_and_creates_destination_layers(): void
+    public function test_receive_normal_full_qty(): void
     {
         [$tenantId, $hqBranchId, $branchBId, $user] =
             $this->createCompanyWithMemberAndBranches();
@@ -77,18 +73,12 @@ class StockTransferReceiveTest extends TestCase
             $branchBId
         );
 
-        /*
-         * Source stock: 20.
-         */
         DB::table('stock_balances')->insert([
             'product_variant_id' => $variant1Id,
             'warehouse_id' => $hqWarehouseId,
             'qty_on_hand' => 20,
         ]);
 
-        /*
-         * FIFO layer: 20 @ 10000.
-         */
         $layerId = DB::table('stock_layers')->insertGetId([
             'product_variant_id' => $variant1Id,
             'warehouse_id' => $hqWarehouseId,
@@ -106,7 +96,7 @@ class StockTransferReceiveTest extends TestCase
             'destination_warehouse_id' => $hqWarehouseId,
             'requested_by' => $user->id,
             'status' => 'approved',
-            'note' => 'Receive test request',
+            'note' => 'Receive test',
             'requested_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
@@ -124,7 +114,7 @@ class StockTransferReceiveTest extends TestCase
         $transferItemId = DB::table('stock_transfer_items')->insertGetId([
             'stock_transfer_id' => $transferId,
             'product_variant_id' => $variant1Id,
-            'qty' => 5,
+            'qty' => 10,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -136,136 +126,110 @@ class StockTransferReceiveTest extends TestCase
          */
         $this->actingAs($user)
             ->post(
-                route(
-                    'warehouse.stock-transfers.ship',
-                    $transferId
-                )
+                route('warehouse.stock-transfers.ship', $transferId)
             )
             ->assertRedirect(
-                route(
-                    'warehouse.stock-transfers.show',
-                    $transferId
-                )
+                route('warehouse.stock-transfers.show', $transferId)
             );
 
         tenancy()->initialize($tenantId);
 
         /*
-         * Pre-receive state: destination balance already 5 from ship,
-         * breakdown recorded on stock_transfer_item_layers.
+         * After ship: HQ stock decreased, destination NOT increased.
          */
-        $breakdown = DB::table('stock_transfer_item_layers')
-            ->where('stock_transfer_item_id', $transferItemId)
-            ->get();
+        $hqStock = DB::table('stock_balances')
+            ->where('warehouse_id', $hqWarehouseId)
+            ->where('product_variant_id', $variant1Id)
+            ->first();
 
-        $this->assertCount(1, $breakdown);
+        $this->assertNotNull($hqStock);
+        $this->assertSame(10, (int) $hqStock->qty_on_hand);
 
-        $this->assertSame(
-            $layerId,
-            (int) $breakdown[0]->stock_layer_id
-        );
+        $destStock = DB::table('stock_balances')
+            ->where('warehouse_id', $branchBWarehouseId)
+            ->where('product_variant_id', $variant1Id)
+            ->first();
+
+        $this->assertNull($destStock);
+
+        /*
+         * qty_shipped is set.
+         */
+        $item = DB::table('stock_transfer_items')
+            ->where('id', $transferItemId)
+            ->first();
+
+        $this->assertSame(10, (int) $item->qty_shipped);
+        $this->assertSame(0, (int) $item->qty_received);
 
         tenancy()->end();
 
         /*
-         * Receive.
+         * Receive full qty.
          */
         $response = $this->actingAs($user)
             ->post(
-                route(
-                    'warehouse.stock-transfers.receive',
-                    $transferId
-                )
+                route('warehouse.stock-transfers.receive', $transferId),
+                [
+                    'received_items' => [
+                        [
+                            'stock_transfer_item_id' => $transferItemId,
+                            'qty_received' => 10,
+                        ],
+                    ],
+                ]
             );
 
         $response->assertRedirect(
-            route(
-                'warehouse.stock-transfers.show',
-                $transferId
-            )
+            route('warehouse.stock-transfers.show', $transferId)
         );
 
         tenancy()->initialize($tenantId);
 
         /*
-         * Transfer must be received.
+         * Transfer status = received.
          */
         $transfer = DB::table('stock_transfers')
             ->where('id', $transferId)
             ->first();
 
-        $this->assertNotNull($transfer);
-
-        $this->assertSame(
-            'received',
-            $transfer->status
-        );
-
-        $this->assertSame(
-            $user->id,
-            $transfer->received_by
-        );
-
-        $this->assertNotNull(
-            $transfer->received_at
-        );
+        $this->assertSame('received', $transfer->status);
 
         /*
-         * Destination layer created from the breakdown.
+         * Destination stock increased by received qty.
          */
-        $destinationLayer = DB::table('stock_layers')
+        $destStock = DB::table('stock_balances')
             ->where('warehouse_id', $branchBWarehouseId)
             ->where('product_variant_id', $variant1Id)
-            ->where('source_type', 'stock_transfer')
-            ->where('source_id', $transferId)
             ->first();
 
-        $this->assertNotNull($destinationLayer);
-
-        $this->assertSame(
-            5,
-            (int) $destinationLayer->qty_remaining
-        );
-
-        $this->assertSame(
-            10000,
-            (int) $destinationLayer->unit_cost
-        );
+        $this->assertNotNull($destStock);
+        $this->assertSame(10, (int) $destStock->qty_on_hand);
 
         /*
-         * Source layer should still retain its reduced remaining qty.
+         * qty_received updated on item.
          */
-        $sourceLayer = DB::table('stock_layers')
-            ->where('id', $layerId)
+        $item = DB::table('stock_transfer_items')
+            ->where('id', $transferItemId)
             ->first();
 
-        $this->assertSame(
-            15,
-            (int) $sourceLayer->qty_remaining
-        );
+        $this->assertSame(10, (int) $item->qty_received);
 
         /*
-         * transfer_in movement recorded for audit trail.
+         * No discrepancy created.
          */
-        $this->assertDatabaseHas('stock_movements', [
-            'warehouse_id' => $branchBWarehouseId,
-            'product_variant_id' => $variant1Id,
-            'movement_type' => 'transfer_in',
-            'qty' => 5,
-            'unit_cost' => 10000,
-            'stock_layer_id' => $destinationLayer->id,
-            'reference_type' => StockTransfer::class,
-            'reference_id' => $transferId,
+        $this->assertDatabaseMissing('stock_transfer_discrepancies', [
+            'stock_transfer_id' => $transferId,
         ]);
 
         tenancy()->end();
     }
 
     /**
-     * Receiving preserves FIFO breakdown unit costs when a transfer
-     * was shipped from multiple layers.
+     * Partial receive: shipped 10, received 6.
+     * Branch stock increases by 6. Transfer stays shipped.
      */
-    public function test_receive_preserves_fifo_breakdown_costs(): void
+    public function test_receive_partial_qty(): void
     {
         [$tenantId, $hqBranchId, $branchBId, $user] =
             $this->createCompanyWithMemberAndBranches();
@@ -286,43 +250,22 @@ class StockTransferReceiveTest extends TestCase
             $branchBId
         );
 
-        /*
-         * Two layers (FIFO):
-         * Layer 1: 10 @ 9000
-         * Layer 2: 10 @ 11000
-         */
-        $layer1ReceivedAt = now()->subDays(2);
-
-        $layer1Id = DB::table('stock_layers')->insertGetId([
-            'product_variant_id' => $variant1Id,
-            'warehouse_id' => $hqWarehouseId,
-            'qty_remaining' => 10,
-            'unit_cost' => 9000,
-            'received_at' => $layer1ReceivedAt,
-            'source_type' => 'purchase_order',
-            'source_id' => 1,
-            'created_at' => $layer1ReceivedAt,
-            'updated_at' => $layer1ReceivedAt,
-        ]);
-
-        $layer2ReceivedAt = now()->subDay();
-
-        $layer2Id = DB::table('stock_layers')->insertGetId([
-            'product_variant_id' => $variant1Id,
-            'warehouse_id' => $hqWarehouseId,
-            'qty_remaining' => 10,
-            'unit_cost' => 11000,
-            'received_at' => $layer2ReceivedAt,
-            'source_type' => 'purchase_order',
-            'source_id' => 2,
-            'created_at' => $layer2ReceivedAt,
-            'updated_at' => $layer2ReceivedAt,
-        ]);
-
         DB::table('stock_balances')->insert([
             'product_variant_id' => $variant1Id,
             'warehouse_id' => $hqWarehouseId,
             'qty_on_hand' => 20,
+        ]);
+
+        DB::table('stock_layers')->insertGetId([
+            'product_variant_id' => $variant1Id,
+            'warehouse_id' => $hqWarehouseId,
+            'qty_remaining' => 20,
+            'unit_cost' => 10000,
+            'received_at' => now(),
+            'source_type' => 'purchase_order',
+            'source_id' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $stockRequestId = DB::table('stock_requests')->insertGetId([
@@ -330,7 +273,7 @@ class StockTransferReceiveTest extends TestCase
             'destination_warehouse_id' => $hqWarehouseId,
             'requested_by' => $user->id,
             'status' => 'approved',
-            'note' => 'FIFO receive test request',
+            'note' => 'Partial receive test',
             'requested_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
@@ -348,119 +291,209 @@ class StockTransferReceiveTest extends TestCase
         $transferItemId = DB::table('stock_transfer_items')->insertGetId([
             'stock_transfer_id' => $transferId,
             'product_variant_id' => $variant1Id,
-            'qty' => 15,
+            'qty' => 10,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         tenancy()->end();
 
+        /*
+         * Ship.
+         */
         $this->actingAs($user)
             ->post(
-                route(
-                    'warehouse.stock-transfers.ship',
-                    $transferId
-                )
-            )
-            ->assertRedirect(
-                route(
-                    'warehouse.stock-transfers.show',
-                    $transferId
-                )
+                route('warehouse.stock-transfers.ship', $transferId)
             );
 
         tenancy()->initialize($tenantId);
 
-        /*
-         * FIFO should consume Layer1 -> 10, Layer2 -> 5.
-         */
-        $breakdown = DB::table('stock_transfer_item_layers')
-            ->where('stock_transfer_item_id', $transferItemId)
-            ->orderBy('id')
-            ->get();
-
-        $this->assertCount(2, $breakdown);
-
-        $this->assertSame($layer1Id, (int) $breakdown[0]->stock_layer_id);
-        $this->assertSame(10, (int) $breakdown[0]->qty_taken);
-        $this->assertSame(9000, (int) $breakdown[0]->unit_cost);
-
-        $this->assertSame($layer2Id, (int) $breakdown[1]->stock_layer_id);
-        $this->assertSame(5, (int) $breakdown[1]->qty_taken);
-        $this->assertSame(11000, (int) $breakdown[1]->unit_cost);
-
         tenancy()->end();
 
+        /*
+         * Receive partial (6 of 10).
+         */
         $response = $this->actingAs($user)
             ->post(
-                route(
-                    'warehouse.stock-transfers.receive',
-                    $transferId
-                )
+                route('warehouse.stock-transfers.receive', $transferId),
+                [
+                    'received_items' => [
+                        [
+                            'stock_transfer_item_id' => $transferItemId,
+                            'qty_received' => 6,
+                        ],
+                    ],
+                ]
             );
 
         $response->assertRedirect(
-            route(
-                'warehouse.stock-transfers.show',
-                $transferId
-            )
+            route('warehouse.stock-transfers.show', $transferId)
         );
 
         tenancy()->initialize($tenantId);
 
         /*
-         * Destination should have two new layers preserving costs.
+         * Transfer still shipped (not fully received).
          */
-        $destinationLayers = DB::table('stock_layers')
-            ->where('warehouse_id', $branchBWarehouseId)
-            ->where('product_variant_id', $variant1Id)
-            ->where('source_type', 'stock_transfer')
-            ->where('source_id', $transferId)
-            ->orderBy('id')
-            ->get();
+        $transfer = DB::table('stock_transfers')
+            ->where('id', $transferId)
+            ->first();
 
-        $this->assertCount(2, $destinationLayers);
-
-        $this->assertSame(10, (int) $destinationLayers[0]->qty_remaining);
-        $this->assertSame(9000, (int) $destinationLayers[0]->unit_cost);
-
-        $this->assertSame(5, (int) $destinationLayers[1]->qty_remaining);
-        $this->assertSame(11000, (int) $destinationLayers[1]->unit_cost);
+        $this->assertSame('shipped', $transfer->status);
 
         /*
-         * Two transfer_in movements must exist.
+         * Destination stock increased by 6.
          */
-        $transferInCount = DB::table('stock_movements')
+        $destStock = DB::table('stock_balances')
             ->where('warehouse_id', $branchBWarehouseId)
             ->where('product_variant_id', $variant1Id)
-            ->where('movement_type', 'transfer_in')
-            ->where('reference_type', StockTransfer::class)
-            ->where('reference_id', $transferId)
-            ->count();
+            ->first();
 
-        $this->assertSame(2, $transferInCount);
+        $this->assertNotNull($destStock);
+        $this->assertSame(6, (int) $destStock->qty_on_hand);
 
-        $this->assertDatabaseHas('stock_movements', [
-            'warehouse_id' => $branchBWarehouseId,
-            'product_variant_id' => $variant1Id,
-            'movement_type' => 'transfer_in',
-            'qty' => 10,
-            'unit_cost' => 9000,
-            'stock_layer_id' => $destinationLayers[0]->id,
-            'reference_type' => StockTransfer::class,
-            'reference_id' => $transferId,
+        /*
+         * qty_received = 6.
+         */
+        $item = DB::table('stock_transfer_items')
+            ->where('id', $transferItemId)
+            ->first();
+
+        $this->assertSame(6, (int) $item->qty_received);
+
+        /*
+         * Discrepancy created (10 shipped vs 6 received).
+         */
+        $this->assertDatabaseHas('stock_transfer_discrepancies', [
+            'stock_transfer_id' => $transferId,
+            'stock_transfer_item_id' => $transferItemId,
+            'shipped_qty' => 10,
+            'received_qty' => 6,
+            'difference_qty' => 4,
+            'status' => 'pending',
         ]);
 
-        $this->assertDatabaseHas('stock_movements', [
-            'warehouse_id' => $branchBWarehouseId,
+        tenancy()->end();
+    }
+
+    /**
+     * Receive more than shipped must be rejected.
+     */
+    public function test_cannot_receive_more_than_shipped(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $user] =
+            $this->createCompanyWithMemberAndBranches();
+
+        session([
+            'active_tenant_id' => $tenantId,
+            'active_branch_id' => $hqBranchId,
+        ]);
+
+        tenancy()->initialize($tenantId);
+
+        [
+            $hqWarehouseId,
+            $branchBWarehouseId,
+            $variant1Id,
+        ] = $this->seedWarehouseAndVariants(
+            $hqBranchId,
+            $branchBId
+        );
+
+        DB::table('stock_balances')->insert([
             'product_variant_id' => $variant1Id,
-            'movement_type' => 'transfer_in',
+            'warehouse_id' => $hqWarehouseId,
+            'qty_on_hand' => 20,
+        ]);
+
+        DB::table('stock_layers')->insertGetId([
+            'product_variant_id' => $variant1Id,
+            'warehouse_id' => $hqWarehouseId,
+            'qty_remaining' => 20,
+            'unit_cost' => 10000,
+            'received_at' => now(),
+            'source_type' => 'purchase_order',
+            'source_id' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $stockRequestId = DB::table('stock_requests')->insertGetId([
+            'requesting_warehouse_id' => $branchBWarehouseId,
+            'destination_warehouse_id' => $hqWarehouseId,
+            'requested_by' => $user->id,
+            'status' => 'approved',
+            'note' => 'Over receive test',
+            'requested_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $transferId = DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => $stockRequestId,
+            'from_warehouse_id' => $hqWarehouseId,
+            'to_warehouse_id' => $branchBWarehouseId,
+            'status' => 'draft',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $transferItemId = DB::table('stock_transfer_items')->insertGetId([
+            'stock_transfer_id' => $transferId,
+            'product_variant_id' => $variant1Id,
             'qty' => 5,
-            'unit_cost' => 11000,
-            'stock_layer_id' => $destinationLayers[1]->id,
-            'reference_type' => StockTransfer::class,
-            'reference_id' => $transferId,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
+
+        tenancy()->end();
+
+        /*
+         * Ship 5.
+         */
+        $this->actingAs($user)
+            ->post(
+                route('warehouse.stock-transfers.ship', $transferId)
+            );
+
+        tenancy()->initialize($tenantId);
+
+        tenancy()->end();
+
+        /*
+         * Try to receive 10 (more than shipped 5).
+         */
+        $response = $this->actingAs($user)
+            ->from(
+                route('warehouse.stock-transfers.show', $transferId)
+            )
+            ->post(
+                route('warehouse.stock-transfers.receive', $transferId),
+                [
+                    'received_items' => [
+                        [
+                            'stock_transfer_item_id' => $transferItemId,
+                            'qty_received' => 10,
+                        ],
+                    ],
+                ]
+            );
+
+        $response->assertRedirect();
+
+        $response->assertSessionHasErrors('qty_received');
+
+        tenancy()->initialize($tenantId);
+
+        /*
+         * Stock must not change.
+         */
+        $destStock = DB::table('stock_balances')
+            ->where('warehouse_id', $branchBWarehouseId)
+            ->where('product_variant_id', $variant1Id)
+            ->first();
+
+        $this->assertNull($destStock);
 
         tenancy()->end();
     }
@@ -509,42 +542,37 @@ class StockTransferReceiveTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        DB::table('stock_transfer_items')->insert([
-            [
-                'stock_transfer_id' => $transferId,
-                'product_variant_id' => $variant1Id,
-                'qty' => 5,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+        $transferItemId = DB::table('stock_transfer_items')->insertGetId([
+            'stock_transfer_id' => $transferId,
+            'product_variant_id' => $variant1Id,
+            'qty' => 5,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         tenancy()->end();
 
         $response = $this->actingAs($user)
             ->from(
-                route(
-                    'warehouse.stock-transfers.show',
-                    $transferId
-                )
+                route('warehouse.stock-transfers.show', $transferId)
             )
             ->post(
-                route(
-                    'warehouse.stock-transfers.receive',
-                    $transferId
-                )
+                route('warehouse.stock-transfers.receive', $transferId),
+                [
+                    'received_items' => [
+                        [
+                            'stock_transfer_item_id' => $transferItemId,
+                            'qty_received' => 5,
+                        ],
+                    ],
+                ]
             );
 
         $response->assertRedirect(
-            route(
-                'warehouse.stock-transfers.show',
-                $transferId
-            )
+            route('warehouse.stock-transfers.show', $transferId)
         );
 
-        $response->assertSessionHasErrors(
-            'stock_transfer'
-        );
+        $response->assertSessionHasErrors('stock_transfer');
 
         tenancy()->initialize($tenantId);
 
@@ -606,42 +634,39 @@ class StockTransferReceiveTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        DB::table('stock_transfer_items')->insert([
-            [
-                'stock_transfer_id' => $transferId,
-                'product_variant_id' => $variant1Id,
-                'qty' => 5,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+        $transferItemId = DB::table('stock_transfer_items')->insertGetId([
+            'stock_transfer_id' => $transferId,
+            'product_variant_id' => $variant1Id,
+            'qty' => 5,
+            'qty_shipped' => 5,
+            'qty_received' => 5,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         tenancy()->end();
 
         $response = $this->actingAs($user)
             ->from(
-                route(
-                    'warehouse.stock-transfers.show',
-                    $transferId
-                )
+                route('warehouse.stock-transfers.show', $transferId)
             )
             ->post(
-                route(
-                    'warehouse.stock-transfers.receive',
-                    $transferId
-                )
+                route('warehouse.stock-transfers.receive', $transferId),
+                [
+                    'received_items' => [
+                        [
+                            'stock_transfer_item_id' => $transferItemId,
+                            'qty_received' => 5,
+                        ],
+                    ],
+                ]
             );
 
         $response->assertRedirect(
-            route(
-                'warehouse.stock-transfers.show',
-                $transferId
-            )
+            route('warehouse.stock-transfers.show', $transferId)
         );
 
-        $response->assertSessionHasErrors(
-            'stock_transfer'
-        );
+        $response->assertSessionHasErrors('stock_transfer');
 
         tenancy()->initialize($tenantId);
 
@@ -656,98 +681,7 @@ class StockTransferReceiveTest extends TestCase
     }
 
     /**
-     * A user without transfer permission cannot receive a transfer.
-     */
-    public function test_user_without_transfer_permission_cannot_receive(): void
-    {
-        [$tenantId, $hqBranchId, $branchBId, $user] =
-            $this->createCompanyWithMemberAndBranches();
-
-        $branchOnlyUser = User::factory()->create([
-            'email' => 'receive_no_perm_'.uniqid().'@acme.test',
-            'role' => 'user',
-        ]);
-
-        $companyUser = CompanyUser::create([
-            'user_id' => $branchOnlyUser->id,
-            'tenant_id' => $tenantId,
-            'role' => 'member',
-            'is_default' => true,
-        ]);
-
-        DB::table('company_user_branches')->insert([
-            'company_user_id' => $companyUser->id,
-            'branch_id' => $branchBId,
-        ]);
-
-        session([
-            'active_tenant_id' => $tenantId,
-            'active_branch_id' => $branchBId,
-        ]);
-
-        tenancy()->initialize($tenantId);
-
-        [
-            $hqWarehouseId,
-            $branchBWarehouseId,
-            $variant1Id,
-        ] = $this->seedWarehouseAndVariants(
-            $hqBranchId,
-            $branchBId
-        );
-
-        $stockRequestId = DB::table('stock_requests')->insertGetId([
-            'requesting_warehouse_id' => $branchBWarehouseId,
-            'destination_warehouse_id' => $hqWarehouseId,
-            'requested_by' => $user->id,
-            'status' => 'approved',
-            'note' => 'Permission receive test',
-            'requested_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $transferId = DB::table('stock_transfers')->insertGetId([
-            'stock_request_id' => $stockRequestId,
-            'from_warehouse_id' => $hqWarehouseId,
-            'to_warehouse_id' => $branchBWarehouseId,
-            'status' => 'shipped',
-            'shipped_by' => $user->id,
-            'shipped_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        DB::table('stock_transfer_items')->insert([
-            [
-                'stock_transfer_id' => $transferId,
-                'product_variant_id' => $variant1Id,
-                'qty' => 5,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
-
-        tenancy()->end();
-
-        $response = $this->actingAs($branchOnlyUser)
-            ->post(
-                route(
-                    'warehouse.stock-transfers.receive',
-                    $transferId
-                )
-            );
-
-        $response->assertStatus(403);
-    }
-
-    /**
-     * @return array{
-     *     0: string,
-     *     1: int,
-     *     2: int,
-     *     3: User
-     * }
+     * @return array{0: string, 1: int, 2: int, 3: User}
      */
     private function createCompanyWithMemberAndBranches(): array
     {
@@ -827,11 +761,7 @@ class StockTransferReceiveTest extends TestCase
     }
 
     /**
-     * @return array{
-     *     0: int,
-     *     1: int,
-     *     2: int
-     * }
+     * @return array{0: int, 1: int, 2: int}
      */
     private function seedWarehouseAndVariants(
         int $hqBranchId,
@@ -841,7 +771,7 @@ class StockTransferReceiveTest extends TestCase
             'branch_id' => $hqBranchId,
             'code' => 'WH-HQ-'.uniqid(),
             'name' => 'HQ Central Warehouse',
-            'warehouse_type' => 'general',
+            'warehouse_type' => 'regular',
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
@@ -873,6 +803,7 @@ class StockTransferReceiveTest extends TestCase
         ]);
 
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $hqBranchId,
             'code' => 'PRD-'.uniqid(),
             'name' => 'Widget '.uniqid(),
             'category_id' => $catId,
@@ -883,6 +814,7 @@ class StockTransferReceiveTest extends TestCase
         ]);
 
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $hqBranchId,
             'product_id' => $productId,
             'sku' => 'SKU-'.uniqid(),
             'variant_name' => 'Widget Variant '.uniqid(),

@@ -24,6 +24,7 @@ export type Contact = {
     bank_account_name: string | null;
     bank_account_number: string | null;
     is_active: boolean;
+    is_ho_only: boolean;
     shipping_same_as_billing: boolean;
     billing_address: AddressValue | null;
     shipping_address: AddressValue | null;

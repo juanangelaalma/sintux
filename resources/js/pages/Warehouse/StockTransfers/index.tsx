@@ -1,10 +1,10 @@
-import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import CompanyLayout from '@/layouts/company/company-layout';
-import PageHeader from '@/components/ui/page-header';
+import React from 'react';
 import DataTable from '@/components/tables/data-table';
 import type { DataTableColumn } from '@/components/tables/data-table';
 import Button from '@/components/ui/button';
+import PageHeader from '@/components/ui/page-header';
+import CompanyLayout from '@/layouts/company/company-layout';
 import type { PaginatedData, StockTransfer } from './types';
 
 type Props = {

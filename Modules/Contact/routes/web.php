@@ -27,4 +27,8 @@ Route::middleware(['auth', 'company.member'])->group(function () {
     Route::delete('company/contacts/{type}/{id}', [ContactController::class, 'destroy'])
         ->middleware('permission:contact.delete')
         ->name('company.contacts.destroy');
+
+    Route::patch('company/contacts/{type}/{id}/toggle-ho-only', [ContactController::class, 'toggleHoOnly'])
+        ->middleware('permission:contact.update')
+        ->name('company.contacts.toggle-ho-only');
 });

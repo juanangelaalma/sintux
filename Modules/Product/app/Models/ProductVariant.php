@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @property int $id
+ * @property int $branch_id
  * @property int $product_id
  * @property string $sku
  * @property string $variant_name
@@ -20,6 +21,7 @@ class ProductVariant extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'branch_id',
         'product_id',
         'sku',
         'variant_name',

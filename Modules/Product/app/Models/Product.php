@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property int $branch_id
  * @property string $code
  * @property string $name
  * @property string|null $barcode
@@ -42,6 +43,7 @@ class Product extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'branch_id',
         'code',
         'name',
         'barcode',
@@ -67,6 +69,7 @@ class Product extends Model
     protected function casts(): array
     {
         return [
+            'branch_id' => 'integer',
             'is_purchased' => 'boolean',
             'purchase_price' => 'decimal:4',
             'is_sold' => 'boolean',

@@ -61,7 +61,10 @@ export default function AdjustmentsCreate({
     };
 
     const removeItem = (index: number) => {
-        if (data.items.length === 1) return;
+        if (data.items.length === 1) {
+return;
+}
+
         const newItems = [...data.items];
         newItems.splice(index, 1);
         setData('items', newItems);

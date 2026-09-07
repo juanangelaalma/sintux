@@ -37,7 +37,7 @@ class StoreGoodsReceiptRequest extends FormRequest
             ->pluck('id')
             ->all();
 
-        $activeVariantIds = collect(app(GetPurchaseVariants::class)->execute())
+        $activeVariantIds = collect(app(GetPurchaseVariants::class)->execute($branchIds))
             ->pluck('id')
             ->all();
 

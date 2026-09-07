@@ -42,10 +42,10 @@ class PurchaseQuoteTest extends TestCase
 
     public function test_member_can_create_purchase_quote(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
         $branchCode = DB::table('branches')->where('id', $branchBId)->value('code');
         tenancy()->end();
@@ -80,10 +80,10 @@ class PurchaseQuoteTest extends TestCase
 
     public function test_member_can_create_quote_prefilled_from_purchase_request(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
 
         $pr = PurchaseRequest::create([
@@ -124,8 +124,8 @@ class PurchaseQuoteTest extends TestCase
 
     public function test_send_quote_transitions_draft_to_sent(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         $supplierId = $this->createSupplier($branchBId);
 
@@ -150,8 +150,8 @@ class PurchaseQuoteTest extends TestCase
 
     public function test_accept_quote_transitions_sent_to_accepted(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         $supplierId = $this->createSupplier($branchBId);
 
@@ -176,8 +176,8 @@ class PurchaseQuoteTest extends TestCase
 
     public function test_cancel_quote_transitions_draft_or_sent_to_cancelled(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         $supplierId = $this->createSupplier($branchBId);
 
@@ -202,10 +202,10 @@ class PurchaseQuoteTest extends TestCase
 
     public function test_validation_rejects_unit_price_less_than_zero(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
-        [$variantId] = $this->createProductAndVariant('PRD-001', true);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
         tenancy()->end();
 
@@ -222,7 +222,7 @@ class PurchaseQuoteTest extends TestCase
     }
 
     /**
-     * @return array{0: string|int, 1: int, 2: User}
+     * @return array{0: string|int, 1: int, 2: int, 3: User}
      */
     private function createCompanyWithMemberAndBranches(): array
     {
@@ -283,13 +283,13 @@ class PurchaseQuoteTest extends TestCase
             'branch_id' => $branchBId,
         ]);
 
-        return [$tenant->id, (int) $branchBId, $user];
+        return [$tenant->id, (int) $hqBranchId, (int) $branchBId, $user];
     }
 
     /**
      * @return array{0: int, 1: int}
      */
-    private function createProductAndVariant(string $codePrefix = 'PRD', bool $variantActive = true): array
+    private function createProductAndVariant(int $branchId, string $codePrefix = 'PRD', bool $variantActive = true): array
     {
         $catId = DB::table('product_categories')->insertGetId([
             'name' => 'Category '.uniqid(),
@@ -305,6 +305,7 @@ class PurchaseQuoteTest extends TestCase
             'updated_at' => now(),
         ]);
         $productId = DB::table('products')->insertGetId([
+            'branch_id' => $branchId,
             'code' => $codePrefix.'-'.uniqid(),
             'name' => 'Widget '.uniqid(),
             'category_id' => $catId,
@@ -314,6 +315,7 @@ class PurchaseQuoteTest extends TestCase
             'updated_at' => now(),
         ]);
         $variantId = DB::table('product_variants')->insertGetId([
+            'branch_id' => $branchId,
             'product_id' => $productId,
             'sku' => 'SKU-'.uniqid(),
             'variant_name' => 'Widget Variant '.uniqid(),

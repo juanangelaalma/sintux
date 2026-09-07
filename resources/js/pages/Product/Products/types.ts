@@ -8,6 +8,7 @@ export type ProductBundleItem = {
 
 export type Product = {
     id: number;
+    branch_id: number;
     code: string;
     name: string;
     barcode?: string | null;
@@ -43,6 +44,7 @@ export type Product = {
 };
 
 export type ProductForm = {
+    branch_id: number;
     code: string;
     name: string;
     barcode: string;
@@ -71,6 +73,7 @@ export type ProductForm = {
 
 export type ProductVariant = {
     id: number;
+    branch_id: number;
     product_id: number;
     sku: string;
     variant_name: string;

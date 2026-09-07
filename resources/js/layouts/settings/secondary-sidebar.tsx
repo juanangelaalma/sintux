@@ -132,6 +132,7 @@ export default function SecondarySidebar() {
                                                 const subActive = isActive(
                                                     sub.path,
                                                 );
+
                                                 return (
                                                     <li key={sub.name}>
                                                         <Link

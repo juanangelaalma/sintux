@@ -104,9 +104,16 @@ class StockTransferController extends Controller
             403
         );
 
+        $receivedItems = request()->validate([
+            'received_items' => ['required', 'array', 'min:1'],
+            'received_items.*.stock_transfer_item_id' => ['required', 'integer', 'exists:stock_transfer_items,id'],
+            'received_items.*.qty_received' => ['required', 'numeric', 'gte:0'],
+        ])['received_items'];
+
         try {
             $this->receiveStockTransfer->execute(
                 $id,
+                $receivedItems,
                 (int) $user->id
             );
 
@@ -114,7 +121,7 @@ class StockTransferController extends Controller
                 ->route('warehouse.stock-transfers.show', $id)
                 ->with(
                     'success',
-                    'Stock transfer berhasil diterima (status: received).'
+                    'Stock transfer berhasil diterima.'
                 );
         } catch (ValidationException $e) {
             return back()
