@@ -79,12 +79,12 @@ class CreateCompany
 
         try {
             if (Schema::hasTable('branches')) {
-                $existing = DB::table('branches')->where('code', 'HQ')->first();
+                $existing = DB::table('branches')->where('code', 'HO')->first();
 
                 if (! $existing) {
                     $branchId = DB::table('branches')->insertGetId([
-                        'name' => 'Headquarters',
-                        'code' => 'HQ',
+                        'name' => 'Head Office',
+                        'code' => 'HO',
                         'is_headquarters' => true,
                         'is_active' => true,
                         'created_at' => now(),
@@ -95,8 +95,8 @@ class CreateCompany
                     try {
                         app(CreateWarehousesForBranch::class)->execute(
                             (int) $branchId,
-                            'HQ',
-                            'Headquarters'
+                            'HO',
+                            'Head Office'
                         );
                     } catch (\Throwable $e) {
                         Log::warning('Failed to auto-create HQ warehouses: '.$e->getMessage());

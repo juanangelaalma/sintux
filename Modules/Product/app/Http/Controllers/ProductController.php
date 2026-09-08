@@ -6,6 +6,8 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Modules\Company\Application\CompanyAccess;
+use Modules\Accounting\Application\ChartOfAccountQuery;
+use Modules\Accounting\Application\TaxQuery;
 use Modules\Product\Application\Category\GetCategories;
 use Modules\Product\Application\Product\CreateProduct;
 use Modules\Product\Application\Product\DeleteProduct;
@@ -29,6 +31,8 @@ class ProductController extends Controller
         private readonly CreateProduct $createProduct,
         private readonly UpdateProduct $updateProduct,
         private readonly DeleteProduct $deleteProduct,
+        private readonly ChartOfAccountQuery $chartOfAccountQuery,
+        private readonly TaxQuery $taxQuery,
     ) {}
 
     public function index()
@@ -59,11 +63,16 @@ class ProductController extends Controller
 
         $allProducts = $this->getProducts->execute(['is_active' => true], $branchIds);
 
+        $chartOfAccounts = $this->chartOfAccountQuery->listChartOfAccounts();
+
         return Inertia::render('Product/Products/create', [
             'activeBranch' => collect(CompanyAccess::accessibleBranches($user, $tenantId))->firstWhere('id', $activeBranchId),
             'categories' => $this->getCategories->all(),
             'uoms' => $this->getUoms->all(),
             'availableProducts' => $allProducts['data'] ?? [],
+            'chartOfAccounts' => $chartOfAccounts,
+            'purchaseTaxes' => $this->taxQuery->listForPurchase(),
+            'salesTaxes' => $this->taxQuery->listForSale(),
         ]);
     }
 
@@ -95,6 +104,8 @@ class ProductController extends Controller
                 $allProducts['data'] ?? [],
                 fn ($p) => $p['id'] !== $id
             )),
+            'purchaseTaxes' => $this->taxQuery->listForPurchase(),
+            'salesTaxes' => $this->taxQuery->listForSale(),
         ]);
     }
 

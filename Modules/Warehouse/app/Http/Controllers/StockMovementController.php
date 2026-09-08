@@ -20,8 +20,7 @@ class StockMovementController extends Controller
         $user = request()->user();
         $tenantId = (string) session('active_tenant_id');
 
-        $accessibleBranchIds = CompanyAccess::contextBranchIds($user, $tenantId)
-            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+        $accessibleBranchIds = CompanyAccess::contextBranchIds($user, $tenantId);
 
         $filters = request()->only([
             'search',

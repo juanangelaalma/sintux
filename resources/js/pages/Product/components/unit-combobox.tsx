@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 type UomOption = {
     id: number;
@@ -19,11 +20,9 @@ export const UnitCombobox: React.FC<Props> = ({
     onChange,
     onOptionAdded,
 }) => {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState('');
-    const [uomOptions, setUomOptions] = useState<UomOption[]>(options);
+    const [createdOptions, setCreatedOptions] = useState<UomOption[]>([]);
     const [creating, setCreating] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const uomOptions = [...options, ...createdOptions];
 
     useEffect(() => {
         setUomOptions(options);
@@ -62,9 +61,12 @@ export const UnitCombobox: React.FC<Props> = ({
         if (!search.trim() || creating) {
 return;
 }
+    const handleCreateNewUom = async (name: string) => {
+        if (creating) {
+            return;
+        }
 
         setCreating(true);
-        const name = search.trim();
         const code = name.toUpperCase().replace(/\s+/g, '_').substring(0, 10);
 
         const csrfToken =
@@ -97,17 +99,20 @@ return;
                     name: newUom.name,
                     code: newUom.code,
                 };
-                setUomOptions((prev) => [...prev, created]);
+                setCreatedOptions((previousOptions) => [
+                    ...previousOptions,
+                    created,
+                ]);
                 onChange(created.id);
 
                 if (onOptionAdded) {
-onOptionAdded(created);
-}
+                    onOptionAdded(created);
+                }
 
                 setSearch('');
                 setOpen(false);
             }
-        } catch (e) {
+        } catch {
             // Handle error quietly
         } finally {
             setCreating(false);

@@ -2,6 +2,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import React, { useState, useMemo, useRef } from 'react';
 import Button from '@/components/ui/button';
 import CompanyLayout from '@/layouts/company/company-layout';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { Product, ProductForm } from './types';
 
 type CategoryOption = { id: number; name: string };
@@ -15,25 +16,37 @@ type AvailableProduct = {
     uom?: { code: string };
 };
 
+type TaxOption = {
+    id: number;
+    code: string;
+    name: string;
+    rate: string;
+};
+
 type Props = {
     product: Product;
     categories: CategoryOption[];
     uoms: UomOption[];
     availableProducts?: AvailableProduct[];
+    purchaseTaxes: TaxOption[];
+    salesTaxes: TaxOption[];
 };
 
-export default function Edit({
-    product,
-    categories,
-    uoms,
-    availableProducts = [],
-}: Props) {
+export default function Edit({ product, categories, uoms, availableProducts = [], purchaseTaxes, salesTaxes }: Props) {
     const [activeFormTab, setActiveFormTab] = useState<'pricing' | 'bundle'>(
         product.product_type === 'bundle' ? 'bundle' : 'pricing',
     );
     const [uploadingImage, setUploadingImage] = useState(false);
     const [imageError, setImageError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const purchaseTaxOptions = purchaseTaxes.map((tax) => ({
+        id: tax.id,
+        label: `${tax.code} - ${tax.name} (${tax.rate}%)`,
+    }));
+    const salesTaxOptions = salesTaxes.map((tax) => ({
+        id: tax.id,
+        label: `${tax.code} - ${tax.name} (${tax.rate}%)`,
+    }));
 
     const form = useForm<ProductForm>({
         branch_id: product.branch_id,
@@ -596,14 +609,12 @@ export default function Edit({
                                                     <label className="mb-1 block text-xs font-medium text-slate-600">
                                                         Pajak beli
                                                     </label>
-                                                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-500 focus:border-indigo-500 focus:outline-none">
-                                                        <option value="">
-                                                            Pilih pajak
-                                                        </option>
-                                                        <option value="ppn11">
-                                                            PPN 11%
-                                                        </option>
-                                                    </select>
+                                                    <SearchableSelect
+                                                        options={purchaseTaxOptions}
+                                                        value={form.data.purchase_tax_id}
+                                                        onChange={(value) => form.setData('purchase_tax_id', value)}
+                                                        placeholder="Pilih pajak beli"
+                                                    />
                                                 </div>
                                             </div>
                                         )}
@@ -680,14 +691,12 @@ export default function Edit({
                                                         <label className="mb-1 block text-xs font-medium text-slate-600">
                                                             Pajak jual
                                                         </label>
-                                                        <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-500 focus:border-indigo-500 focus:outline-none">
-                                                            <option value="">
-                                                                Pilih pajak
-                                                            </option>
-                                                            <option value="ppn11">
-                                                                PPN 11%
-                                                            </option>
-                                                        </select>
+                                                        <SearchableSelect
+                                                            options={salesTaxOptions}
+                                                            value={form.data.sales_tax_id}
+                                                            onChange={(value) => form.setData('sales_tax_id', value)}
+                                                            placeholder="Pilih pajak jual"
+                                                        />
                                                     </div>
                                                 </div>
 
