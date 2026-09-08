@@ -46,8 +46,8 @@ class PurchaseInvoiceTest extends TestCase
 
     public function test_member_can_create_purchase_invoice(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
@@ -78,8 +78,8 @@ class PurchaseInvoiceTest extends TestCase
 
     public function test_invoice_with_matching_rule_transitions_to_pending(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
@@ -116,8 +116,8 @@ class PurchaseInvoiceTest extends TestCase
 
     public function test_3_way_match_validation_rejects_invoice_qty_exceeding_received_qty(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
 
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
@@ -165,7 +165,7 @@ class PurchaseInvoiceTest extends TestCase
     }
 
     /**
-     * @return array{0: string|int, 1: int, 2: User}
+     * @return array{0: string|int, 1: int, 2: int, 3: User}
      */
     private function createCompanyWithMemberAndBranches(): array
     {
@@ -232,7 +232,24 @@ class PurchaseInvoiceTest extends TestCase
             'branch_id' => $branchBId,
         ]);
 
-        return [$tenant->id, (int) $branchBId, $user];
+        return [$tenant->id, (int) $branchBId, (int) $hqBranchId, $user];
+    }
+
+    public function test_non_hq_branch_is_forbidden_from_purchase_invoices(): void
+    {
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+
+        $this->actingAs($user)->get(route('purchasing.invoices.index'))->assertForbidden();
+        $this->actingAs($user)->post(route('purchasing.invoices.store'), [])->assertForbidden();
+    }
+
+    public function test_hq_branch_can_view_purchase_invoices_index(): void
+    {
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $this->actingAs($user)->get(route('purchasing.invoices.index'))->assertOk();
     }
 
     /**

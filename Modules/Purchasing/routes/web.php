@@ -13,29 +13,31 @@ use Modules\Purchasing\Http\Middleware\EnsureHeadquarters;
 
 Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(function () {
     Route::prefix('purchasing')->name('purchasing.')->group(function () {
-        // Stock Requests - accessible by all branches (HQ and non-HQ)
-        Route::resource('requests', PurchaseRequestController::class)
-            ->only(['index', 'create', 'store', 'show'])
-            ->parameters(['requests' => 'request']);
-
-        Route::post('requests/{request}/cancel', [PurchaseRequestController::class, 'cancel'])
-            ->name('requests.cancel');
-
-        // Purchase Invoices - accessible by all branches (branches also sell)
-        Route::resource('invoices', PurchaseInvoiceController::class)
-            ->only(['index', 'create', 'store', 'show'])
-            ->parameters(['invoices' => 'invoice']);
-
-        // Join Purchase Invoices - accessible by all branches
-        Route::resource('joins', JoinPurchaseInvoiceController::class)
-            ->only(['index', 'create', 'store', 'show'])
-            ->parameters(['joins' => 'join']);
-
-        Route::post('joins/{join}/ready', [JoinPurchaseInvoiceController::class, 'ready'])
-            ->name('joins.ready');
-
-        // HQ-Only: Purchase Quotes, Orders, GRNs, Tags
+        // HQ-Only: seluruh modul purchasing hanya untuk Head Office.
+        // Branch non-HQ memakai modul Transfer Stok (Warehouse).
         Route::middleware(EnsureHeadquarters::class)->group(function () {
+            // Stock Requests
+            Route::resource('requests', PurchaseRequestController::class)
+                ->only(['index', 'create', 'store', 'show'])
+                ->parameters(['requests' => 'request']);
+
+            Route::post('requests/{request}/cancel', [PurchaseRequestController::class, 'cancel'])
+                ->name('requests.cancel');
+
+            // Purchase Invoices
+            Route::resource('invoices', PurchaseInvoiceController::class)
+                ->only(['index', 'create', 'store', 'show'])
+                ->parameters(['invoices' => 'invoice']);
+
+            // Join Purchase Invoices
+            Route::resource('joins', JoinPurchaseInvoiceController::class)
+                ->only(['index', 'create', 'store', 'show'])
+                ->parameters(['joins' => 'join']);
+
+            Route::post('joins/{join}/ready', [JoinPurchaseInvoiceController::class, 'ready'])
+                ->name('joins.ready');
+
+            // Purchase Quotes
             Route::resource('quotes', PurchaseQuoteController::class)
                 ->only(['index', 'create', 'store', 'show'])
                 ->parameters(['quotes' => 'quote']);
@@ -49,6 +51,7 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
             Route::post('quotes/{quote}/cancel', [PurchaseQuoteController::class, 'cancel'])
                 ->name('quotes.cancel');
 
+            // Purchase Orders
             Route::resource('orders', PurchaseOrderController::class)
                 ->only(['index', 'create', 'store', 'show'])
                 ->parameters(['orders' => 'order']);
@@ -62,6 +65,7 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
             Route::post('tags', [PurchaseTagController::class, 'store'])
                 ->name('tags.store');
 
+            // Goods Receipts
             Route::resource('grns', GoodsReceiptController::class)
                 ->only(['index', 'create', 'store', 'show'])
                 ->parameters(['grns' => 'grn']);

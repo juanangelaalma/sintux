@@ -15,8 +15,18 @@ const ALL_TABS: {
     href: string;
     hqOnly?: boolean;
 }[] = [
-    { key: 'invoices', label: 'Faktur', href: '/purchasing/invoices' },
-    { key: 'joins', label: 'Tukar faktur', href: '/purchasing/joins' },
+    {
+        key: 'invoices',
+        label: 'Faktur',
+        href: '/purchasing/invoices',
+        hqOnly: true,
+    },
+    {
+        key: 'joins',
+        label: 'Tukar faktur',
+        href: '/purchasing/joins',
+        hqOnly: true,
+    },
     {
         key: 'grns',
         label: 'Penerimaan',
@@ -35,7 +45,12 @@ const ALL_TABS: {
         href: '/purchasing/quotes',
         hqOnly: true,
     },
-    { key: 'requests', label: 'Permintaan', href: '/purchasing/requests' },
+    {
+        key: 'requests',
+        label: 'Permintaan',
+        href: '/purchasing/requests',
+        hqOnly: true,
+    },
 ];
 
 export default function PurchasingTabs({ activeTab }: PurchasingTabsProps) {

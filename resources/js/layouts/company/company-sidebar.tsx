@@ -30,6 +30,8 @@ type NavItem = {
     icon: React.ReactNode;
     path?: string;
     permission?: string;
+    hqOnly?: boolean;
+    nonHqOnly?: boolean;
     subItems?: SubItem[];
 };
 
@@ -65,6 +67,13 @@ function getCompanyNavItems(): NavItem[] {
             icon: <BoxIcon />,
             name: 'Purchasing',
             path: '/purchasing/invoices',
+            hqOnly: true,
+        },
+        {
+            icon: <ListIcon />,
+            name: 'Transfer Stok',
+            path: '/warehouse/stock-transfers',
+            nonHqOnly: true,
         },
         {
             icon: <ListIcon />,
@@ -100,14 +109,21 @@ const CompanySidebar: React.FC = () => {
 
     const auth = (props.auth ?? {}) as {
         permissions?: string[];
+        is_hq?: boolean;
     };
     const perms = useMemo(() => auth.permissions ?? [], [auth.permissions]);
+    const isHq = auth.is_hq ?? false;
 
     const companyNavItems = getCompanyNavItems();
 
     const visibleNavItems = useMemo(() => {
-        return companyNavItems.filter((n) => hasPermission(n, perms));
-    }, [companyNavItems, perms]);
+        return companyNavItems.filter(
+            (n) =>
+                (!n.hqOnly || isHq) &&
+                (!n.nonHqOnly || !isHq) &&
+                hasPermission(n, perms),
+        );
+    }, [companyNavItems, perms, isHq]);
 
     const [manualSubmenu, setManualSubmenu] = useState<{
         type: 'main';
