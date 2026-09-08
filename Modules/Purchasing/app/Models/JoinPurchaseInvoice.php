@@ -6,12 +6,13 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Modules\Purchasing\Enums\JoinPurchaseInvoiceStatus;
 
 /**
  * @property int $id
  * @property string $number
  * @property int $branch_id
- * @property string $status
+ * @property JoinPurchaseInvoiceStatus $status
  * @property string $join_date
  * @property string|null $note
  * @property string $currency_code
@@ -35,6 +36,7 @@ class JoinPurchaseInvoice extends Model
     protected function casts(): array
     {
         return [
+            'status' => JoinPurchaseInvoiceStatus::class,
             'total_amount' => 'decimal:4',
             'join_date' => 'date',
         ];

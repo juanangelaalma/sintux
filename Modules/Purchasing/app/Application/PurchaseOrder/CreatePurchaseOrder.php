@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\Accounting\Application\GetPurchaseTaxes;
 use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
+use Modules\Purchasing\Enums\PurchaseOrderStatus;
 use Modules\Purchasing\Models\PurchaseOrder;
 
 class CreatePurchaseOrder
@@ -83,7 +84,7 @@ class CreatePurchaseOrder
                 'billing_address' => $data['billing_address'] ?? null,
                 'warehouse_id' => $data['warehouse_id'] ?? null,
                 'branch_mode' => $branchMode,
-                'status' => 'pending',
+                'status' => PurchaseOrderStatus::Pending,
                 'payment_term' => $data['payment_term'] ?? null,
                 'order_date' => $orderDate,
                 'due_date' => $data['due_date'] ?? null,
@@ -141,7 +142,7 @@ class CreatePurchaseOrder
                 'currency_code' => 'IDR',
             ]);
 
-            $finalStatus = $mapping ? 'pending' : 'approved';
+            $finalStatus = $mapping ? PurchaseOrderStatus::Pending : PurchaseOrderStatus::Approved;
             $po->update(['status' => $finalStatus]);
 
             return $po->load('items');

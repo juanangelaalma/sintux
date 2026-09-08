@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\Accounting\Application\GetPurchaseTaxes;
 use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
+use Modules\Purchasing\Enums\PurchaseRequestStatus;
 use Modules\Purchasing\Models\PurchaseRequest;
 
 class CreatePurchaseRequest
@@ -52,7 +53,7 @@ class CreatePurchaseRequest
                 'number' => $number,
                 'branch_id' => $data['branch_id'],
                 'supplier_id' => $data['supplier_id'] ?? null,
-                'status' => 'pending',
+                'status' => PurchaseRequestStatus::Pending,
                 'request_date' => $data['request_date'],
                 'expected_date' => $data['expected_date'] ?? null,
                 'note' => $data['note'] ?? null,
@@ -91,7 +92,7 @@ class CreatePurchaseRequest
                 'currency_code' => 'IDR',
             ]);
 
-            $finalStatus = $mapping ? 'pending' : 'approved';
+            $finalStatus = $mapping ? PurchaseRequestStatus::Pending : PurchaseRequestStatus::Approved;
             $request->update(['status' => $finalStatus]);
 
             return $request->load('items');

@@ -3,6 +3,7 @@
 namespace Modules\Purchasing\Application\PurchaseInvoice;
 
 use Illuminate\Support\Carbon;
+use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Modules\Purchasing\Models\PurchaseInvoice;
 
 class GetPurchaseSummary
@@ -24,13 +25,13 @@ class GetPurchaseSummary
         $thirtyDaysAgo = Carbon::today()->subDays(30)->toDateTimeString();
 
         $unpaidQuery = PurchaseInvoice::whereIn('branch_id', $accessibleBranchIds)
-            ->whereNotIn('status', ['paid', 'cancelled']);
+            ->whereNotIn('status', [PurchaseInvoiceStatus::Paid->value, PurchaseInvoiceStatus::Cancelled->value]);
 
         $unpaidCount = (int) (clone $unpaidQuery)->count();
         $unpaidTotal = (float) (clone $unpaidQuery)->sum('total');
 
         $overdueQuery = PurchaseInvoice::whereIn('branch_id', $accessibleBranchIds)
-            ->whereNotIn('status', ['paid', 'cancelled'])
+            ->whereNotIn('status', [PurchaseInvoiceStatus::Paid->value, PurchaseInvoiceStatus::Cancelled->value])
             ->whereNotNull('due_date')
             ->where('due_date', '<', $today);
 
@@ -38,7 +39,7 @@ class GetPurchaseSummary
         $overdueTotal = (float) (clone $overdueQuery)->sum('total');
 
         $paidRecentQuery = PurchaseInvoice::whereIn('branch_id', $accessibleBranchIds)
-            ->where('status', 'paid')
+            ->where('status', PurchaseInvoiceStatus::Paid->value)
             ->where('updated_at', '>=', $thirtyDaysAgo);
 
         $paidRecentCount = (int) (clone $paidRecentQuery)->count();

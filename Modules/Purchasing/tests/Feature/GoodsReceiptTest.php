@@ -6,6 +6,8 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Models\CompanyUser;
+use Modules\Purchasing\Enums\GoodsReceiptStatus;
+use Modules\Purchasing\Enums\PurchaseOrderStatus;
 use Modules\Purchasing\Models\GoodsReceipt;
 use Modules\Purchasing\Models\PurchaseOrder;
 use Modules\Warehouse\Application\Warehouse\CreateWarehousesForBranch;
@@ -75,7 +77,7 @@ class GoodsReceiptTest extends TestCase
             'branch_id' => $hqBranchId,
             'warehouse_id' => $hqWarehouseId,
             'supplier_id' => $supplierId,
-            'status' => 'sent',
+            'status' => PurchaseOrderStatus::Sent,
             'order_date' => now()->toDateString(),
             'currency_code' => 'IDR',
             'branch_mode' => 'single',
@@ -97,7 +99,7 @@ class GoodsReceiptTest extends TestCase
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
             'warehouse_id' => $warehouseId,
-            'status' => 'draft',
+            'status' => GoodsReceiptStatus::Draft,
             'receipt_date' => now()->toDateString(),
         ]);
         $grn->items()->create([
@@ -116,7 +118,7 @@ class GoodsReceiptTest extends TestCase
 
         tenancy()->initialize($tenantId);
         // 1. GRN status posted
-        $this->assertSame('posted', DB::table('goods_receipts')->where('id', $grnId)->value('status'));
+        $this->assertSame(GoodsReceiptStatus::Posted->value, DB::table('goods_receipts')->where('id', $grnId)->value('status'));
 
         // 2. Stock balance in Warehouse updated
         $stockBalance = DB::table('stock_balances')
@@ -140,7 +142,7 @@ class GoodsReceiptTest extends TestCase
         $this->assertEquals(20, (float) $poItemDb->qty_received);
 
         $poDb = DB::table('purchase_orders')->where('id', $poId)->first();
-        $this->assertSame('received', $poDb->status);
+        $this->assertSame(PurchaseOrderStatus::Received->value, $poDb->status);
         tenancy()->end();
     }
 
@@ -161,7 +163,7 @@ class GoodsReceiptTest extends TestCase
             'branch_id' => $hqBranchId,
             'warehouse_id' => $hqWarehouseId,
             'supplier_id' => $supplierId,
-            'status' => 'sent',
+            'status' => PurchaseOrderStatus::Sent,
             'order_date' => now()->toDateString(),
             'currency_code' => 'IDR',
             'branch_mode' => 'single',
@@ -207,7 +209,7 @@ class GoodsReceiptTest extends TestCase
             ->where('purchase_order_id', $poId)
             ->first();
         $this->assertNotNull($grn, 'GRN harus dibuat dari form');
-        $this->assertSame('draft', $grn->status);
+        $this->assertSame(GoodsReceiptStatus::Draft->value, $grn->status);
         $this->assertEquals($hqBranchId, $grn->branch_id);
         $this->assertEquals($supplierId, $grn->supplier_id);
         $this->assertEquals($hqWarehouseId, $grn->warehouse_id);
@@ -247,7 +249,7 @@ class GoodsReceiptTest extends TestCase
             'branch_id' => $hqBranchId,
             'warehouse_id' => $hqWarehouseId,
             'supplier_id' => $supplierId,
-            'status' => 'sent',
+            'status' => PurchaseOrderStatus::Sent,
             'order_date' => now()->toDateString(),
             'currency_code' => 'IDR',
             'branch_mode' => 'single',
@@ -270,7 +272,7 @@ class GoodsReceiptTest extends TestCase
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
             'warehouse_id' => $hqWarehouseId,
-            'status' => 'draft',
+            'status' => GoodsReceiptStatus::Draft,
             'receipt_date' => now()->toDateString(),
         ]);
         $grn1->items()->create([
@@ -288,7 +290,7 @@ class GoodsReceiptTest extends TestCase
 
         tenancy()->initialize($tenantId);
         $poDb = DB::table('purchase_orders')->where('id', $poId)->first();
-        $this->assertSame('partially_received', $poDb->status);
+        $this->assertSame(PurchaseOrderStatus::PartiallyReceived->value, $poDb->status);
         $this->assertEquals(10, (float) DB::table('purchase_order_items')->where('id', $poItem->id)->value('qty_received'));
 
         // Attempt cancel while partially_received -> should fail
@@ -304,7 +306,7 @@ class GoodsReceiptTest extends TestCase
             'supplier_id' => $supplierId,
             'purchase_order_id' => $poId,
             'warehouse_id' => $hqWarehouseId,
-            'status' => 'draft',
+            'status' => GoodsReceiptStatus::Draft,
             'receipt_date' => now()->toDateString(),
         ]);
         $grn2->items()->create([
@@ -321,7 +323,7 @@ class GoodsReceiptTest extends TestCase
 
         tenancy()->initialize($tenantId);
         $poDbFinal = DB::table('purchase_orders')->where('id', $poId)->first();
-        $this->assertSame('received', $poDbFinal->status);
+        $this->assertSame(PurchaseOrderStatus::Received->value, $poDbFinal->status);
         $this->assertEquals(20, (float) DB::table('purchase_order_items')->where('id', $poItem->id)->value('qty_received'));
         tenancy()->end();
     }

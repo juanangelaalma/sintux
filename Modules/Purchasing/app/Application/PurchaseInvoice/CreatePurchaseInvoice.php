@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\Accounting\Application\GetPurchaseTaxes;
 use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
+use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Modules\Purchasing\Models\PurchaseInvoice;
 
 class CreatePurchaseInvoice
@@ -53,7 +54,7 @@ class CreatePurchaseInvoice
                 'branch_id' => $data['branch_id'],
                 'supplier_id' => $data['supplier_id'],
                 'purchase_order_id' => $data['purchase_order_id'] ?? null,
-                'status' => 'pending',
+                'status' => PurchaseInvoiceStatus::Pending,
                 'invoice_date' => $data['invoice_date'],
                 'due_date' => $data['due_date'] ?? null,
                 'note' => $data['note'] ?? null,
@@ -99,9 +100,9 @@ class CreatePurchaseInvoice
             if (! $mapping) {
                 // Auto-final: run 3-way match validation now
                 $this->validateInvoiceQuantities->execute($inv);
-                $inv->update(['status' => 'approved']);
+                $inv->update(['status' => PurchaseInvoiceStatus::Approved]);
             } else {
-                $inv->update(['status' => 'pending']);
+                $inv->update(['status' => PurchaseInvoiceStatus::Pending]);
             }
 
             return $inv->load('items');

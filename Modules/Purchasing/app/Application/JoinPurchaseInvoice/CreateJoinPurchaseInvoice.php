@@ -3,6 +3,7 @@
 namespace Modules\Purchasing\Application\JoinPurchaseInvoice;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Purchasing\Enums\JoinPurchaseInvoiceStatus;
 use Modules\Purchasing\Models\JoinPurchaseInvoice;
 
 class CreateJoinPurchaseInvoice
@@ -24,7 +25,7 @@ class CreateJoinPurchaseInvoice
             $join = JoinPurchaseInvoice::create([
                 'number' => $number,
                 'branch_id' => $data['branch_id'],
-                'status' => 'draft',
+                'status' => JoinPurchaseInvoiceStatus::Draft,
                 'join_date' => $data['join_date'],
                 'note' => $data['note'] ?? null,
                 'currency_code' => 'IDR',

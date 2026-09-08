@@ -6,6 +6,8 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Models\CompanyUser;
+use Modules\Purchasing\Enums\PurchaseQuoteStatus;
+use Modules\Purchasing\Enums\PurchaseRequestStatus;
 use Modules\Purchasing\Models\PurchaseQuote;
 use Modules\Purchasing\Models\PurchaseRequest;
 use Tests\TestCase;
@@ -66,7 +68,7 @@ class PurchaseQuoteTest extends TestCase
         tenancy()->initialize($tenantId);
         $quote = DB::table('purchase_quotes')->where('branch_id', $branchBId)->first();
         $this->assertNotNull($quote);
-        $this->assertSame('draft', $quote->status);
+        $this->assertSame(PurchaseQuoteStatus::Draft->value, $quote->status);
         $this->assertSame('QUOTE-'.$branchCode.'-0001', (string) $quote->number);
         $this->assertEquals(500000, (float) $quote->subtotal);
 
@@ -90,7 +92,7 @@ class PurchaseQuoteTest extends TestCase
             'number' => 'PR-HQ-0001',
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
-            'status' => 'approved',
+            'status' => PurchaseRequestStatus::Approved,
             'request_date' => '2026-08-18',
             'currency_code' => 'IDR',
         ]);
@@ -133,7 +135,7 @@ class PurchaseQuoteTest extends TestCase
             'number' => 'QUOTE-HQ-0001',
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
-            'status' => 'draft',
+            'status' => PurchaseQuoteStatus::Draft,
             'quote_date' => now()->toDateString(),
             'currency_code' => 'IDR',
         ]);
@@ -144,7 +146,7 @@ class PurchaseQuoteTest extends TestCase
         $response->assertRedirect(route('purchasing.quotes.show', $quoteId));
 
         tenancy()->initialize($tenantId);
-        $this->assertSame('sent', DB::table('purchase_quotes')->where('id', $quoteId)->value('status'));
+        $this->assertSame(PurchaseQuoteStatus::Sent->value, DB::table('purchase_quotes')->where('id', $quoteId)->value('status'));
         tenancy()->end();
     }
 
@@ -159,7 +161,7 @@ class PurchaseQuoteTest extends TestCase
             'number' => 'QUOTE-HQ-0002',
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
-            'status' => 'sent',
+            'status' => PurchaseQuoteStatus::Sent,
             'quote_date' => now()->toDateString(),
             'currency_code' => 'IDR',
         ]);
@@ -170,7 +172,7 @@ class PurchaseQuoteTest extends TestCase
         $response->assertRedirect(route('purchasing.quotes.show', $quoteId));
 
         tenancy()->initialize($tenantId);
-        $this->assertSame('accepted', DB::table('purchase_quotes')->where('id', $quoteId)->value('status'));
+        $this->assertSame(PurchaseQuoteStatus::Accepted->value, DB::table('purchase_quotes')->where('id', $quoteId)->value('status'));
         tenancy()->end();
     }
 
@@ -185,7 +187,7 @@ class PurchaseQuoteTest extends TestCase
             'number' => 'QUOTE-HQ-0003',
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
-            'status' => 'draft',
+            'status' => PurchaseQuoteStatus::Draft,
             'quote_date' => now()->toDateString(),
             'currency_code' => 'IDR',
         ]);
@@ -196,7 +198,7 @@ class PurchaseQuoteTest extends TestCase
         $response->assertRedirect(route('purchasing.quotes.show', $quoteId));
 
         tenancy()->initialize($tenantId);
-        $this->assertSame('cancelled', DB::table('purchase_quotes')->where('id', $quoteId)->value('status'));
+        $this->assertSame(PurchaseQuoteStatus::Cancelled->value, DB::table('purchase_quotes')->where('id', $quoteId)->value('status'));
         tenancy()->end();
     }
 

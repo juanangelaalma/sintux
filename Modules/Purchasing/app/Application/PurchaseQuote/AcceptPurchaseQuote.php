@@ -3,6 +3,7 @@
 namespace Modules\Purchasing\Application\PurchaseQuote;
 
 use Illuminate\Validation\ValidationException;
+use Modules\Purchasing\Enums\PurchaseQuoteStatus;
 use Modules\Purchasing\Models\PurchaseQuote;
 
 class AcceptPurchaseQuote
@@ -11,13 +12,13 @@ class AcceptPurchaseQuote
     {
         $quote = PurchaseQuote::with(['items'])->findOrFail($purchaseQuoteId);
 
-        if ($quote->status !== 'sent') {
+        if (! $quote->status->canAccept()) {
             throw ValidationException::withMessages([
                 'quote' => 'Penawaran hanya dapat diterima saat berstatus dikirim (sent).',
             ]);
         }
 
-        $quote->update(['status' => 'accepted']);
+        $quote->update(['status' => PurchaseQuoteStatus::Accepted]);
 
         return $quote->fresh(['items']);
     }

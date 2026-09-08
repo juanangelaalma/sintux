@@ -5,6 +5,7 @@ namespace Modules\Purchasing\Application\PurchaseQuote;
 use Illuminate\Support\Facades\DB;
 use Modules\Accounting\Application\GetPurchaseTaxes;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
+use Modules\Purchasing\Enums\PurchaseQuoteStatus;
 use Modules\Purchasing\Models\PurchaseQuote;
 
 class CreatePurchaseQuote
@@ -48,7 +49,7 @@ class CreatePurchaseQuote
                 'branch_id' => $data['branch_id'],
                 'supplier_id' => $data['supplier_id'],
                 'source_request_id' => $data['source_request_id'] ?? null,
-                'status' => 'draft',
+                'status' => PurchaseQuoteStatus::Draft,
                 'quote_date' => $data['quote_date'],
                 'valid_until' => $data['valid_until'] ?? null,
                 'note' => $data['note'] ?? null,

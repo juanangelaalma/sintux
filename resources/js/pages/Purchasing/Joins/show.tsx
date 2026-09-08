@@ -7,6 +7,7 @@ import type { DetailRow } from '@/components/purchasing/purchase-document-detail
 import PurchaseDocumentHeader from '@/components/purchasing/purchase-document-header';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { JoinPurchaseInvoiceStatus } from '@/lib/purchasing/status';
 
 type Item = {
     id: number;
@@ -61,7 +62,8 @@ export default function JoinPurchaseInvoicesShow({
                                     Kembali
                                 </Button>
                             </Link>
-                            {joinPurchaseInvoice.status === 'draft' && (
+                            {joinPurchaseInvoice.status ===
+                                JoinPurchaseInvoiceStatus.Draft && (
                                 <Button
                                     type="button"
                                     variant="primary"

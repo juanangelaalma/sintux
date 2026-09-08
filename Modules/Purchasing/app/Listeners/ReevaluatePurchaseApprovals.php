@@ -4,6 +4,9 @@ namespace Modules\Purchasing\Listeners;
 
 use Modules\Approval\Application\ApprovalEngine;
 use Modules\Approval\Events\ApprovalRuleChanged;
+use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
+use Modules\Purchasing\Enums\PurchaseOrderStatus;
+use Modules\Purchasing\Enums\PurchaseRequestStatus;
 use Modules\Purchasing\Models\PurchaseInvoice;
 use Modules\Purchasing\Models\PurchaseOrder;
 use Modules\Purchasing\Models\PurchaseRequest;
@@ -22,7 +25,7 @@ class ReevaluatePurchaseApprovals
 
         switch ($event->transactionType) {
             case 'purchase_request':
-                $prs = PurchaseRequest::where('status', 'pending')->get();
+                $prs = PurchaseRequest::where('status', PurchaseRequestStatus::Pending->value)->get();
                 foreach ($prs as $pr) {
                     $mapping = $this->engine->evaluateAndMap([
                         'transaction_type' => 'purchase_request',
@@ -34,12 +37,12 @@ class ReevaluatePurchaseApprovals
                         'branch_id' => $pr->branch_id,
                     ]);
 
-                    $pr->update(['status' => $mapping ? 'pending' : 'approved']);
+                    $pr->update(['status' => $mapping ? PurchaseRequestStatus::Pending : PurchaseRequestStatus::Approved]);
                 }
                 break;
 
             case 'purchase_order':
-                $pos = PurchaseOrder::where('status', 'pending')->get();
+                $pos = PurchaseOrder::where('status', PurchaseOrderStatus::Pending->value)->get();
                 foreach ($pos as $po) {
                     $mapping = $this->engine->evaluateAndMap([
                         'transaction_type' => 'purchase_order',
@@ -51,12 +54,12 @@ class ReevaluatePurchaseApprovals
                         'branch_id' => $po->branch_id,
                     ]);
 
-                    $po->update(['status' => $mapping ? 'pending' : 'approved']);
+                    $po->update(['status' => $mapping ? PurchaseOrderStatus::Pending : PurchaseOrderStatus::Approved]);
                 }
                 break;
 
             case 'purchase_invoice':
-                $invs = PurchaseInvoice::where('status', 'pending')->get();
+                $invs = PurchaseInvoice::where('status', PurchaseInvoiceStatus::Pending->value)->get();
                 foreach ($invs as $inv) {
                     $mapping = $this->engine->evaluateAndMap([
                         'transaction_type' => 'purchase_invoice',
@@ -68,7 +71,7 @@ class ReevaluatePurchaseApprovals
                         'branch_id' => $inv->branch_id,
                     ]);
 
-                    $inv->update(['status' => $mapping ? 'pending' : 'approved']);
+                    $inv->update(['status' => $mapping ? PurchaseInvoiceStatus::Pending : PurchaseInvoiceStatus::Approved]);
                 }
                 break;
         }

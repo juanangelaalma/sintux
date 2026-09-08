@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\Approval\Application\CreateApprovalRule;
 use Modules\Approval\Models\ApprovalTransactionType;
 use Modules\Company\Models\CompanyUser;
+use Modules\Purchasing\Enums\PurchaseRequestStatus;
 use Modules\Purchasing\Models\PurchaseRequest;
 use Tests\TestCase;
 
@@ -67,7 +68,7 @@ class PurchaseRequestTest extends TestCase
         tenancy()->initialize($tenantId);
         $request = DB::table('purchase_requests')->where('branch_id', $branchBId)->first();
         $this->assertNotNull($request);
-        $this->assertSame('approved', $request->status);
+        $this->assertSame(PurchaseRequestStatus::Approved->value, $request->status);
         $this->assertStringStartsWith('PR-'.$branchCode.'-', (string) $request->number);
         $this->assertSame('2026-08-18', (string) $request->request_date);
         $this->assertSame('Restock bulanan', $request->note);
@@ -225,7 +226,7 @@ class PurchaseRequestTest extends TestCase
         tenancy()->initialize($tenantId);
         $pr = DB::table('purchase_requests')->where('branch_id', $branchBId)->first();
         $this->assertNotNull($pr);
-        $this->assertSame('pending', $pr->status);
+        $this->assertSame(PurchaseRequestStatus::Pending->value, $pr->status);
         tenancy()->end();
     }
 
@@ -237,7 +238,7 @@ class PurchaseRequestTest extends TestCase
         $request = PurchaseRequest::create([
             'number' => 'PR-HQ-0003',
             'branch_id' => $branchBId,
-            'status' => 'pending',
+            'status' => PurchaseRequestStatus::Pending,
             'request_date' => now()->toDateString(),
             'currency_code' => 'IDR',
         ]);
@@ -249,7 +250,7 @@ class PurchaseRequestTest extends TestCase
         $response->assertRedirect(route('purchasing.requests.show', $requestId));
 
         tenancy()->initialize($tenantId);
-        $this->assertSame('cancelled', DB::table('purchase_requests')->where('id', $requestId)->value('status'));
+        $this->assertSame(PurchaseRequestStatus::Cancelled->value, DB::table('purchase_requests')->where('id', $requestId)->value('status'));
         tenancy()->end();
     }
 

@@ -4,6 +4,7 @@ namespace Modules\Purchasing\Application\GoodsReceipt;
 
 use Illuminate\Support\Facades\DB;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
+use Modules\Purchasing\Enums\GoodsReceiptStatus;
 use Modules\Purchasing\Models\GoodsReceipt;
 
 class CreateGoodsReceipt
@@ -30,7 +31,7 @@ class CreateGoodsReceipt
                 'supplier_id' => $data['supplier_id'],
                 'purchase_order_id' => $data['purchase_order_id'],
                 'warehouse_id' => $data['warehouse_id'],
-                'status' => 'draft',
+                'status' => GoodsReceiptStatus::Draft,
                 'receipt_date' => $data['receipt_date'],
                 'note' => $data['note'] ?? null,
             ]);

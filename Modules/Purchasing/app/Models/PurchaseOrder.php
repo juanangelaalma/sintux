@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Modules\Purchasing\Enums\PurchaseOrderStatus;
 
 /**
  * @property int $id
@@ -20,7 +21,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $source_request_id
  * @property int|null $source_quote_id
  * @property string $branch_mode
- * @property string $status
+ * @property PurchaseOrderStatus $status
  * @property string|null $payment_term
  * @property string $order_date
  * @property string|null $due_date
@@ -65,6 +66,7 @@ class PurchaseOrder extends Model
     protected function casts(): array
     {
         return [
+            'status' => PurchaseOrderStatus::class,
             'is_tax_inclusive' => 'boolean',
             'subtotal' => 'decimal:4',
             'tax_amount' => 'decimal:4',

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\Approval\Application\CreateApprovalRule;
 use Modules\Approval\Models\ApprovalTransactionType;
 use Modules\Company\Models\CompanyUser;
+use Modules\Purchasing\Enums\PurchaseOrderStatus;
 use Modules\Purchasing\Models\PurchaseOrder;
 use Modules\Warehouse\Application\Warehouse\CreateWarehousesForBranch;
 use Tests\TestCase;
@@ -71,7 +72,7 @@ class PurchaseOrderTest extends TestCase
         tenancy()->initialize($tenantId);
         $po = DB::table('purchase_orders')->where('branch_id', $hqBranchId)->first();
         $this->assertNotNull($po);
-        $this->assertSame('approved', $po->status);
+        $this->assertSame(PurchaseOrderStatus::Approved->value, $po->status);
         $expectedPrefix = 'PO/'.$branchCode.'/'.date('Y/m/d').'/000';
         $this->assertStringStartsWith('PO/'.$branchCode.'/', (string) $po->number);
         $this->assertEquals(2000000, (float) $po->subtotal);
@@ -125,7 +126,7 @@ class PurchaseOrderTest extends TestCase
         tenancy()->initialize($tenantId);
         $po = DB::table('purchase_orders')->where('branch_id', $hqBranchId)->first();
         $this->assertNotNull($po);
-        $this->assertSame('pending', $po->status);
+        $this->assertSame(PurchaseOrderStatus::Pending->value, $po->status);
         tenancy()->end();
     }
 
@@ -140,7 +141,7 @@ class PurchaseOrderTest extends TestCase
             'number' => 'PO-HQ-0002',
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
-            'status' => 'approved',
+            'status' => PurchaseOrderStatus::Approved,
             'order_date' => now()->toDateString(),
             'currency_code' => 'IDR',
         ]);
@@ -151,7 +152,7 @@ class PurchaseOrderTest extends TestCase
         $response->assertRedirect(route('purchasing.orders.show', $poId));
 
         tenancy()->initialize($tenantId);
-        $this->assertSame('sent', DB::table('purchase_orders')->where('id', $poId)->value('status'));
+        $this->assertSame(PurchaseOrderStatus::Sent->value, DB::table('purchase_orders')->where('id', $poId)->value('status'));
         tenancy()->end();
     }
 
@@ -166,7 +167,7 @@ class PurchaseOrderTest extends TestCase
             'number' => 'PO-HQ-0003',
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
-            'status' => 'pending',
+            'status' => PurchaseOrderStatus::Pending,
             'order_date' => now()->toDateString(),
             'currency_code' => 'IDR',
         ]);
@@ -177,7 +178,7 @@ class PurchaseOrderTest extends TestCase
         $response->assertRedirect(route('purchasing.orders.show', $poId));
 
         tenancy()->initialize($tenantId);
-        $this->assertSame('cancelled', DB::table('purchase_orders')->where('id', $poId)->value('status'));
+        $this->assertSame(PurchaseOrderStatus::Cancelled->value, DB::table('purchase_orders')->where('id', $poId)->value('status'));
         tenancy()->end();
     }
 

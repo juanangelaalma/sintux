@@ -21,12 +21,17 @@ type PurchasingFilterBarProps = {
 };
 
 const DEFAULT_STATUS_OPTIONS: StatusOption[] = [
-    { value: 'unpaid', label: 'Belum Lunas' },
-    { value: 'pending', label: 'Belum Dibayar' },
-    { value: 'partial', label: 'Dibayar Sebagian' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'pending', label: 'Menunggu' },
+    { value: 'approved', label: 'Disetujui' },
+    { value: 'sent', label: 'Terkirim' },
+    { value: 'partially_received', label: 'Sebagian Diterima' },
+    { value: 'received', label: 'Diterima' },
+    { value: 'posted', label: 'Diposting' },
+    { value: 'ready', label: 'Siap' },
+    { value: 'accepted', label: 'Disetujui' },
     { value: 'paid', label: 'Lunas' },
-    { value: 'overdue', label: 'Lewat Jatuh Tempo' },
-    { value: 'completed', label: 'Selesai' },
+    { value: 'cancelled', label: 'Dibatalkan' },
 ];
 
 const ALL_STATUS = 'all';

@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Modules\Approval\Application\CreateApprovalRule;
 use Modules\Approval\Models\ApprovalTransactionType;
 use Modules\Company\Models\CompanyUser;
+use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
+use Modules\Purchasing\Enums\PurchaseOrderStatus;
 use Modules\Purchasing\Models\PurchaseOrder;
 use Modules\Warehouse\Application\Warehouse\CreateWarehousesForBranch;
 use Tests\TestCase;
@@ -68,7 +70,7 @@ class PurchaseInvoiceTest extends TestCase
         tenancy()->initialize($tenantId);
         $inv = DB::table('purchase_invoices')->where('branch_id', $branchBId)->first();
         $this->assertNotNull($inv);
-        $this->assertSame('approved', $inv->status);
+        $this->assertSame(PurchaseInvoiceStatus::Approved->value, $inv->status);
         $this->assertSame('INV-'.$branchCode.'-0001', (string) $inv->number);
         $this->assertEquals(500000, (float) $inv->subtotal);
         tenancy()->end();
@@ -108,7 +110,7 @@ class PurchaseInvoiceTest extends TestCase
         tenancy()->initialize($tenantId);
         $inv = DB::table('purchase_invoices')->where('branch_id', $branchBId)->first();
         $this->assertNotNull($inv);
-        $this->assertSame('pending', $inv->status);
+        $this->assertSame(PurchaseInvoiceStatus::Pending->value, $inv->status);
         tenancy()->end();
     }
 
@@ -127,7 +129,7 @@ class PurchaseInvoiceTest extends TestCase
             'branch_id' => $branchBId,
             'warehouse_id' => $destWarehouseId,
             'supplier_id' => $supplierId,
-            'status' => 'sent',
+            'status' => PurchaseOrderStatus::Sent,
             'order_date' => now()->toDateString(),
             'currency_code' => 'IDR',
             'branch_mode' => 'single',
