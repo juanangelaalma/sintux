@@ -6,13 +6,14 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Modules\Purchasing\Enums\PurchaseRequestStatus;
 
 /**
  * @property int $id
  * @property string $number
  * @property int $branch_id
  * @property int|null $supplier_id
- * @property string $status
+ * @property PurchaseRequestStatus $status
  * @property string $request_date
  * @property string|null $expected_date
  * @property string|null $note
@@ -43,6 +44,7 @@ class PurchaseRequest extends Model
     protected function casts(): array
     {
         return [
+            'status' => PurchaseRequestStatus::class,
             'subtotal' => 'decimal:4',
             'tax_amount' => 'decimal:4',
             'total' => 'decimal:4',

@@ -10,6 +10,7 @@ use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Models\CompanyUser;
 use Modules\Company\Models\Permission;
 use Modules\Company\Models\Role;
+use Modules\Purchasing\Enums\PurchaseRequestStatus;
 use Modules\Purchasing\Models\PurchaseRequest;
 use Tests\TestCase;
 
@@ -84,13 +85,13 @@ class PurchaseFoundationTest extends TestCase
         $request = PurchaseRequest::create([
             'number' => 'PR-HQ-0001',
             'branch_id' => $branchId,
-            'status' => 'draft',
+            'status' => PurchaseRequestStatus::Draft,
             'request_date' => now()->toDateString(),
             'currency_code' => 'IDR',
         ]);
 
         $this->assertSame('PR-HQ-0001', $request->number);
-        $this->assertSame('draft', $request->status);
+        $this->assertSame(PurchaseRequestStatus::Draft, $request->status);
 
         $persisted = DB::table('purchase_requests')->where('id', $request->id)->first();
         $this->assertNotNull($persisted);

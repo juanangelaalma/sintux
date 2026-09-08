@@ -11,6 +11,7 @@ import PurchaseDocumentHeader from '@/components/purchasing/purchase-document-he
 import CompanyLayout from '@/layouts/company/company-layout';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { groupAndSortByBranch } from '@/lib/purchasing/grouping';
+import { PurchaseOrderStatus } from '@/lib/purchasing/status';
 
 type Item = {
     id: number;
@@ -49,11 +50,15 @@ type Props = {
 };
 
 export default function PurchaseOrdersShow({ purchaseOrder, approval }: Props) {
-    const [confirmAction, setConfirmAction] = useState<'send' | 'cancel' | null>(null);
+    const [confirmAction, setConfirmAction] = useState<
+        'send' | 'cancel' | null
+    >(null);
     const { post: postSend, processing: sending } = useForm({});
     const { post: postCancel, processing: cancelling } = useForm({});
 
-    const processing = (confirmAction === 'send' && sending) || (confirmAction === 'cancel' && cancelling);
+    const processing =
+        (confirmAction === 'send' && sending) ||
+        (confirmAction === 'cancel' && cancelling);
 
     const handleConfirm = () => {
         if (confirmAction === 'send') {
@@ -65,9 +70,14 @@ export default function PurchaseOrdersShow({ purchaseOrder, approval }: Props) {
         }
     };
 
-    const branchGroups = useMemo(() => groupAndSortByBranch(purchaseOrder.items), [purchaseOrder.items]);
+    const branchGroups = useMemo(
+        () => groupAndSortByBranch(purchaseOrder.items),
+        [purchaseOrder.items],
+    );
 
-    const [expandedBranches, setExpandedBranches] = useState<Set<string>>(() => new Set(branchGroups.map((g) => g.key)));
+    const [expandedBranches, setExpandedBranches] = useState<Set<string>>(
+        () => new Set(branchGroups.map((g) => g.key)),
+    );
 
     const toggleBranch = (key: string) => {
         setExpandedBranches((prev) => {
@@ -84,11 +94,39 @@ export default function PurchaseOrdersShow({ purchaseOrder, approval }: Props) {
     };
 
     const rows: DetailRow[] = [
-        { label: 'Tanggal pesanan', value: formatDate(purchaseOrder.order_date) },
-        { label: 'Perkiraan tiba', value: formatDate(purchaseOrder.expected_date) },
-        { label: 'Mode', value: purchaseOrder.branch_mode === 'multi' ? `Multi-Cabang (${branchGroups.length} cabang)` : 'Single' },
-        ...(purchaseOrder.supplier_reference ? [{ label: 'Referensi supplier', value: purchaseOrder.supplier_reference }] : []),
-        ...(purchaseOrder.tags?.length ? [{ label: 'Tag', value: purchaseOrder.tags.map((tag) => tag.name).join(', ') }] : []),
+        {
+            label: 'Tanggal pesanan',
+            value: formatDate(purchaseOrder.order_date),
+        },
+        {
+            label: 'Perkiraan tiba',
+            value: formatDate(purchaseOrder.expected_date),
+        },
+        {
+            label: 'Mode',
+            value:
+                purchaseOrder.branch_mode === 'multi'
+                    ? `Multi-Cabang (${branchGroups.length} cabang)`
+                    : 'Single',
+        },
+        ...(purchaseOrder.supplier_reference
+            ? [
+                  {
+                      label: 'Referensi supplier',
+                      value: purchaseOrder.supplier_reference,
+                  },
+              ]
+            : []),
+        ...(purchaseOrder.tags?.length
+            ? [
+                  {
+                      label: 'Tag',
+                      value: purchaseOrder.tags
+                          .map((tag) => tag.name)
+                          .join(', '),
+                  },
+              ]
+            : []),
     ];
 
     return (
@@ -105,55 +143,101 @@ export default function PurchaseOrdersShow({ purchaseOrder, approval }: Props) {
                                     Kembali
                                 </Button>
                             </Link>
-                            <ApprovalHeaderControls approval={approval} documentTitle={purchaseOrder.number} />
-                            {purchaseOrder.status === 'approved' && (
+                            <ApprovalHeaderControls
+                                approval={approval}
+                                documentTitle={purchaseOrder.number}
+                            />
+                            {purchaseOrder.status ===
+                                PurchaseOrderStatus.Approved && (
                                 <>
-                                    <Button type="button" variant="primary" onPress={() => setConfirmAction('send')}>
+                                    <Button
+                                        type="button"
+                                        variant="primary"
+                                        onPress={() => setConfirmAction('send')}
+                                    >
                                         Kirim ke Supplier
                                     </Button>
                                     <Link href="/purchasing/grns/create">
-                                        <Button type="button" variant="secondary">
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                        >
                                             Terima Barang
                                         </Button>
                                     </Link>
                                     <Link href="/purchasing/invoices/create">
-                                        <Button type="button" variant="secondary">
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                        >
                                             Buat Faktur
                                         </Button>
                                     </Link>
-                                    <Button type="button" variant="danger" onPress={() => setConfirmAction('cancel')}>
+                                    <Button
+                                        type="button"
+                                        variant="danger"
+                                        onPress={() =>
+                                            setConfirmAction('cancel')
+                                        }
+                                    >
                                         Batalkan PO
                                     </Button>
                                 </>
                             )}
-                            {(purchaseOrder.status === 'sent' || purchaseOrder.status === 'partially_received') && (
+                            {(purchaseOrder.status ===
+                                PurchaseOrderStatus.Sent ||
+                                purchaseOrder.status ===
+                                    PurchaseOrderStatus.PartiallyReceived) && (
                                 <>
                                     <Link href="/purchasing/grns/create">
-                                        <Button type="button" variant="secondary">
-                                            Terima Barang {purchaseOrder.status === 'partially_received' ? '(Sisa)' : ''}
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                        >
+                                            Terima Barang{' '}
+                                            {purchaseOrder.status ===
+                                            PurchaseOrderStatus.PartiallyReceived
+                                                ? '(Sisa)'
+                                                : ''}
                                         </Button>
                                     </Link>
                                     <Link href="/purchasing/invoices/create">
-                                        <Button type="button" variant="secondary">
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                        >
                                             Buat Faktur
                                         </Button>
                                     </Link>
-                                    {purchaseOrder.status === 'sent' && (
-                                        <Button type="button" variant="danger" onPress={() => setConfirmAction('cancel')}>
+                                    {purchaseOrder.status ===
+                                        PurchaseOrderStatus.Sent && (
+                                        <Button
+                                            type="button"
+                                            variant="danger"
+                                            onPress={() =>
+                                                setConfirmAction('cancel')
+                                            }
+                                        >
                                             Batalkan PO
                                         </Button>
                                     )}
                                 </>
                             )}
-                            {purchaseOrder.status === 'received' && (
+                            {purchaseOrder.status ===
+                                PurchaseOrderStatus.Received && (
                                 <Link href="/purchasing/invoices/create">
                                     <Button type="button" variant="secondary">
                                         Buat Faktur
                                     </Button>
                                 </Link>
                             )}
-                            {purchaseOrder.status === 'pending' && (
-                                <Button type="button" variant="danger" onPress={() => setConfirmAction('cancel')}>
+                            {purchaseOrder.status ===
+                                PurchaseOrderStatus.Pending && (
+                                <Button
+                                    type="button"
+                                    variant="danger"
+                                    onPress={() => setConfirmAction('cancel')}
+                                >
                                     Batalkan PO
                                 </Button>
                             )}
@@ -161,17 +245,29 @@ export default function PurchaseOrdersShow({ purchaseOrder, approval }: Props) {
                     }
                 />
 
-                <PurchaseDocumentDetail status={purchaseOrder.status} statusLabel="Status Pesanan" rows={rows} note={purchaseOrder.note}>
+                <PurchaseDocumentDetail
+                    status={purchaseOrder.status}
+                    statusLabel="Status Pesanan"
+                    rows={rows}
+                    note={purchaseOrder.note}
+                >
                     <div className="space-y-4">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
                             <h3 className="text-sm font-bold text-foreground">
-                                Item Pesanan {purchaseOrder.branch_mode === 'multi' ? `— ${branchGroups.length} Cabang Tujuan` : ''}
+                                Item Pesanan{' '}
+                                {purchaseOrder.branch_mode === 'multi'
+                                    ? `— ${branchGroups.length} Cabang Tujuan`
+                                    : ''}
                             </h3>
-                            <span className="text-xs text-muted">urut tanggal kirim tercepat di atas</span>
+                            <span className="text-xs text-muted">
+                                urut tanggal kirim tercepat di atas
+                            </span>
                         </div>
 
                         {branchGroups.length === 0 ? (
-                            <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted">Belum ada alokasi cabang.</p>
+                            <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted">
+                                Belum ada alokasi cabang.
+                            </p>
                         ) : (
                             <div className="space-y-3">
                                 {branchGroups.map((group) => (
@@ -183,7 +279,9 @@ export default function PurchaseOrdersShow({ purchaseOrder, approval }: Props) {
                                         date={group.date}
                                         items={group.items}
                                         subtotal={group.subtotal}
-                                        isExpanded={expandedBranches.has(group.key)}
+                                        isExpanded={expandedBranches.has(
+                                            group.key,
+                                        )}
                                         onToggle={() => toggleBranch(group.key)}
                                     />
                                 ))}
@@ -195,11 +293,15 @@ export default function PurchaseOrdersShow({ purchaseOrder, approval }: Props) {
                         <div className="w-72 space-y-2 text-sm">
                             <div className="flex justify-between text-muted">
                                 <span>Subtotal</span>
-                                <span>{formatCurrency(purchaseOrder.subtotal)}</span>
+                                <span>
+                                    {formatCurrency(purchaseOrder.subtotal)}
+                                </span>
                             </div>
                             <div className="flex justify-between border-t border-border pt-2 text-lg font-bold text-foreground">
                                 <span>Total Pesanan</span>
-                                <span>{formatCurrency(purchaseOrder.total)}</span>
+                                <span>
+                                    {formatCurrency(purchaseOrder.total)}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -208,9 +310,19 @@ export default function PurchaseOrdersShow({ purchaseOrder, approval }: Props) {
 
             <PurchaseConfirmDialog
                 open={confirmAction !== null}
-                title={confirmAction === 'cancel' ? 'Batalkan Purchase Order?' : 'Konfirmasi Aksi'}
-                description={confirmAction === 'send' ? 'Tandai PO ini sebagai dikirim ke pemasok?' : 'Batalkan Purchase Order ini?'}
-                confirmLabel={confirmAction === 'cancel' ? 'Batalkan' : 'Konfirmasi'}
+                title={
+                    confirmAction === 'cancel'
+                        ? 'Batalkan Purchase Order?'
+                        : 'Konfirmasi Aksi'
+                }
+                description={
+                    confirmAction === 'send'
+                        ? 'Tandai PO ini sebagai dikirim ke pemasok?'
+                        : 'Batalkan Purchase Order ini?'
+                }
+                confirmLabel={
+                    confirmAction === 'cancel' ? 'Batalkan' : 'Konfirmasi'
+                }
                 variant={confirmAction === 'cancel' ? 'danger' : 'primary'}
                 processing={processing}
                 onConfirm={handleConfirm}

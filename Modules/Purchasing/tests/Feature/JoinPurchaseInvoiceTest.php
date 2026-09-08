@@ -6,6 +6,8 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Models\CompanyUser;
+use Modules\Purchasing\Enums\JoinPurchaseInvoiceStatus;
+use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Modules\Purchasing\Models\JoinPurchaseInvoice;
 use Modules\Purchasing\Models\PurchaseInvoice;
 use Tests\TestCase;
@@ -52,7 +54,7 @@ class JoinPurchaseInvoiceTest extends TestCase
             'number' => 'INV-BRB-0001',
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
-            'status' => 'approved',
+            'status' => PurchaseInvoiceStatus::Approved,
             'invoice_date' => '2026-08-18',
             'total' => 500000,
         ]);
@@ -60,7 +62,7 @@ class JoinPurchaseInvoiceTest extends TestCase
             'number' => 'INV-BRB-0002',
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
-            'status' => 'approved',
+            'status' => PurchaseInvoiceStatus::Approved,
             'invoice_date' => '2026-08-18',
             'total' => 300000,
         ]);
@@ -94,7 +96,7 @@ class JoinPurchaseInvoiceTest extends TestCase
         tenancy()->initialize($tenantId);
         $join = DB::table('join_purchase_invoices')->where('branch_id', $branchBId)->first();
         $this->assertNotNull($join);
-        $this->assertSame('draft', $join->status);
+        $this->assertSame(JoinPurchaseInvoiceStatus::Draft->value, $join->status);
         $this->assertSame('JOIN-HQ-0001', (string) $join->number);
         $this->assertEquals(800000, (float) $join->total_amount);
 
@@ -112,7 +114,7 @@ class JoinPurchaseInvoiceTest extends TestCase
         $join = JoinPurchaseInvoice::create([
             'number' => 'JOIN-BRB-0002',
             'branch_id' => $branchBId,
-            'status' => 'draft',
+            'status' => JoinPurchaseInvoiceStatus::Draft,
             'join_date' => now()->toDateString(),
             'total_amount' => 800000,
         ]);
@@ -123,7 +125,7 @@ class JoinPurchaseInvoiceTest extends TestCase
         $response->assertRedirect(route('purchasing.joins.show', $joinId));
 
         tenancy()->initialize($tenantId);
-        $this->assertSame('ready', DB::table('join_purchase_invoices')->where('id', $joinId)->value('status'));
+        $this->assertSame(JoinPurchaseInvoiceStatus::Ready->value, DB::table('join_purchase_invoices')->where('id', $joinId)->value('status'));
         tenancy()->end();
     }
 

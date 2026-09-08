@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Modules\Purchasing\Enums\GoodsReceiptStatus;
 
 /**
  * @property int $id
@@ -15,7 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int $supplier_id
  * @property int $purchase_order_id
  * @property int $warehouse_id
- * @property string $status
+ * @property GoodsReceiptStatus $status
  * @property string $receipt_date
  * @property string|null $note
  * @property Carbon $created_at
@@ -38,6 +39,7 @@ class GoodsReceipt extends Model
     protected function casts(): array
     {
         return [
+            'status' => GoodsReceiptStatus::class,
             'receipt_date' => 'date',
         ];
     }

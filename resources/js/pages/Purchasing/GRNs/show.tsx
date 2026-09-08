@@ -7,6 +7,7 @@ import type { DetailRow } from '@/components/purchasing/purchase-document-detail
 import PurchaseDocumentHeader from '@/components/purchasing/purchase-document-header';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { formatDate } from '@/lib/format';
+import { GoodsReceiptStatus } from '@/lib/purchasing/status';
 
 type Item = {
     id: number;
@@ -62,7 +63,8 @@ export default function GoodsReceiptsShow({ goodsReceipt }: Props) {
                                     Kembali
                                 </Button>
                             </Link>
-                            {goodsReceipt.status === 'draft' && (
+                            {goodsReceipt.status ===
+                                GoodsReceiptStatus.Draft && (
                                 <Button
                                     type="button"
                                     variant="primary"

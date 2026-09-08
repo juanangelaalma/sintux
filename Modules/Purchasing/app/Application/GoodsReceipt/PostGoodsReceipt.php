@@ -4,6 +4,8 @@ namespace Modules\Purchasing\Application\GoodsReceipt;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Purchasing\Enums\GoodsReceiptStatus;
+use Modules\Purchasing\Enums\PurchaseOrderStatus;
 use Modules\Purchasing\Models\GoodsReceipt;
 use Modules\Warehouse\Application\StockLayer\ReceivePurchaseStock;
 
@@ -17,7 +19,7 @@ class PostGoodsReceipt
     {
         $grn = GoodsReceipt::with(['items'])->findOrFail($goodsReceiptId);
 
-        if ($grn->status !== 'draft') {
+        if (! $grn->status->canPost()) {
             throw ValidationException::withMessages([
                 'grn' => 'Penerimaan barang hanya dapat diposting saat berstatus draft.',
             ]);
@@ -69,16 +71,16 @@ class PostGoodsReceipt
             if ($unfulfilled === 0) {
                 DB::table('purchase_orders')
                     ->where('id', $poId)
-                    ->update(['status' => 'received', 'updated_at' => now()]);
+                    ->update(['status' => PurchaseOrderStatus::Received->value, 'updated_at' => now()]);
             } elseif ($anyReceived) {
                 DB::table('purchase_orders')
                     ->where('id', $poId)
-                    ->whereIn('status', ['sent', 'partially_received'])
-                    ->update(['status' => 'partially_received', 'updated_at' => now()]);
+                    ->whereIn('status', [PurchaseOrderStatus::Sent->value, PurchaseOrderStatus::PartiallyReceived->value])
+                    ->update(['status' => PurchaseOrderStatus::PartiallyReceived->value, 'updated_at' => now()]);
             }
 
             // 4. Update GRN status to posted
-            $grn->update(['status' => 'posted']);
+            $grn->update(['status' => GoodsReceiptStatus::Posted]);
 
             return $grn->fresh(['items']);
         });

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 
 /**
  * @property int $id
@@ -13,7 +14,7 @@ use Illuminate\Support\Carbon;
  * @property int $branch_id
  * @property int $supplier_id
  * @property int|null $purchase_order_id
- * @property string $status
+ * @property PurchaseInvoiceStatus $status
  * @property string $invoice_date
  * @property string|null $due_date
  * @property string|null $note
@@ -45,6 +46,7 @@ class PurchaseInvoice extends Model
     protected function casts(): array
     {
         return [
+            'status' => PurchaseInvoiceStatus::class,
             'subtotal' => 'decimal:4',
             'tax_amount' => 'decimal:4',
             'total' => 'decimal:4',

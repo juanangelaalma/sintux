@@ -7,6 +7,7 @@ import type { DetailRow } from '@/components/purchasing/purchase-document-detail
 import PurchaseDocumentHeader from '@/components/purchasing/purchase-document-header';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { PurchaseQuoteStatus } from '@/lib/purchasing/status';
 
 type Item = {
     id: number;
@@ -67,7 +68,8 @@ export default function PurchaseQuotesShow({ purchaseQuote }: Props) {
                                     Kembali
                                 </Button>
                             </Link>
-                            {purchaseQuote.status === 'draft' && (
+                            {purchaseQuote.status ===
+                                PurchaseQuoteStatus.Draft && (
                                 <Button
                                     type="button"
                                     variant="primary"
