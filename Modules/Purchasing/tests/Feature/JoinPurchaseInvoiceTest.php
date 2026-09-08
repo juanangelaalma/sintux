@@ -44,8 +44,8 @@ class JoinPurchaseInvoiceTest extends TestCase
 
     public function test_member_can_create_join_purchase_invoice(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         $supplierId = $this->createSupplier($branchBId);
         $supplierName = DB::table('contacts')->where('id', $supplierId)->value('name');
@@ -107,8 +107,8 @@ class JoinPurchaseInvoiceTest extends TestCase
 
     public function test_ready_join_invoice_transitions_draft_to_ready(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
 
         $join = JoinPurchaseInvoice::create([
@@ -130,7 +130,7 @@ class JoinPurchaseInvoiceTest extends TestCase
     }
 
     /**
-     * @return array{0: string|int, 1: int, 2: User}
+     * @return array{0: string|int, 1: int, 2: int, 3: User}
      */
     private function createCompanyWithMemberAndBranches(): array
     {
@@ -191,7 +191,24 @@ class JoinPurchaseInvoiceTest extends TestCase
             'branch_id' => $branchBId,
         ]);
 
-        return [$tenant->id, (int) $branchBId, $user];
+        return [$tenant->id, (int) $branchBId, (int) $hqBranchId, $user];
+    }
+
+    public function test_non_hq_branch_is_forbidden_from_join_purchase_invoices(): void
+    {
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+
+        $this->actingAs($user)->get(route('purchasing.joins.index'))->assertForbidden();
+        $this->actingAs($user)->post(route('purchasing.joins.store'), [])->assertForbidden();
+    }
+
+    public function test_hq_branch_can_view_join_purchase_invoices_index(): void
+    {
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $this->actingAs($user)->get(route('purchasing.joins.index'))->assertOk();
     }
 
     private function createSupplier(int $branchId): int

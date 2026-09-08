@@ -24,23 +24,7 @@ class EnsureHeadquarters
             abort(403);
         }
 
-        $branches = CompanyAccess::accessibleBranches($user, $tenantId);
-        $activeBranchId = (int) session('active_branch_id');
-
-        // Find the active branch in the accessible branches list
-        $activeBranch = collect($branches)->firstWhere('id', $activeBranchId);
-
-        // If no active branch set, check if user has only one branch that is HQ
-        if (! $activeBranch) {
-            $isHq = collect($branches)->contains('is_headquarters', true);
-            if (! $isHq) {
-                abort(403, 'Fitur ini hanya tersedia untuk Head Office.');
-            }
-
-            return $next($request);
-        }
-
-        if (! $activeBranch->is_headquarters) {
+        if (! CompanyAccess::isActiveBranchHq($user, $tenantId)) {
             abort(403, 'Fitur ini hanya tersedia untuk Head Office.');
         }
 

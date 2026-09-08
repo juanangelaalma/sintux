@@ -48,18 +48,11 @@ class HandleInertiaRequests extends Middleware
             $activeTenant = tenant();
             $tenantId = (string) tenant('id');
 
-            $membershipBranchId = CompanyAccess::membershipBranchId($request->user(), $tenantId);
             $branches = collect(CompanyAccess::accessibleBranches($request->user(), $tenantId))
                 ->sortBy('id')
                 ->values();
 
-            if ($membershipBranchId) {
-                $isHq = (bool) $branches
-                    ->firstWhere('id', $membershipBranchId)
-                    ?->is_headquarters;
-            } else {
-                $isHq = $branches->contains('is_headquarters', true);
-            }
+            $isHq = CompanyAccess::isActiveBranchHq($request->user(), $tenantId);
 
             $accessibleBranchIds = CompanyAccess::accessibleBranchIds($request->user(), $tenantId);
 

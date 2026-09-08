@@ -150,6 +150,25 @@ class CompanyAccess
     }
 
     /**
+     * Whether the user is currently operating as HO/HQ inside a tenant.
+     *
+     * Single source of truth for the HO/HQ boundary: HQ means the session's
+     * active branch is a headquarters branch. When no active branch is set,
+     * falls back to whether the user can access any HQ branch.
+     */
+    public static function isActiveBranchHq(User $user, string $tenantId): bool
+    {
+        $branches = collect(self::accessibleBranches($user, $tenantId));
+        $activeBranch = $branches->firstWhere('id', (int) session('active_branch_id'));
+
+        if (! $activeBranch) {
+            return $branches->contains('is_headquarters', true);
+        }
+
+        return (bool) $activeBranch->is_headquarters;
+    }
+
+    /**
      * Resolve the effective permission slugs for a user inside a tenant.
      *
      * When multiple branch ids are given, the union of permissions granted on

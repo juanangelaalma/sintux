@@ -44,8 +44,8 @@ class PurchaseRequestTest extends TestCase
 
     public function test_member_can_create_purchase_request(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
@@ -84,8 +84,8 @@ class PurchaseRequestTest extends TestCase
 
     public function test_pr_number_is_sequential_per_branch(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $branchCode = DB::table('branches')->where('id', $branchBId)->value('code');
@@ -115,8 +115,8 @@ class PurchaseRequestTest extends TestCase
 
     public function test_validation_rejects_qty_less_than_or_equal_zero(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         tenancy()->end();
@@ -132,8 +132,8 @@ class PurchaseRequestTest extends TestCase
 
     public function test_validation_rejects_duplicate_variant_items(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         tenancy()->end();
@@ -152,8 +152,8 @@ class PurchaseRequestTest extends TestCase
 
     public function test_validation_rejects_inactive_product_variant(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         [$inactiveVariantId] = $this->createProductAndVariant($branchBId, 'PRD-INACTIVE', false);
         tenancy()->end();
@@ -169,8 +169,11 @@ class PurchaseRequestTest extends TestCase
 
     public function test_validation_rejects_branch_outside_accessible_scope(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        // Scope the membership to branch B so Branch X is truly outside the accessible scope,
+        // even when the session scope resolves to "all" for HQ.
+        CompanyUser::where('user_id', $user->id)->where('tenant_id', $tenantId)->update(['branch_id' => $branchBId]);
         tenancy()->initialize($tenantId);
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $outOfScopeBranchId = DB::table('branches')->insertGetId([
@@ -194,8 +197,8 @@ class PurchaseRequestTest extends TestCase
 
     public function test_pr_with_matching_rule_transitions_to_pending(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
@@ -232,8 +235,8 @@ class PurchaseRequestTest extends TestCase
 
     public function test_cancel_transitions_pending_to_cancelled(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         $request = PurchaseRequest::create([
             'number' => 'PR-HQ-0003',
@@ -256,8 +259,8 @@ class PurchaseRequestTest extends TestCase
 
     public function test_non_member_cannot_create_purchase_request(): void
     {
-        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
         tenancy()->initialize($tenantId);
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         tenancy()->end();
@@ -276,8 +279,25 @@ class PurchaseRequestTest extends TestCase
         $response->assertForbidden();
     }
 
+    public function test_non_hq_branch_is_forbidden_from_purchase_requests(): void
+    {
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+
+        $this->actingAs($user)->get(route('purchasing.requests.index'))->assertForbidden();
+        $this->actingAs($user)->post(route('purchasing.requests.store'), [])->assertForbidden();
+    }
+
+    public function test_hq_branch_can_view_purchase_requests_index(): void
+    {
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $this->actingAs($user)->get(route('purchasing.requests.index'))->assertOk();
+    }
+
     /**
-     * @return array{0: string|int, 1: int, 2: User}
+     * @return array{0: string|int, 1: int, 2: int, 3: User}
      */
     private function createCompanyWithMemberAndBranches(): array
     {
@@ -338,7 +358,7 @@ class PurchaseRequestTest extends TestCase
             'branch_id' => $branchBId,
         ]);
 
-        return [$tenant->id, (int) $branchBId, $user];
+        return [$tenant->id, (int) $branchBId, (int) $hqBranchId, $user];
     }
 
     /**

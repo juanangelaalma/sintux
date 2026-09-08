@@ -14,8 +14,18 @@ const ALL_TABS: {
     href: string;
     hqOnly?: boolean;
 }[] = [
-    { key: 'invoices', label: 'Faktur', href: '/purchasing/invoices' },
-    { key: 'joins', label: 'Tukar faktur', href: '/purchasing/joins' },
+    {
+        key: 'invoices',
+        label: 'Faktur',
+        href: '/purchasing/invoices',
+        hqOnly: true,
+    },
+    {
+        key: 'joins',
+        label: 'Tukar faktur',
+        href: '/purchasing/joins',
+        hqOnly: true,
+    },
     {
         key: 'grns',
         label: 'Penerimaan',
@@ -34,7 +44,12 @@ const ALL_TABS: {
         href: '/purchasing/quotes',
         hqOnly: true,
     },
-    { key: 'requests', label: 'Permintaan', href: '/purchasing/requests' },
+    {
+        key: 'requests',
+        label: 'Permintaan',
+        href: '/purchasing/requests',
+        hqOnly: true,
+    },
 ];
 
 export default function PurchasingTabs({ activeTab }: PurchasingTabsProps) {
@@ -43,6 +58,10 @@ export default function PurchasingTabs({ activeTab }: PurchasingTabsProps) {
     const isHq = auth.is_hq ?? false;
 
     const tabs = ALL_TABS.filter((tab) => !tab.hqOnly || isHq);
+
+    if (tabs.length === 0) {
+        return null;
+    }
 
     return (
         <Tabs className="w-full" selectedKey={activeTab}>
