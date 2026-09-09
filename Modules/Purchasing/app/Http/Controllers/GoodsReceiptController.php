@@ -15,6 +15,7 @@ use Modules\Purchasing\Application\GoodsReceipt\PostGoodsReceipt;
 use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseSummary;
 use Modules\Purchasing\Application\PurchaseOrder\GetPurchaseOrderOptions;
 use Modules\Purchasing\Http\Requests\StoreGoodsReceiptRequest;
+use Modules\Warehouse\Application\Warehouse\GetWarehouse;
 use Modules\Warehouse\Application\Warehouse\GetWarehouses;
 
 class GoodsReceiptController extends Controller
@@ -51,9 +52,13 @@ class GoodsReceiptController extends Controller
         $tenantId = (string) session('active_tenant_id');
 
         $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
+        $hqBranchId = collect(CompanyAccess::accessibleBranches($user, $tenantId))
+            ->firstWhere('is_headquarters', true)?->id;
 
         return Inertia::render('Purchasing/GRNs/create', [
-            'warehouses' => app(GetWarehouses::class)->execute($accessibleBranchIds),
+            'warehouses' => $hqBranchId
+                ? app(GetWarehouses::class)->optionsForReceipt((int) $hqBranchId)
+                : [],
             'purchaseOrders' => app(GetPurchaseOrderOptions::class)->execute($accessibleBranchIds),
         ]);
     }
@@ -79,8 +84,20 @@ class GoodsReceiptController extends Controller
     {
         $goodsReceipt = $this->getGoodsReceiptDetail->execute($id);
 
+        $user = request()->user();
+        $tenantId = (string) session('active_tenant_id');
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
+
+        $warehouse = app(GetWarehouse::class)->execute(
+            (int) $goodsReceipt->warehouse_id,
+            $accessibleBranchIds,
+        );
+
         return Inertia::render('Purchasing/GRNs/show', [
             'goodsReceipt' => $goodsReceipt,
+            'warehouse' => $warehouse
+                ? ['id' => $warehouse->id, 'code' => $warehouse->code, 'name' => $warehouse->name]
+                : null,
         ]);
     }
 
