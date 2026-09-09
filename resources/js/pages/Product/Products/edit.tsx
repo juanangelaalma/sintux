@@ -2,6 +2,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import React, { useState, useMemo, useRef } from 'react';
 import Button from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import CompanyLayout from '@/layouts/company/company-layout';
 import type { Product, ProductForm } from './types';
 
 type CategoryOption = { id: number; name: string };

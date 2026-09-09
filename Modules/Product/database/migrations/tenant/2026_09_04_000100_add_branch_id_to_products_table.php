@@ -26,11 +26,6 @@ return new class extends Migration
                 ->update(['branch_id' => $hqBranch->id]);
         }
 
-        // Make NOT NULL after backfill
-        Schema::table('products', function (Blueprint $table) {
-            $table->foreignId('branch_id')->nullable(false)->change();
-        });
-
         Schema::table('products', function (Blueprint $table) {
             $table->unique(['branch_id', 'code'], 'products_branch_code_unique');
         });
