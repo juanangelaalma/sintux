@@ -1,5 +1,6 @@
 import { Chip, Tabs } from '@heroui/react';
 import { Link, usePage } from '@inertiajs/react';
+import { useFontsReady } from '@/hooks/use-fonts-ready';
 
 export type TabKey =
     'invoices' | 'joins' | 'grns' | 'orders' | 'quotes' | 'requests';
@@ -39,10 +40,18 @@ const ALL_TABS: {
 
 export default function PurchasingTabs({ activeTab }: PurchasingTabsProps) {
     const { props } = usePage();
+    const fontsReady = useFontsReady();
     const auth = (props.auth ?? {}) as { is_hq?: boolean };
     const isHq = auth.is_hq ?? false;
 
     const tabs = ALL_TABS.filter((tab) => !tab.hqOnly || isHq);
+
+    if (tabs.length === 0) {
+        return null;
+    }
+
+    const showIndicator = (tabKey: TabKey) =>
+        fontsReady && tabKey === activeTab;
 
     return (
         <Tabs className="w-full" selectedKey={activeTab}>
@@ -56,7 +65,7 @@ export default function PurchasingTabs({ activeTab }: PurchasingTabsProps) {
                             render={(domProps: any) => <Link {...domProps} />}
                         >
                             {tab.label}
-                            <Tabs.Indicator />
+                            {showIndicator(tab.key) && <Tabs.Indicator />}
                         </Tabs.Tab>
                     ))}
                     {isHq && (

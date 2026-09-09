@@ -19,6 +19,7 @@ export type DataTableColumn<T> = {
     render: (row: T) => ReactNode;
     align?: 'left' | 'right';
     allowsSorting?: boolean;
+    isRowHeader?: boolean;
     cellClassName?: string;
     copyableKey?: (row: T) => string;
 };
@@ -39,6 +40,7 @@ type HerouiDataTableProps<T> = {
     onPageChange?: (page: number) => void;
     onPerPageChange?: (perPage: number) => void;
     selectable?: boolean;
+    initialSortDescriptor?: SortDescriptor;
 };
 
 export default function HerouiDataTable<T>({
@@ -50,12 +52,27 @@ export default function HerouiDataTable<T>({
     onPageChange,
     onPerPageChange,
     selectable = true,
+    initialSortDescriptor,
 }: HerouiDataTableProps<T>) {
-    const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
-        column: '',
-        direction: 'ascending',
+    // Initial sort must match between SSR and hydration: derive it only
+    // from props (this initializer runs on the server too), never from
+    // window, Date, random, or locale. Unknown columns fall back to unsorted.
+    const [sortDescriptor, setSortDescriptor] = useState<
+        SortDescriptor | undefined
+    >(() => {
+        if (!initialSortDescriptor?.column) {
+            return undefined;
+        }
+
+        const key = String(initialSortDescriptor.column);
+
+        return columns.some((column) => column.key === key)
+            ? { column: key, direction: initialSortDescriptor.direction }
+            : undefined;
     });
     const [copiedKey, setCopiedKey] = useState<string | number | null>(null);
+
+    const hasExplicitRowHeader = columns.some((column) => column.isRowHeader);
 
     const handleCopy = (text: string, key: string | number) => {
         navigator.clipboard.writeText(text);
@@ -64,7 +81,7 @@ export default function HerouiDataTable<T>({
     };
 
     const sortedRows = useMemo(() => {
-        if (!sortDescriptor.column) {
+        if (!sortDescriptor?.column) {
             return rows;
         }
 
@@ -131,11 +148,15 @@ export default function HerouiDataTable<T>({
                                     <Checkbox slot="selection" />
                                 </Table.Column>
                             )}
-                            {columns.map((column) => (
+                            {columns.map((column, index) => (
                                 <Table.Column
                                     key={column.key}
                                     id={column.key}
                                     allowsSorting={column.allowsSorting ?? true}
+                                    isRowHeader={
+                                        column.isRowHeader ??
+                                        (!hasExplicitRowHeader && index === 0)
+                                    }
                                     className={`px-4 py-3 text-xs font-bold tracking-wider uppercase ${
                                         column.align === 'right'
                                             ? 'text-end'
