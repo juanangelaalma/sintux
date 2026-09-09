@@ -5,6 +5,7 @@ namespace Modules\Purchasing\Tests\Feature;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Company\Models\CompanyUser;
 use Modules\Purchasing\Enums\GoodsReceiptStatus;
 use Modules\Purchasing\Enums\PurchaseOrderStatus;
@@ -233,6 +234,67 @@ class GoodsReceiptTest extends TestCase
         );
     }
 
+    public function test_show_goods_receipt_page_includes_po_number_and_warehouse(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        tenancy()->initialize($tenantId);
+
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-SHOW', true);
+        $supplierId = $this->createSupplier($branchBId);
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
+
+        $po = PurchaseOrder::create([
+            'number' => 'PO-SHOW-'.uniqid(),
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
+            'supplier_id' => $supplierId,
+            'status' => PurchaseOrderStatus::Sent,
+            'order_date' => now()->toDateString(),
+            'currency_code' => 'IDR',
+            'branch_mode' => 'single',
+        ]);
+        $poItem = $po->items()->create([
+            'destination_branch_id' => $branchBId,
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget Show',
+            'sku' => 'SKU-SHOW',
+            'qty_ordered' => 15,
+            'qty_received' => 0,
+            'unit_price' => 25000,
+        ]);
+
+        $grn = GoodsReceipt::create([
+            'number' => 'GRN-SHOW-'.uniqid(),
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $po->id,
+            'warehouse_id' => $hqWarehouseId,
+            'status' => GoodsReceiptStatus::Draft,
+            'receipt_date' => now()->toDateString(),
+        ]);
+        $grn->items()->create([
+            'purchase_order_item_id' => $poItem->id,
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget Show',
+            'sku' => 'SKU-SHOW',
+            'qty_received' => 10,
+        ]);
+
+        $grnId = $grn->id;
+        $poNumber = $po->number;
+        tenancy()->end();
+
+        $response = $this->actingAs($user)->get(route('purchasing.grns.show', $grnId));
+        $response->assertOk();
+
+        $page = $response->inertiaPage();
+        $this->assertSame($poNumber, $page['props']['goodsReceipt']['purchase_order']['number']);
+        $this->assertSame($po->id, $page['props']['goodsReceipt']['purchase_order']['id']);
+        $this->assertNotNull($page['props']['warehouse']);
+        $this->assertSame((int) $hqWarehouseId, (int) $page['props']['warehouse']['id']);
+    }
+
     public function test_post_partial_goods_receipt_updates_po_status_to_partially_received(): void
     {
         [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
@@ -325,6 +387,207 @@ class GoodsReceiptTest extends TestCase
         $poDbFinal = DB::table('purchase_orders')->where('id', $poId)->first();
         $this->assertSame(PurchaseOrderStatus::Received->value, $poDbFinal->status);
         $this->assertEquals(20, (float) DB::table('purchase_order_items')->where('id', $poItem->id)->value('qty_received'));
+        tenancy()->end();
+    }
+
+    public function test_create_only_lists_receivable_purchase_orders(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        tenancy()->initialize($tenantId);
+        $supplierId = $this->createSupplier($branchBId);
+
+        foreach (PurchaseOrderStatus::cases() as $status) {
+            PurchaseOrder::create([
+                'number' => 'PO-OPT-'.$status->value.'-'.uniqid(),
+                'branch_id' => $hqBranchId,
+                'supplier_id' => $supplierId,
+                'status' => $status,
+                'order_date' => now()->toDateString(),
+                'currency_code' => 'IDR',
+                'branch_mode' => 'single',
+            ]);
+        }
+        tenancy()->end();
+
+        $this->actingAs($user)->get(route('purchasing.grns.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('purchaseOrders', 3)
+                ->where('purchaseOrders.0.status', PurchaseOrderStatus::PartiallyReceived->value)
+                ->where('purchaseOrders.1.status', PurchaseOrderStatus::Sent->value)
+                ->where('purchaseOrders.2.status', PurchaseOrderStatus::Approved->value)
+                ->has('warehouses', 1)
+                ->where('warehouses.0.code', 'GD-HQ-REG')
+            );
+    }
+
+    public function test_store_rejects_non_hq_regular_warehouse(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        tenancy()->initialize($tenantId);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
+        $supplierId = $this->createSupplier($branchBId);
+        $retailHqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'retail')->value('id');
+
+        $po = PurchaseOrder::create([
+            'number' => 'PO-WH-'.uniqid(),
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'status' => PurchaseOrderStatus::Sent,
+            'order_date' => now()->toDateString(),
+            'currency_code' => 'IDR',
+            'branch_mode' => 'single',
+        ]);
+        $poItem = $po->items()->create([
+            'destination_branch_id' => $branchBId,
+            'destination_warehouse_id' => $retailHqWarehouseId,
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget',
+            'sku' => 'SKU-WH',
+            'qty_ordered' => 10,
+            'qty_received' => 0,
+            'unit_price' => 50000,
+        ]);
+        tenancy()->end();
+
+        $response = $this->actingAs($user)->post(route('purchasing.grns.store'), [
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $po->id,
+            'warehouse_id' => $retailHqWarehouseId,
+            'receipt_date' => now()->toDateString(),
+            'items' => [
+                [
+                    'purchase_order_item_id' => $poItem->id,
+                    'product_variant_id' => $variantId,
+                    'qty_received' => 10,
+                ],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors(['warehouse_id']);
+    }
+
+    public function test_store_rejects_zero_qty_item(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        tenancy()->initialize($tenantId);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
+        $supplierId = $this->createSupplier($branchBId);
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
+        $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
+
+        $po = PurchaseOrder::create([
+            'number' => 'PO-ZERO-'.uniqid(),
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'status' => PurchaseOrderStatus::Sent,
+            'order_date' => now()->toDateString(),
+            'currency_code' => 'IDR',
+            'branch_mode' => 'single',
+        ]);
+        $poItem = $po->items()->create([
+            'destination_branch_id' => $branchBId,
+            'destination_warehouse_id' => $destWarehouseId,
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget',
+            'sku' => 'SKU-ZERO',
+            'qty_ordered' => 10,
+            'qty_received' => 0,
+            'unit_price' => 50000,
+        ]);
+        tenancy()->end();
+
+        $response = $this->actingAs($user)->post(route('purchasing.grns.store'), [
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $po->id,
+            'warehouse_id' => $hqWarehouseId,
+            'receipt_date' => now()->toDateString(),
+            'items' => [
+                [
+                    'purchase_order_item_id' => $poItem->id,
+                    'product_variant_id' => $variantId,
+                    'qty_received' => 0,
+                ],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors(['items.0.qty_received']);
+    }
+
+    public function test_store_allows_same_variant_across_multiple_po_lines(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        tenancy()->initialize($tenantId);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-MULTI', true);
+        $supplierId = $this->createSupplier($branchBId);
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
+        $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
+
+        // Multi-branch PO repeating the same variant across 2 lines (allocated to different destinations)
+        $po = PurchaseOrder::create([
+            'number' => 'PO-MULTI-'.uniqid(),
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'status' => PurchaseOrderStatus::Sent,
+            'order_date' => now()->toDateString(),
+            'currency_code' => 'IDR',
+            'branch_mode' => 'multi',
+        ]);
+        $poItem1 = $po->items()->create([
+            'destination_branch_id' => $hqBranchId,
+            'destination_warehouse_id' => $hqWarehouseId,
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget Multi',
+            'sku' => 'SKU-MULTI',
+            'qty_ordered' => 10,
+            'qty_received' => 0,
+            'unit_price' => 50000,
+        ]);
+        $poItem2 = $po->items()->create([
+            'destination_branch_id' => $branchBId,
+            'destination_warehouse_id' => $destWarehouseId,
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget Multi',
+            'sku' => 'SKU-MULTI',
+            'qty_ordered' => 20,
+            'qty_received' => 0,
+            'unit_price' => 50000,
+        ]);
+        tenancy()->end();
+
+        $response = $this->actingAs($user)->post(route('purchasing.grns.store'), [
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $po->id,
+            'warehouse_id' => $hqWarehouseId,
+            'receipt_date' => now()->toDateString(),
+            'items' => [
+                [
+                    'purchase_order_item_id' => $poItem1->id,
+                    'product_variant_id' => $variantId,
+                    'qty_received' => 10,
+                ],
+                [
+                    'purchase_order_item_id' => $poItem2->id,
+                    'product_variant_id' => $variantId, // repeated intentionally
+                    'qty_received' => 20,
+                ],
+            ],
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('purchasing.grns.index'));
+
+        tenancy()->initialize($tenantId);
+        $grn = DB::table('goods_receipts')->where('purchase_order_id', $po->id)->first();
+        $this->assertNotNull($grn);
+        $this->assertSame(2, (int) DB::table('goods_receipt_items')->where('goods_receipt_id', $grn->id)->count());
         tenancy()->end();
     }
 

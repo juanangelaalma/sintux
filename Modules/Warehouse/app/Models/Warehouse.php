@@ -7,6 +7,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Company\Models\Branch;
 
+/**
+ * @property int $id
+ * @property int $branch_id
+ * @property string $code
+ * @property string $name
+ * @property string $warehouse_type
+ * @property string|null $address
+ * @property bool $is_active
+ */
 class Warehouse extends Model
 {
     protected $fillable = [
@@ -26,11 +35,17 @@ class Warehouse extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Branch, $this>
+     */
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
     }
 
+    /**
+     * @return HasMany<StockBalance, $this>
+     */
     public function stockBalances(): HasMany
     {
         return $this->hasMany(StockBalance::class);

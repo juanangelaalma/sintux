@@ -26,13 +26,24 @@ type GoodsReceipt = {
     receipt_date: string;
     note?: string;
     items: Item[];
+    purchase_order?: {
+        id: number;
+        number: string;
+    } | null;
+};
+
+type Warehouse = {
+    id: number;
+    code: string;
+    name: string;
 };
 
 type Props = {
     goodsReceipt: GoodsReceipt;
+    warehouse?: Warehouse | null;
 };
 
-export default function GoodsReceiptsShow({ goodsReceipt }: Props) {
+export default function GoodsReceiptsShow({ goodsReceipt, warehouse }: Props) {
     const [confirmPost, setConfirmPost] = useState(false);
     const { post: postPost, processing: posting } = useForm({});
 
@@ -45,8 +56,25 @@ export default function GoodsReceiptsShow({ goodsReceipt }: Props) {
             label: 'Tanggal terima',
             value: formatDate(goodsReceipt.receipt_date),
         },
-        { label: 'ID pesanan', value: `#${goodsReceipt.purchase_order_id}` },
-        { label: 'ID gudang', value: `#${goodsReceipt.warehouse_id}` },
+        {
+            label: 'No. PO',
+            value: goodsReceipt.purchase_order ? (
+                <Link
+                    href={`/purchasing/orders/${goodsReceipt.purchase_order_id}`}
+                    className="text-accent hover:underline"
+                >
+                    #{goodsReceipt.purchase_order.number}
+                </Link>
+            ) : (
+                `#${goodsReceipt.purchase_order_id}`
+            ),
+        },
+        {
+            label: 'Gudang',
+            value: warehouse
+                ? `${warehouse.code} — ${warehouse.name}`
+                : `#${goodsReceipt.warehouse_id}`,
+        },
     ];
 
     return (

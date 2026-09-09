@@ -3,7 +3,7 @@ import PurchasingStatusBadge from '@/components/purchasing/purchasing-status-bad
 
 export type DetailRow = {
     label: string;
-    value: string;
+    value: ReactNode;
 };
 
 type PurchaseDocumentDetailProps = {

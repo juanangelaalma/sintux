@@ -8,7 +8,7 @@ class GetGoodsReceiptDetail
 {
     public function execute(int $id): GoodsReceipt
     {
-        return GoodsReceipt::with(['items'])
+        return GoodsReceipt::with(['items', 'purchaseOrder'])
             ->findOrFail($id);
     }
 }
