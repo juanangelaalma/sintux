@@ -7,6 +7,13 @@ use Illuminate\Validation\Rule;
 
 class StoreVariantRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if (! $this->filled('branch_id')) {
+            $this->merge(['branch_id' => session('active_branch_id')]);
+        }
+    }
+
     public function authorize(): bool
     {
         return auth()->check();
