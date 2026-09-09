@@ -117,9 +117,10 @@ class StorePurchaseOrderRequest extends FormRequest
             }],
             'items.*.destination_expected_date' => ['required', 'date', 'after_or_equal:order_date'],
             'items.*.product_variant_id' => ['required', 'integer', function (string $attribute, mixed $value, Closure $fail) {
-                $parts = explode('.', $attribute);
-                $index = $parts[1] ?? null;
-                $destBranchId = $this->input("items.{$index}.destination_branch_id");
+                // Requirement: varian tidak wajib milik cabang tujuan. HO/HQ mem-PO
+                // varian master (mis. milik HQ) untuk dialokasikan ke cabang mana pun;
+                // mapping ke produk masing-masing cabang dilakukan saat penerimaan
+                // Transfer Stok. Cukup pastikan varian dan produknya ada dan aktif.
                 $variant = DB::table('product_variants')->where('id', $value)->first();
                 if (! $variant) {
                     $fail('Varian produk tidak ditemukan.');
@@ -128,12 +129,6 @@ class StorePurchaseOrderRequest extends FormRequest
                 }
                 if (! $variant->is_active) {
                     $fail('Varian produk tidak aktif.');
-
-                    return;
-                }
-                // Check variant belongs to destination branch
-                if ($destBranchId && (int) $variant->branch_id !== (int) $destBranchId) {
-                    $fail('Varian produk harus milik cabang tujuan.');
 
                     return;
                 }

@@ -50,6 +50,26 @@ class GetWarehouses
     }
 
     /**
+     * Flat options for goods receipt: active regular warehouses of HQ only.
+     *
+     * @return list<array{id: int, code: string, name: string}>
+     */
+    public function optionsForReceipt(int $hqBranchId): array
+    {
+        return Warehouse::where('branch_id', $hqBranchId)
+            ->where('is_active', true)
+            ->where('warehouse_type', 'regular')
+            ->orderBy('code')
+            ->get(['id', 'code', 'name'])
+            ->map(fn (Warehouse $warehouse) => [
+                'id' => (int) $warehouse->id,
+                'code' => (string) $warehouse->code,
+                'name' => (string) $warehouse->name,
+            ])
+            ->all();
+    }
+
+    /**
      * @param  list<int>  $branchIds
      * @return list<int>
      */

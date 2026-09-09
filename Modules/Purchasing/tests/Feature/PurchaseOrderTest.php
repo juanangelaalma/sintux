@@ -311,6 +311,39 @@ class PurchaseOrderTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_store_allows_hq_variant_allocated_to_branch_without_local_variant(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        tenancy()->initialize($tenantId);
+        // Variant exists ONLY in HQ; branch B has no local variant.
+        [$hqVariantId] = $this->createProductAndVariant($hqBranchId, 'PRD-HQ', true);
+        $supplierId = $this->createSupplier($branchBId);
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
+        $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
+        tenancy()->end();
+
+        $response = $this->actingAs($user)->post(route('purchasing.orders.store'), [
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
+            'supplier_id' => $supplierId,
+            'order_date' => '2026-08-26',
+            'items' => [
+                ['destination_branch_id' => $branchBId, 'destination_warehouse_id' => $destWarehouseId, 'destination_expected_date' => '2026-08-28', 'product_variant_id' => $hqVariantId, 'qty_ordered' => 10, 'unit_price' => 50000],
+            ],
+        ]);
+
+        $response->assertRedirect(route('purchasing.orders.index'));
+
+        tenancy()->initialize($tenantId);
+        $po = DB::table('purchase_orders')->where('branch_id', $hqBranchId)->first();
+        $this->assertNotNull($po);
+        $item = DB::table('purchase_order_items')->where('purchase_order_id', $po->id)->first();
+        $this->assertEquals($branchBId, (int) $item->destination_branch_id);
+        $this->assertEquals($hqVariantId, (int) $item->product_variant_id);
+        tenancy()->end();
+    }
+
     public function test_store_defaults_branch_mode_to_single_when_one_destination(): void
     {
         [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
@@ -439,38 +472,6 @@ class PurchaseOrderTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors(['items.0.destination_warehouse_id']);
-    }
-
-    public function test_validation_rejects_variant_belonging_to_different_branch_than_destination(): void
-    {
-        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
-        tenancy()->initialize($tenantId);
-        // Variant created for HQ branch, not branch B
-        [$variantHqId] = $this->createProductAndVariant($hqBranchId, 'PRD-HQ', true);
-        $supplierId = $this->createSupplier($branchBId);
-        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
-        $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
-        tenancy()->end();
-
-        $response = $this->actingAs($user)->post(route('purchasing.orders.store'), [
-            'branch_id' => $hqBranchId,
-            'warehouse_id' => $hqWarehouseId,
-            'supplier_id' => $supplierId,
-            'order_date' => '2026-08-26',
-            'items' => [
-                [
-                    'destination_branch_id' => $branchBId,
-                    'destination_warehouse_id' => $destWarehouseId,
-                    'destination_expected_date' => '2026-08-28',
-                    'product_variant_id' => $variantHqId, // Variant belongs to HQ, but destination is branch B!
-                    'qty_ordered' => 10,
-                    'unit_price' => 50000,
-                ],
-            ],
-        ]);
-
-        $response->assertSessionHasErrors(['items.0.product_variant_id']);
     }
 
     public function test_validation_rejects_inconsistent_expected_date_for_same_branch(): void

@@ -1,10 +1,11 @@
 import { Button } from '@heroui/react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { Building2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { formatCurrency } from '@/lib/format';
 
-type Warehouse = { id: number; name: string };
+type Warehouse = { id: number; code: string; name: string };
 
 type POItem = {
     id: number;
@@ -16,6 +17,9 @@ type POItem = {
     qty_received: number;
     unit_price: number;
     line_total: number;
+    destination_branch_id: number;
+    destination_branch_code?: string | null;
+    destination_branch_name?: string | null;
 };
 
 type OrderOption = {
@@ -23,6 +27,8 @@ type OrderOption = {
     number: string;
     branch_id: number;
     supplier_id: number;
+    status: string;
+    status_label: string;
     note?: string;
     items: POItem[];
 };
@@ -34,6 +40,17 @@ type GRNItemRow = {
     sku: string;
     qty_received: number;
     unit_price: number;
+    destination_branch_id: number;
+    destination_branch_code?: string | null;
+    destination_branch_name?: string | null;
+};
+
+type BranchItemGroup = {
+    key: string;
+    branchCode: string;
+    branchName: string;
+    rows: { item: GRNItemRow; index: number }[];
+    totalQty: number;
 };
 
 type Props = {
@@ -94,14 +111,25 @@ export default function GoodsReceiptsCreate({
             supplier_id: po.supplier_id,
             purchase_order_id: po.id,
             note: po.note || data.note,
-            items: po.items.map((item) => ({
-                purchase_order_item_id: item.id,
-                product_variant_id: item.product_variant_id,
-                product_name: item.product_name,
-                sku: item.sku,
-                qty_received: Math.max(0, item.qty_ordered - item.qty_received),
-                unit_price: item.unit_price,
-            })),
+            items: po.items
+                .filter(
+                    (item) =>
+                        Math.max(0, item.qty_ordered - item.qty_received) > 0,
+                )
+                .map((item) => ({
+                    purchase_order_item_id: item.id,
+                    product_variant_id: item.product_variant_id,
+                    product_name: item.product_name,
+                    sku: item.sku,
+                    qty_received: Math.max(
+                        0,
+                        item.qty_ordered - item.qty_received,
+                    ),
+                    unit_price: item.unit_price,
+                    destination_branch_id: item.destination_branch_id,
+                    destination_branch_code: item.destination_branch_code,
+                    destination_branch_name: item.destination_branch_name,
+                })),
         });
     };
 
@@ -120,6 +148,51 @@ export default function GoodsReceiptsCreate({
         (sum, item) => sum + Number(item.qty_received || 0),
         0,
     );
+
+    const errorEntries = Object.entries(errors);
+    const hasErrors = errorEntries.length > 0;
+    const noReceivableItems =
+        selectedPo !== undefined && data.items.length === 0;
+
+    const rowErrors = (index: number): string[] =>
+        errorEntries
+            .filter(([key]) => key.startsWith(`items.${index}.`))
+            .map(([, message]) => String(message));
+
+    const branchGroups = useMemo<BranchItemGroup[]>(() => {
+        const map = new Map<string, BranchItemGroup>();
+
+        data.items.forEach((item, index) => {
+            const key = String(item.destination_branch_id || 'unassigned');
+            const existing = map.get(key);
+            const code =
+                item.destination_branch_code ||
+                (item.destination_branch_id
+                    ? `BR-${item.destination_branch_id}`
+                    : 'HQ');
+            const name =
+                item.destination_branch_name ||
+                (item.destination_branch_id
+                    ? `Cabang ${item.destination_branch_id}`
+                    : 'Pusat');
+            const qty = Number(item.qty_received || 0);
+
+            if (existing) {
+                existing.rows.push({ item, index });
+                existing.totalQty += qty;
+            } else {
+                map.set(key, {
+                    key,
+                    branchCode: code,
+                    branchName: name,
+                    rows: [{ item, index }],
+                    totalQty: qty,
+                });
+            }
+        });
+
+        return Array.from(map.values());
+    }, [data.items]);
 
     return (
         <CompanyLayout>
@@ -140,6 +213,22 @@ export default function GoodsReceiptsCreate({
                     onSubmit={handleSubmit}
                     className="space-y-6 rounded-xl border border-border bg-surface p-6 shadow-xs"
                 >
+                    {hasErrors && (
+                        <div
+                            role="alert"
+                            className="rounded-lg border border-danger/40 bg-danger/5 p-4"
+                        >
+                            <p className="text-sm font-bold text-danger">
+                                Penerimaan tidak dapat disimpan. Periksa kembali
+                                isian berikut:
+                            </p>
+                            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-danger">
+                                {errorEntries.map(([key, message]) => (
+                                    <li key={key}>{String(message)}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
                         <div>
                             <label className="block text-xs font-semibold text-foreground">
@@ -153,7 +242,7 @@ export default function GoodsReceiptsCreate({
                                 <option value="">Pilih PO</option>
                                 {purchaseOrders.map((po) => (
                                     <option key={po.id} value={po.id}>
-                                        PO #{po.number}
+                                        PO #{po.number} — {po.status_label}
                                     </option>
                                 ))}
                             </select>
@@ -166,25 +255,13 @@ export default function GoodsReceiptsCreate({
 
                         <div>
                             <label className="block text-xs font-semibold text-foreground">
-                                Gudang Tujuan *
+                                Gudang HQ Penerima (Regular)
                             </label>
-                            <select
-                                value={data.warehouse_id}
-                                onChange={(e) =>
-                                    setData(
-                                        'warehouse_id',
-                                        Number(e.target.value),
-                                    )
-                                }
-                                className="mt-1 block w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-accent focus:ring-accent"
-                            >
-                                <option value="">Pilih Gudang</option>
-                                {warehouses.map((w) => (
-                                    <option key={w.id} value={w.id}>
-                                        {w.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="mt-1 block w-full rounded-lg border border-border bg-surface-secondary/40 px-3 py-2 text-sm text-foreground">
+                                {warehouses[0]
+                                    ? `${warehouses[0].code} — ${warehouses[0].name}`
+                                    : 'GD-HQ-REG belum tersedia'}
+                            </div>
                             {errors.warehouse_id && (
                                 <p className="mt-1 text-xs text-danger">
                                     {errors.warehouse_id}
@@ -225,115 +302,182 @@ export default function GoodsReceiptsCreate({
 
                             {data.items.length === 0 ? (
                                 <p className="text-sm text-muted">
-                                    Pilih PO untuk memuat daftar item.
+                                    {selectedPo
+                                        ? 'Semua item PO ini sudah diterima penuh.'
+                                        : 'Pilih PO untuk memuat daftar item.'}
                                 </p>
                             ) : (
-                                <div className="overflow-hidden rounded-lg border border-border">
-                                    <table className="w-full text-left text-sm text-foreground">
-                                        <thead className="border-b border-border bg-cyan-500/10 text-xs font-bold text-cyan-950 uppercase dark:bg-cyan-950/40 dark:text-cyan-200">
-                                            <tr>
-                                                <th className="px-4 py-3">
-                                                    Produk
-                                                </th>
-                                                <th className="px-4 py-3">
-                                                    SKU
-                                                </th>
-                                                <th className="px-4 py-3 text-right">
-                                                    Pesanan
-                                                </th>
-                                                <th className="px-4 py-3 text-right">
-                                                    Sudah Diterima
-                                                </th>
-                                                <th className="px-4 py-3 text-right">
-                                                    Harga Satuan
-                                                </th>
-                                                <th className="px-4 py-3 text-right">
-                                                    Terima Sekarang *
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border/60">
-                                            {data.items.map((item, index) => {
-                                                const poItem =
-                                                    selectedPo.items.find(
-                                                        (i) =>
-                                                            i.id ===
-                                                            item.purchase_order_item_id,
-                                                    );
-                                                const maxQty = poItem
-                                                    ? Math.max(
-                                                          0,
-                                                          poItem.qty_ordered -
-                                                              poItem.qty_received,
-                                                      )
-                                                    : 0;
-
-                                                return (
-                                                    <tr
-                                                        key={
-                                                            item.purchase_order_item_id
-                                                        }
-                                                        className="hover:bg-surface-secondary/60"
+                                <div className="space-y-4">
+                                    {branchGroups.map((group) => (
+                                        <div
+                                            key={group.key}
+                                            className="overflow-hidden rounded-xl border border-border bg-surface shadow-2xs"
+                                        >
+                                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface-secondary/40 px-4 py-2.5">
+                                                <div className="flex items-center gap-2">
+                                                    <div
+                                                        className="flex size-7 items-center justify-center rounded-md bg-accent/10 text-accent"
+                                                        aria-hidden
                                                     >
-                                                        <td className="px-4 py-3 font-semibold text-foreground">
-                                                            {item.product_name}
-                                                        </td>
-                                                        <td className="px-4 py-3 font-mono text-xs text-muted">
-                                                            {item.sku}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right font-medium">
-                                                            {poItem?.qty_ordered ??
-                                                                0}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right font-medium text-muted">
-                                                            {poItem?.qty_received ??
-                                                                0}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right">
-                                                            {formatCurrency(
-                                                                item.unit_price,
-                                                            )}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right">
-                                                            <input
-                                                                type="number"
-                                                                min={0}
-                                                                max={
-                                                                    maxQty ||
-                                                                    undefined
-                                                                }
-                                                                step="any"
-                                                                value={
-                                                                    item.qty_received
-                                                                }
-                                                                onChange={(e) =>
-                                                                    updateQty(
+                                                        <Building2 className="size-3.5" />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-foreground">
+                                                        Alokasi Cabang Tujuan:{' '}
+                                                        {group.branchCode} —{' '}
+                                                        {group.branchName}
+                                                    </span>
+                                                </div>
+                                                <span className="text-xs font-medium text-muted">
+                                                    {group.rows.length} item •
+                                                    Total diterima:{' '}
+                                                    <span className="font-bold text-foreground">
+                                                        {group.totalQty}
+                                                    </span>
+                                                </span>
+                                            </div>
+
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left text-sm text-foreground">
+                                                    <thead className="border-b border-border bg-cyan-500/10 text-xs font-bold text-cyan-950 uppercase dark:bg-cyan-950/40 dark:text-cyan-200">
+                                                        <tr>
+                                                            <th className="px-4 py-3">
+                                                                Produk
+                                                            </th>
+                                                            <th className="px-4 py-3">
+                                                                SKU
+                                                            </th>
+                                                            <th className="px-4 py-3 text-right">
+                                                                Pesanan
+                                                            </th>
+                                                            <th className="px-4 py-3 text-right">
+                                                                Sudah Diterima
+                                                            </th>
+                                                            <th className="px-4 py-3 text-right">
+                                                                Harga Satuan
+                                                            </th>
+                                                            <th className="px-4 py-3 text-right">
+                                                                Terima Sekarang
+                                                                *
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-border/60">
+                                                        {group.rows.map(
+                                                            ({
+                                                                item,
+                                                                index,
+                                                            }) => {
+                                                                const poItem =
+                                                                    selectedPo.items.find(
+                                                                        (i) =>
+                                                                            i.id ===
+                                                                            item.purchase_order_item_id,
+                                                                    );
+                                                                const maxQty =
+                                                                    poItem
+                                                                        ? Math.max(
+                                                                              0,
+                                                                              poItem.qty_ordered -
+                                                                                  poItem.qty_received,
+                                                                          )
+                                                                        : 0;
+                                                                const itemErrors =
+                                                                    rowErrors(
                                                                         index,
-                                                                        Number(
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                        ),
-                                                                    )
-                                                                }
-                                                                className="ml-auto block w-28 rounded-lg border-border bg-surface text-right text-sm text-foreground focus:border-accent focus:ring-accent"
-                                                            />
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
+                                                                    );
+
+                                                                return (
+                                                                    <tr
+                                                                        key={
+                                                                            item.purchase_order_item_id
+                                                                        }
+                                                                        className="hover:bg-surface-secondary/60"
+                                                                    >
+                                                                        <td className="px-4 py-3 font-semibold text-foreground">
+                                                                            {
+                                                                                item.product_name
+                                                                            }
+                                                                            {itemErrors.length >
+                                                                                0 && (
+                                                                                <ul className="mt-1 space-y-0.5 text-xs font-normal text-danger">
+                                                                                    {itemErrors.map(
+                                                                                        (
+                                                                                            message,
+                                                                                            i,
+                                                                                        ) => (
+                                                                                            <li
+                                                                                                key={`${index}-${i}`}
+                                                                                            >
+                                                                                                {
+                                                                                                    message
+                                                                                                }
+                                                                                            </li>
+                                                                                        ),
+                                                                                    )}
+                                                                                </ul>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 font-mono text-xs text-muted">
+                                                                            {
+                                                                                item.sku
+                                                                            }
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-right font-medium">
+                                                                            {poItem?.qty_ordered ??
+                                                                                0}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-right font-medium text-muted">
+                                                                            {poItem?.qty_received ??
+                                                                                0}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-right">
+                                                                            {formatCurrency(
+                                                                                item.unit_price,
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-right">
+                                                                            <input
+                                                                                type="number"
+                                                                                min={
+                                                                                    0
+                                                                                }
+                                                                                max={
+                                                                                    maxQty ||
+                                                                                    undefined
+                                                                                }
+                                                                                step="any"
+                                                                                value={
+                                                                                    item.qty_received
+                                                                                }
+                                                                                onChange={(
+                                                                                    e,
+                                                                                ) =>
+                                                                                    updateQty(
+                                                                                        index,
+                                                                                        Number(
+                                                                                            e
+                                                                                                .target
+                                                                                                .value,
+                                                                                        ),
+                                                                                    )
+                                                                                }
+                                                                                className="ml-auto block w-28 rounded-lg border-border bg-surface text-right text-sm text-foreground focus:border-accent focus:ring-accent"
+                                                                            />
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            },
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                             {errors.items && (
                                 <p className="mt-2 text-xs text-danger">
                                     {errors.items}
-                                </p>
-                            )}
-                            {errors['items.0.qty_received'] && (
-                                <p className="mt-2 text-xs text-danger">
-                                    {errors['items.0.qty_received']}
                                 </p>
                             )}
                         </div>
@@ -361,7 +505,7 @@ export default function GoodsReceiptsCreate({
                         <Button
                             type="submit"
                             variant="primary"
-                            isDisabled={processing}
+                            isDisabled={processing || noReceivableItems}
                         >
                             Simpan Penerimaan Barang
                         </Button>
