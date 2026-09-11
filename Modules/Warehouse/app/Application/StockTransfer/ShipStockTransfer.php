@@ -4,6 +4,7 @@ namespace Modules\Warehouse\Application\StockTransfer;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Warehouse\Enums\StockTransferStatus;
 use Modules\Warehouse\Models\StockBalance;
 use Modules\Warehouse\Models\StockMovement;
 use Modules\Warehouse\Models\StockTransfer;
@@ -30,7 +31,7 @@ class ShipStockTransfer
          * Hanya transfer dengan status draft
          * yang boleh dikirim.
          */
-        if ($stockTransfer->status !== 'draft') {
+        if ($stockTransfer->status !== StockTransferStatus::Draft->value) {
             throw ValidationException::withMessages([
                 'stock_transfer' => sprintf(
                     'Stock transfer ini sudah diproses (status: %s) dan tidak dapat dikirim ulang.',
@@ -70,7 +71,7 @@ class ShipStockTransfer
              * SHIPPED = in-transit, belum masuk branch stock.
              */
             $stockTransfer->update([
-                'status' => 'shipped',
+                'status' => StockTransferStatus::Shipped->value,
                 'shipped_by' => $shippedById,
                 'shipped_at' => now(),
             ]);

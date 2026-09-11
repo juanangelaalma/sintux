@@ -4,6 +4,7 @@ namespace Modules\Warehouse\Application\StockRequest;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Warehouse\Enums\StockTransferStatus;
 use Modules\Warehouse\Models\StockBalance;
 use Modules\Warehouse\Models\StockRequest;
 use Modules\Warehouse\Models\StockTransfer;
@@ -92,7 +93,7 @@ class ApproveStockRequest
                     'stock_request_id' => $stockRequest->id,
                     'from_warehouse_id' => $hqWarehouseId,
                     'to_warehouse_id' => $stockRequest->requesting_warehouse_id,
-                    'status' => 'draft',
+                    'status' => StockTransferStatus::Draft->value,
                 ]);
 
                 foreach ($stockRequest->items as $item) {

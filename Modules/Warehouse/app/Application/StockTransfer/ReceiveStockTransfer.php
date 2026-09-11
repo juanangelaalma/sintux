@@ -4,6 +4,7 @@ namespace Modules\Warehouse\Application\StockTransfer;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Warehouse\Enums\StockTransferStatus;
 use Modules\Warehouse\Models\StockLayer;
 use Modules\Warehouse\Models\StockMovement;
 use Modules\Warehouse\Models\StockTransfer;
@@ -30,7 +31,7 @@ class ReceiveStockTransfer
             'toWarehouse',
         ])->findOrFail($stockTransferId);
 
-        if ($stockTransfer->status !== 'shipped') {
+        if ($stockTransfer->status !== StockTransferStatus::Shipped->value) {
             throw ValidationException::withMessages([
                 'stock_transfer' => sprintf(
                     'Stock transfer ini tidak dalam status shipped (status: %s) dan tidak dapat diterima.',
@@ -69,7 +70,7 @@ class ReceiveStockTransfer
             );
 
             $stockTransfer->update([
-                'status' => $allFullyReceived ? 'received' : 'shipped',
+                'status' => $allFullyReceived ? StockTransferStatus::Received->value : StockTransferStatus::Shipped->value,
                 'received_by' => $receivedById,
                 'received_at' => now(),
             ]);
