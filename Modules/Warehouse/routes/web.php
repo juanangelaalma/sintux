@@ -34,6 +34,9 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
             ->only(['index', 'show'])
             ->parameters(['stock-transfers' => 'stock_transfer']);
 
+        Route::post('stock-transfers', [StockTransferController::class, 'store'])
+            ->name('stock-transfers.store');
+
         Route::post('stock-transfers/{stock_transfer}/ship', [StockTransferController::class, 'ship'])
             ->name('stock-transfers.ship');
 

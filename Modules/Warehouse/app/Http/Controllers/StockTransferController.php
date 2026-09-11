@@ -6,10 +6,13 @@ use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Modules\Company\Application\CompanyAccess;
+use Modules\Warehouse\Application\StockTransfer\CreateDirectTransfer;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransfers;
 use Modules\Warehouse\Application\StockTransfer\ReceiveStockTransfer;
 use Modules\Warehouse\Application\StockTransfer\ShipStockTransfer;
+use Modules\Warehouse\Enums\StockTransferStatus;
+use Modules\Warehouse\Http\Requests\StoreDirectTransferRequest;
 use Modules\Warehouse\Services\InsufficientStockException;
 
 class StockTransferController extends Controller
@@ -17,6 +20,7 @@ class StockTransferController extends Controller
     public function __construct(
         private readonly GetStockTransfers $getStockTransfers,
         private readonly GetStockTransferDetail $getStockTransferDetail,
+        private readonly CreateDirectTransfer $createDirectTransfer,
         private readonly ShipStockTransfer $shipStockTransfer,
         private readonly ReceiveStockTransfer $receiveStockTransfer,
     ) {}
@@ -59,6 +63,35 @@ class StockTransferController extends Controller
         return Inertia::render('Warehouse/StockTransfers/show', [
             'stockTransfer' => $stockTransfer,
         ]);
+    }
+
+    public function store(StoreDirectTransferRequest $request)
+    {
+        $user = request()->user();
+
+        abort_unless(
+            $user && $user->can('warehouse.stock.transfer'),
+            403
+        );
+
+        try {
+            $transfer = $this->createDirectTransfer->execute(
+                $request->validated(),
+                (int) $user->id
+            );
+        } catch (ValidationException $e) {
+            return back()
+                ->withErrors($e->errors())
+                ->withInput();
+        }
+
+        $message = $transfer->status === StockTransferStatus::Draft->value
+            ? 'Transfer stok langsung berhasil dibuat (status: draft).'
+            : 'Transfer stok berhasil dibuat dan menunggu persetujuan HO.';
+
+        return redirect()
+            ->route('warehouse.stock-transfers.index')
+            ->with('success', $message);
     }
 
     public function ship(int $id)
