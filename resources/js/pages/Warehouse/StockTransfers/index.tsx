@@ -39,10 +39,18 @@ export default function StockTransferIndex({ stockTransfers }: Props) {
             render: (st) => {
                 const badgeStyles: Record<string, string> = {
                     draft: 'bg-slate-100 text-slate-700 ring-slate-600/20',
+                    pending_approval:
+                        'bg-amber-50 text-amber-700 ring-amber-600/20',
+                    rejected: 'bg-rose-50 text-rose-700 ring-rose-600/20',
                     shipped: 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
                     received:
                         'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
                     cancelled: 'bg-rose-50 text-rose-700 ring-rose-600/20',
+                };
+
+                const statusLabels: Record<string, string> = {
+                    pending_approval: 'PENDING APPROVAL (HO)',
+                    rejected: 'DITOLAK HO',
                 };
 
                 return (
@@ -52,7 +60,7 @@ export default function StockTransferIndex({ stockTransfers }: Props) {
                             'bg-slate-100 text-slate-700'
                         }`}
                     >
-                        {st.status.toUpperCase()}
+                        {statusLabels[st.status] ?? st.status.toUpperCase()}
                     </span>
                 );
             },
@@ -91,6 +99,13 @@ export default function StockTransferIndex({ stockTransfers }: Props) {
                 <PageHeader
                     title="Transfer Stok Gudang"
                     description="Pengiriman dan penerimaan stok antar gudang cabang."
+                    actions={
+                        <Link href="/warehouse/stock-transfers/create">
+                            <Button variant="primary">
+                                + Buat Transfer Langsung
+                            </Button>
+                        </Link>
+                    }
                 />
 
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

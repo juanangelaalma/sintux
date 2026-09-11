@@ -30,6 +30,9 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
         Route::post('stock-requests/{stock_request}/approve', [StockRequestController::class, 'approve'])
             ->name('stock-requests.approve');
 
+        Route::get('stock-transfers/create', [StockTransferController::class, 'create'])
+            ->name('stock-transfers.create');
+
         Route::resource('stock-transfers', StockTransferController::class)
             ->only(['index', 'show'])
             ->parameters(['stock-transfers' => 'stock_transfer']);

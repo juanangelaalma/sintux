@@ -7,6 +7,7 @@ export type Warehouse = {
     branch?: {
         id: number;
         name: string;
+        is_headquarters?: boolean;
     };
 };
 
@@ -68,7 +69,13 @@ export type StockTransfer = {
     stock_request_id?: number | null;
     from_warehouse_id: number;
     to_warehouse_id: number;
-    status: 'draft' | 'shipped' | 'received' | 'cancelled';
+    status:
+        | 'draft'
+        | 'pending_approval'
+        | 'rejected'
+        | 'shipped'
+        | 'received'
+        | 'cancelled';
     shipped_by?: number | null;
     shipped_at?: string | null;
     received_by?: number | null;

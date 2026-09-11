@@ -6,6 +6,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Modules\Company\Application\CompanyAccess;
+use Modules\Product\Models\ProductVariant;
 use Modules\Warehouse\Application\StockTransfer\ApproveDirectTransfer;
 use Modules\Warehouse\Application\StockTransfer\CreateDirectTransfer;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
@@ -15,6 +16,7 @@ use Modules\Warehouse\Application\StockTransfer\ShipStockTransfer;
 use Modules\Warehouse\Enums\StockTransferStatus;
 use Modules\Warehouse\Http\Requests\ApproveDirectTransferRequest;
 use Modules\Warehouse\Http\Requests\StoreDirectTransferRequest;
+use Modules\Warehouse\Models\Warehouse;
 use Modules\Warehouse\Services\InsufficientStockException;
 
 class StockTransferController extends Controller
@@ -63,8 +65,50 @@ class StockTransferController extends Controller
     {
         $stockTransfer = $this->getStockTransferDetail->execute($id);
 
+        $user = request()->user();
+        $tenantId = (string) session('active_tenant_id');
+
+        /*
+         * Tombol approve hanya untuk anggota HQ pada transfer
+         * yang menunggu persetujuan. Route tetap memvalidasi ulang.
+         */
+        $canApprove = $stockTransfer->status === StockTransferStatus::PendingApproval->value
+            && $user
+            && $user->can('warehouse.stock.transfer')
+            && CompanyAccess::isActiveBranchHq($user, $tenantId);
+
         return Inertia::render('Warehouse/StockTransfers/show', [
             'stockTransfer' => $stockTransfer,
+            'canApprove' => $canApprove,
+        ]);
+    }
+
+    public function create()
+    {
+        $user = request()->user();
+        $tenantId = (string) session('active_tenant_id');
+
+        $accessibleBranchIds = CompanyAccess::contextBranchIds($user, $tenantId)
+            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+
+        $sourceWarehouses = Warehouse::with('branch')
+            ->whereIn('branch_id', $accessibleBranchIds)
+            ->where('is_active', true)
+            ->get();
+
+        $destinationWarehouses = Warehouse::with('branch')
+            ->where('is_active', true)
+            ->get();
+
+        $productVariants = ProductVariant::with('product')
+            ->whereIn('branch_id', $accessibleBranchIds)
+            ->where('is_active', true)
+            ->get();
+
+        return Inertia::render('Warehouse/StockTransfers/create', [
+            'sourceWarehouses' => $sourceWarehouses,
+            'destinationWarehouses' => $destinationWarehouses,
+            'productVariants' => $productVariants,
         ]);
     }
 

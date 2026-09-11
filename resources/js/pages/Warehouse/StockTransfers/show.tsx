@@ -9,6 +9,7 @@ import type { StockTransfer, StockTransferItem } from './types';
 
 type Props = {
     stockTransfer: StockTransfer;
+    canApprove?: boolean;
 };
 
 type ReceiveItem = {
@@ -16,12 +17,19 @@ type ReceiveItem = {
     qty_received: number;
 };
 
-export default function StockTransferShow({ stockTransfer }: Props) {
+export default function StockTransferShow({
+    stockTransfer,
+    canApprove = false,
+}: Props) {
     const { errors } = usePage().props;
     const [isShipping, setIsShipping] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isReceiving, setIsReceiving] = useState(false);
     const [showReceiveModal, setShowReceiveModal] = useState(false);
+    const [isApproving, setIsApproving] = useState(false);
+    const [pendingDecision, setPendingDecision] = useState<
+        'approve' | 'reject' | null
+    >(null);
     const [receiveItems, setReceiveItems] = useState<ReceiveItem[]>(
         stockTransfer.items?.map((item) => ({
             stock_transfer_item_id: item.id,
@@ -60,6 +68,26 @@ export default function StockTransferShow({ stockTransfer }: Props) {
         );
     };
 
+    const handleApprove = () => {
+        if (!pendingDecision) {
+            return;
+        }
+
+        setIsApproving(true);
+        router.post(
+            `/warehouse/stock-transfers/${stockTransfer.id}/approve`,
+            {
+                decision: pendingDecision,
+            },
+            {
+                onFinish: () => {
+                    setIsApproving(false);
+                    setPendingDecision(null);
+                },
+            },
+        );
+    };
+
     const updateReceiveQty = (itemId: number, qty: number) => {
         setReceiveItems((prev) =>
             prev.map((item) =>
@@ -81,6 +109,14 @@ export default function StockTransferShow({ stockTransfer }: Props) {
         draft: {
             label: 'DRAFT',
             className: 'bg-slate-100 text-slate-700 ring-slate-600/20',
+        },
+        pending_approval: {
+            label: 'MENUNGGU PERSETUJUAN HO',
+            className: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+        },
+        rejected: {
+            label: 'DITOLAK HO',
+            className: 'bg-rose-50 text-rose-700 ring-rose-600/20',
         },
         shipped: {
             label: 'SHIPPED (DALAM PERJALANAN)',
@@ -117,6 +153,27 @@ export default function StockTransferShow({ stockTransfer }: Props) {
                                     Kirim Stock Transfer
                                 </Button>
                             )}
+                            {canApprove &&
+                                stockTransfer.status === 'pending_approval' && (
+                                    <>
+                                        <Button
+                                            variant="secondary"
+                                            onClick={() =>
+                                                setPendingDecision('reject')
+                                            }
+                                        >
+                                            Tolak
+                                        </Button>
+                                        <Button
+                                            variant="primary"
+                                            onClick={() =>
+                                                setPendingDecision('approve')
+                                            }
+                                        >
+                                            Setujui
+                                        </Button>
+                                    </>
+                                )}
                             {stockTransfer.status === 'shipped' && (
                                 <Button
                                     variant="primary"
@@ -339,6 +396,47 @@ export default function StockTransferShow({ stockTransfer }: Props) {
                     </div>
                 </div>
             </div>
+
+            {/* Approval Modal */}
+            {pendingDecision && (
+                <Modal
+                    title={
+                        pendingDecision === 'approve'
+                            ? 'Setujui Transfer Stok'
+                            : 'Tolak Transfer Stok'
+                    }
+                    onClose={() => setPendingDecision(null)}
+                >
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600">
+                            {pendingDecision === 'approve'
+                                ? 'Transfer akan berstatus draft dan siap dikirim. Stok gudang asal dicek kecukupannya saat persetujuan.'
+                                : 'Transfer akan berstatus ditolak dan tidak dapat dikirim.'}
+                        </p>
+
+                        <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                            <Button
+                                variant="secondary"
+                                onClick={() => setPendingDecision(null)}
+                                disabled={isApproving}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={handleApprove}
+                                disabled={isApproving}
+                            >
+                                {isApproving
+                                    ? 'Memproses...'
+                                    : pendingDecision === 'approve'
+                                      ? 'Ya, Setujui'
+                                      : 'Ya, Tolak'}
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             {/* Confirmation Modal */}
             {showConfirmModal && (
