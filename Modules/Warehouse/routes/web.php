@@ -37,6 +37,9 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
         Route::post('stock-transfers', [StockTransferController::class, 'store'])
             ->name('stock-transfers.store');
 
+        Route::post('stock-transfers/{stock_transfer}/approve', [StockTransferController::class, 'approve'])
+            ->name('stock-transfers.approve');
+
         Route::post('stock-transfers/{stock_transfer}/ship', [StockTransferController::class, 'ship'])
             ->name('stock-transfers.ship');
 

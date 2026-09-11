@@ -360,6 +360,375 @@ class DirectTransferTest extends TestCase
     }
 
     /**
+     * HO menyetujui transfer pending dari branch non-HO:
+     * pending -> draft, lalu bisa ship seperti biasa.
+     */
+    public function test_ho_can_approve_pending_transfer_then_ship(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $hoUser] =
+            $this->createCompanyWithMemberAndBranches();
+
+        $branchUser = $this->createBranchUser($tenantId, $branchBId);
+
+        session([
+            'active_tenant_id' => $tenantId,
+            'active_branch_id' => $branchBId,
+        ]);
+
+        tenancy()->initialize($tenantId);
+
+        [
+            $hqWarehouseId,
+            $branchBWarehouseId,
+            $variant1Id,
+        ] = $this->seedWarehouseAndVariants(
+            $hqBranchId,
+            $branchBId
+        );
+
+        DB::table('stock_balances')->insert([
+            'product_variant_id' => $variant1Id,
+            'warehouse_id' => $branchBWarehouseId,
+            'qty_on_hand' => 10,
+        ]);
+
+        DB::table('stock_layers')->insert([
+            'product_variant_id' => $variant1Id,
+            'warehouse_id' => $branchBWarehouseId,
+            'qty_remaining' => 10,
+            'unit_cost' => 8000,
+            'received_at' => now(),
+            'source_type' => 'purchase_order',
+            'source_id' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        tenancy()->end();
+
+        $createResponse = $this->actingAs($branchUser)->post(
+            route('warehouse.stock-transfers.store'),
+            [
+                'from_warehouse_id' => $branchBWarehouseId,
+                'to_warehouse_id' => $hqWarehouseId,
+                'items' => [
+                    ['product_variant_id' => $variant1Id, 'qty' => 4],
+                ],
+            ]
+        );
+
+        $createResponse->assertRedirect(route('warehouse.stock-transfers.index'));
+
+        tenancy()->initialize($tenantId);
+
+        $transferId = DB::table('stock_transfers')->orderByDesc('id')->value('id');
+
+        tenancy()->end();
+
+        session([
+            'active_tenant_id' => $tenantId,
+            'active_branch_id' => $hqBranchId,
+        ]);
+
+        $approveResponse = $this->actingAs($hoUser)->post(
+            route('warehouse.stock-transfers.approve', $transferId),
+            ['decision' => 'approve']
+        );
+
+        $approveResponse->assertRedirect(
+            route('warehouse.stock-transfers.show', $transferId)
+        );
+
+        tenancy()->initialize($tenantId);
+
+        $transfer = DB::table('stock_transfers')->where('id', $transferId)->first();
+
+        $this->assertNotNull($transfer);
+        $this->assertSame('draft', $transfer->status);
+        $this->assertSame($hoUser->id, (int) $transfer->approved_by);
+        $this->assertNotNull($transfer->approved_at);
+
+        tenancy()->end();
+
+        $shipResponse = $this->actingAs($hoUser)->post(
+            route('warehouse.stock-transfers.ship', $transferId)
+        );
+
+        $shipResponse->assertRedirect(
+            route('warehouse.stock-transfers.show', $transferId)
+        );
+
+        tenancy()->initialize($tenantId);
+
+        $this->assertSame(
+            'shipped',
+            DB::table('stock_transfers')->where('id', $transferId)->value('status')
+        );
+    }
+
+    /**
+     * Approve HO wajib lolos cek stok sumber.
+     */
+    public function test_approve_rejects_when_source_stock_insufficient(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $hoUser] =
+            $this->createCompanyWithMemberAndBranches();
+
+        $branchUser = $this->createBranchUser($tenantId, $branchBId);
+
+        session([
+            'active_tenant_id' => $tenantId,
+            'active_branch_id' => $branchBId,
+        ]);
+
+        tenancy()->initialize($tenantId);
+
+        [
+            $hqWarehouseId,
+            $branchBWarehouseId,
+            $variant1Id,
+        ] = $this->seedWarehouseAndVariants(
+            $hqBranchId,
+            $branchBId
+        );
+
+        tenancy()->end();
+
+        $this->actingAs($branchUser)->post(
+            route('warehouse.stock-transfers.store'),
+            [
+                'from_warehouse_id' => $branchBWarehouseId,
+                'to_warehouse_id' => $hqWarehouseId,
+                'items' => [
+                    ['product_variant_id' => $variant1Id, 'qty' => 50],
+                ],
+            ]
+        );
+
+        tenancy()->initialize($tenantId);
+
+        $transferId = DB::table('stock_transfers')->orderByDesc('id')->value('id');
+
+        tenancy()->end();
+
+        session([
+            'active_tenant_id' => $tenantId,
+            'active_branch_id' => $hqBranchId,
+        ]);
+
+        $response = $this->actingAs($hoUser)
+            ->from(route('warehouse.stock-transfers.show', $transferId))
+            ->post(
+                route('warehouse.stock-transfers.approve', $transferId),
+                ['decision' => 'approve']
+            );
+
+        $response->assertSessionHasErrors('items');
+
+        tenancy()->initialize($tenantId);
+
+        $this->assertSame(
+            'pending_approval',
+            DB::table('stock_transfers')->where('id', $transferId)->value('status')
+        );
+    }
+
+    /**
+     * User non-HO tidak boleh approve transfer.
+     */
+    public function test_non_ho_cannot_approve_transfer(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId] =
+            $this->createCompanyWithBranches();
+
+        $branchUser = $this->createBranchUser($tenantId, $branchBId);
+
+        session([
+            'active_tenant_id' => $tenantId,
+            'active_branch_id' => $branchBId,
+        ]);
+
+        tenancy()->initialize($tenantId);
+
+        [
+            $hqWarehouseId,
+            $branchBWarehouseId,
+            $variant1Id,
+        ] = $this->seedWarehouseAndVariants(
+            $hqBranchId,
+            $branchBId
+        );
+
+        tenancy()->end();
+
+        $this->actingAs($branchUser)->post(
+            route('warehouse.stock-transfers.store'),
+            [
+                'from_warehouse_id' => $branchBWarehouseId,
+                'to_warehouse_id' => $hqWarehouseId,
+                'items' => [
+                    ['product_variant_id' => $variant1Id, 'qty' => 2],
+                ],
+            ]
+        );
+
+        tenancy()->initialize($tenantId);
+
+        $transferId = DB::table('stock_transfers')->orderByDesc('id')->value('id');
+
+        tenancy()->end();
+
+        $response = $this->actingAs($branchUser)->post(
+            route('warehouse.stock-transfers.approve', $transferId),
+            ['decision' => 'approve']
+        );
+
+        $response->assertForbidden();
+
+        tenancy()->initialize($tenantId);
+
+        $this->assertSame(
+            'pending_approval',
+            DB::table('stock_transfers')->where('id', $transferId)->value('status')
+        );
+    }
+
+    /**
+     * HO dapat menolak transfer; transfer rejected tidak bisa ship.
+     */
+    public function test_ho_can_reject_transfer(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $hoUser] =
+            $this->createCompanyWithMemberAndBranches();
+
+        $branchUser = $this->createBranchUser($tenantId, $branchBId);
+
+        session([
+            'active_tenant_id' => $tenantId,
+            'active_branch_id' => $branchBId,
+        ]);
+
+        tenancy()->initialize($tenantId);
+
+        [
+            $hqWarehouseId,
+            $branchBWarehouseId,
+            $variant1Id,
+        ] = $this->seedWarehouseAndVariants(
+            $hqBranchId,
+            $branchBId
+        );
+
+        tenancy()->end();
+
+        $this->actingAs($branchUser)->post(
+            route('warehouse.stock-transfers.store'),
+            [
+                'from_warehouse_id' => $branchBWarehouseId,
+                'to_warehouse_id' => $hqWarehouseId,
+                'items' => [
+                    ['product_variant_id' => $variant1Id, 'qty' => 2],
+                ],
+            ]
+        );
+
+        tenancy()->initialize($tenantId);
+
+        $transferId = DB::table('stock_transfers')->orderByDesc('id')->value('id');
+
+        tenancy()->end();
+
+        session([
+            'active_tenant_id' => $tenantId,
+            'active_branch_id' => $hqBranchId,
+        ]);
+
+        $rejectResponse = $this->actingAs($hoUser)->post(
+            route('warehouse.stock-transfers.approve', $transferId),
+            ['decision' => 'reject']
+        );
+
+        $rejectResponse->assertRedirect(
+            route('warehouse.stock-transfers.show', $transferId)
+        );
+
+        tenancy()->initialize($tenantId);
+
+        $transfer = DB::table('stock_transfers')->where('id', $transferId)->first();
+
+        $this->assertNotNull($transfer);
+        $this->assertSame('rejected', $transfer->status);
+        $this->assertSame($hoUser->id, (int) $transfer->approved_by);
+
+        tenancy()->end();
+
+        $shipResponse = $this->actingAs($hoUser)
+            ->from(route('warehouse.stock-transfers.show', $transferId))
+            ->post(route('warehouse.stock-transfers.ship', $transferId));
+
+        $shipResponse->assertSessionHasErrors('stock_transfer');
+    }
+
+    /**
+     * Hanya transfer pending_approval yang bisa diproses HO.
+     */
+    public function test_approve_only_allowed_for_pending_transfer(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $hoUser] =
+            $this->createCompanyWithMemberAndBranches();
+
+        session([
+            'active_tenant_id' => $tenantId,
+            'active_branch_id' => $hqBranchId,
+        ]);
+
+        tenancy()->initialize($tenantId);
+
+        [
+            $hqWarehouseId,
+            $branchBWarehouseId,
+            $variant1Id,
+        ] = $this->seedWarehouseAndVariants(
+            $hqBranchId,
+            $branchBId
+        );
+
+        DB::table('stock_balances')->insert([
+            'product_variant_id' => $variant1Id,
+            'warehouse_id' => $hqWarehouseId,
+            'qty_on_hand' => 20,
+        ]);
+
+        tenancy()->end();
+
+        $this->actingAs($hoUser)->post(
+            route('warehouse.stock-transfers.store'),
+            [
+                'from_warehouse_id' => $hqWarehouseId,
+                'to_warehouse_id' => $branchBWarehouseId,
+                'items' => [
+                    ['product_variant_id' => $variant1Id, 'qty' => 5],
+                ],
+            ]
+        );
+
+        tenancy()->initialize($tenantId);
+
+        $transferId = DB::table('stock_transfers')->orderByDesc('id')->value('id');
+
+        tenancy()->end();
+
+        $response = $this->actingAs($hoUser)
+            ->from(route('warehouse.stock-transfers.show', $transferId))
+            ->post(
+                route('warehouse.stock-transfers.approve', $transferId),
+                ['decision' => 'approve']
+            );
+
+        $response->assertSessionHasErrors('stock_transfer');
+    }
+
+    /**
      * @return array{0: string, 1: int, 2: int, 3: User}
      */
     private function createCompanyWithMemberAndBranches(): array

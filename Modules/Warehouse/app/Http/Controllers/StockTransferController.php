@@ -6,12 +6,14 @@ use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Modules\Company\Application\CompanyAccess;
+use Modules\Warehouse\Application\StockTransfer\ApproveDirectTransfer;
 use Modules\Warehouse\Application\StockTransfer\CreateDirectTransfer;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransfers;
 use Modules\Warehouse\Application\StockTransfer\ReceiveStockTransfer;
 use Modules\Warehouse\Application\StockTransfer\ShipStockTransfer;
 use Modules\Warehouse\Enums\StockTransferStatus;
+use Modules\Warehouse\Http\Requests\ApproveDirectTransferRequest;
 use Modules\Warehouse\Http\Requests\StoreDirectTransferRequest;
 use Modules\Warehouse\Services\InsufficientStockException;
 
@@ -21,6 +23,7 @@ class StockTransferController extends Controller
         private readonly GetStockTransfers $getStockTransfers,
         private readonly GetStockTransferDetail $getStockTransferDetail,
         private readonly CreateDirectTransfer $createDirectTransfer,
+        private readonly ApproveDirectTransfer $approveDirectTransfer,
         private readonly ShipStockTransfer $shipStockTransfer,
         private readonly ReceiveStockTransfer $receiveStockTransfer,
     ) {}
@@ -91,6 +94,29 @@ class StockTransferController extends Controller
 
         return redirect()
             ->route('warehouse.stock-transfers.index')
+            ->with('success', $message);
+    }
+
+    public function approve(int $id, ApproveDirectTransferRequest $request)
+    {
+        try {
+            $transfer = $this->approveDirectTransfer->execute(
+                $id,
+                $request->validated('decision'),
+                (int) $request->user()->id
+            );
+        } catch (ValidationException $e) {
+            return back()
+                ->withErrors($e->errors())
+                ->withInput();
+        }
+
+        $message = $transfer->status === StockTransferStatus::Draft->value
+            ? 'Transfer stok disetujui HO (status: draft).'
+            : 'Transfer stok ditolak HO.';
+
+        return redirect()
+            ->route('warehouse.stock-transfers.show', $id)
             ->with('success', $message);
     }
 
