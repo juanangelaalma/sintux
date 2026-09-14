@@ -2,6 +2,7 @@
 
 namespace Modules\Warehouse\Application\StockBalance;
 
+use Illuminate\Support\Facades\DB;
 use Modules\Warehouse\Models\StockBalance;
 
 class GetStockBalances
@@ -68,17 +69,28 @@ class GetStockBalances
     /**
      * Aggregate stock counts by warehouse ids for Product stats.
      *
+     * Counts distinct product variants (same variant stocked in several
+     * warehouses counts once). Classification uses the variant's total
+     * on-hand qty across the given warehouses.
+     *
      * @param  list<int>  $warehouseIds
      * @return array{available_count: int, low_stock_count: int, out_of_stock_count: int}
      */
     public function aggregateCountsByWarehouseIds(array $warehouseIds, int $lowStockThreshold = 5): array
     {
-        $stockStats = StockBalance::whereIn('warehouse_id', $warehouseIds)
-            ->selectRaw('
-                COUNT(CASE WHEN qty_on_hand > ? THEN 1 END) as available_count,
-                COUNT(CASE WHEN qty_on_hand > 0 AND qty_on_hand <= ? THEN 1 END) as low_stock_count,
-                COUNT(CASE WHEN qty_on_hand = 0 THEN 1 END) as out_of_stock_count
-            ', [$lowStockThreshold, $lowStockThreshold])
+        $perVariant = StockBalance::whereIn('warehouse_id', $warehouseIds)
+            ->selectRaw('SUM(qty_on_hand) as total_qty')
+            ->groupBy('product_variant_id');
+
+        $stockStats = DB::query()->fromSub($perVariant, 'variant_stock')
+            ->selectRaw(
+                '
+                COUNT(CASE WHEN total_qty > ? THEN 1 END) as available_count,
+                COUNT(CASE WHEN total_qty > 0 AND total_qty <= ? THEN 1 END) as low_stock_count,
+                COUNT(CASE WHEN total_qty = 0 THEN 1 END) as out_of_stock_count
+            ',
+                [$lowStockThreshold, $lowStockThreshold]
+            )
             ->first();
 
         return [
