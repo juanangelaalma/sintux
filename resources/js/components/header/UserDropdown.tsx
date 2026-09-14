@@ -45,8 +45,7 @@ export default function UserDropdown() {
     const branches = auth?.branches ?? [];
     const branchScope = auth?.branch_scope;
     const isAllScope = branchScope === 'all';
-    const hasHqBranch = auth?.is_hq || branches.some((b) => b.is_headquarters);
-    const showAllOption = !hasHqBranch && branches.length > 1;
+    const showAllOption = branches.length > 1;
     const showBranchSwitcher = branches.length > 1;
 
     if (!user) {
@@ -82,26 +81,7 @@ export default function UserDropdown() {
     }
 
     function handleSwitchBranch(b: { id: number; is_headquarters?: boolean }) {
-        if (b.is_headquarters) {
-            if (isAllScope && branch?.id === b.id) {
-                closeDropdown();
-
-                return;
-            }
-
-            router.post(
-                '/company/branches/switch',
-                { scope: 'all', branch_id: b.id },
-                {
-                    preserveScroll: true,
-                    onSuccess: closeDropdown,
-                },
-            );
-
-            return;
-        }
-
-        if (!isAllScope && branch?.id === b.id) {
+        if (branch?.id === b.id && !isAllScope) {
             closeDropdown();
 
             return;
@@ -221,8 +201,7 @@ export default function UserDropdown() {
                                         type="button"
                                         onClick={() => handleSwitchBranch(b)}
                                         className={`${itemClasses} w-full justify-between ${
-                                            (isAllScope && b.is_headquarters) ||
-                                            (!isAllScope && branch?.id === b.id)
+                                            !isAllScope && branch?.id === b.id
                                                 ? 'bg-brand-50 text-brand-700 dark:bg-white/5 dark:text-brand-300'
                                                 : ''
                                         }`}

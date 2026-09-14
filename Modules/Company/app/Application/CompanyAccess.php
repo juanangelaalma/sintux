@@ -225,14 +225,23 @@ class CompanyAccess
      * Resolve the branch ids permissions are evaluated against for the current
      * session scope: the single active branch, or every accessible branch.
      *
+     * The active branch always wins when set: viewing data follows the
+     * branch the user switched to, never a merged cross-branch view. When
+     * no active branch is set (scope "all"), every accessible branch is in
+     * context.
+     *
      * @return list<int>|null
      */
     public static function contextBranchIds(User $user, string $tenantId): ?array
     {
-        if (session('branch_scope') === 'branch') {
-            $branchId = (int) session('active_branch_id');
+        $branchId = (int) session('active_branch_id');
 
-            return $branchId ? [$branchId] : [];
+        if ($branchId) {
+            $accessible = self::accessibleBranchIds($user, $tenantId);
+
+            return in_array($branchId, $accessible, true)
+                ? [$branchId]
+                : [];
         }
 
         return self::accessibleBranchIds($user, $tenantId);

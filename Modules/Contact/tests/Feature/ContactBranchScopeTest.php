@@ -44,12 +44,12 @@ class ContactBranchScopeTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_multi_branch_member_sees_combined_contacts_in_all_scope(): void
+    public function test_multi_branch_member_creates_and_sees_contact_in_active_branch(): void
     {
         [$tenant, $hqId, $branchA, $branchB] = $this->createTenantWithBranches();
         $user = $this->createMember($tenant, 'multi@acme.test', $hqId, [$branchA, $branchB]);
 
-        session(['active_tenant_id' => $tenant->id, 'active_branch_id' => $hqId]);
+        session(['active_tenant_id' => $tenant->id, 'active_branch_id' => $branchA, 'branch_scope' => 'branch']);
 
         $this->actingAs($user)->post(route('company.contacts.store', 'customers'), [
             'branch_id' => $branchA,
@@ -57,16 +57,9 @@ class ContactBranchScopeTest extends TestCase
             'registered_at' => '2026-08-01',
         ])->assertRedirect(route('company.contacts.index', 'customers'));
 
-        $this->actingAs($user)->post(route('company.contacts.store', 'customers'), [
-            'branch_id' => $branchB,
-            'name' => 'Beta Customer',
-            'registered_at' => '2026-08-01',
-        ])->assertRedirect(route('company.contacts.index', 'customers'));
-
         $response = $this->actingAs($user)->get(route('company.contacts.index', 'customers'));
         $response->assertStatus(200);
         $response->assertSee('Alpha Customer');
-        $response->assertSee('Beta Customer');
     }
 
     public function test_single_branch_member_only_sees_own_branch_contacts(): void
@@ -167,7 +160,7 @@ class ContactBranchScopeTest extends TestCase
         $this->assertSame($branchB, session('active_branch_id'));
     }
 
-    public function test_switching_to_hq_sets_all_scope(): void
+    public function test_switching_to_hq_sets_branch_scope(): void
     {
         [$tenant, $hqId, $branchA, $branchB] = $this->createTenantWithBranches();
         $user = $this->createMember($tenant, 'hq@acme.test', $hqId);
@@ -178,7 +171,7 @@ class ContactBranchScopeTest extends TestCase
             'branch_id' => $hqId,
         ])->assertRedirect();
 
-        $this->assertSame('all', session('branch_scope'));
+        $this->assertSame('branch', session('branch_scope'));
         $this->assertSame($hqId, session('active_branch_id'));
     }
 

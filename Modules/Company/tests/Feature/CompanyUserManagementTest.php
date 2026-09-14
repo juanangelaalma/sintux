@@ -5,6 +5,7 @@ namespace Modules\Company\Tests\Feature;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Models\CompanyUser;
 use Modules\Company\Models\CompanyUserRole;
@@ -227,7 +228,7 @@ class CompanyUserManagementTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_switching_to_hq_sets_all_scope(): void
+    public function test_switching_to_hq_sets_branch_scope(): void
     {
         [$tenantId, $hqBranchId, $admin] = $this->createCompanyWithAdmin();
 
@@ -245,7 +246,7 @@ class CompanyUserManagementTest extends TestCase
             ->post(route('company.branches.switch'), ['branch_id' => $hqBranchId])
             ->assertRedirect();
 
-        $this->assertSame('all', session('branch_scope'));
+        $this->assertSame('branch', session('branch_scope'));
         $this->assertSame($hqBranchId, (int) session('active_branch_id'));
     }
 
@@ -279,6 +280,48 @@ class CompanyUserManagementTest extends TestCase
         $this->actingAs($staff)->get(route('company.users.index'))->assertOk();
 
         $this->assertSame($branchBId, (int) session('active_branch_id'));
+    }
+
+    /**
+     * Data context follows the active branch even for HQ memberships:
+     * switching the active branch scopes every view to that branch alone,
+     * never a merged cross-branch view.
+     */
+    public function test_context_follows_active_branch_for_hq_membership(): void
+    {
+        [$tenantId, $hqBranchId, $admin] = $this->createCompanyWithAdmin();
+
+        tenancy()->initialize($tenantId);
+        $branchBId = (int) (DB::table('branches')->where('code', 'BRB')->value('id') ?? DB::table('branches')->insertGetId([
+            'name' => 'Branch B',
+            'code' => 'BRB',
+            'is_active' => true,
+        ]));
+        tenancy()->end();
+
+        session([
+            'active_tenant_id' => $tenantId,
+            'active_branch_id' => $hqBranchId,
+            'branch_scope' => 'branch',
+        ]);
+
+        $user = auth()->user() ?? $admin;
+
+        $this->assertSame(
+            [$hqBranchId],
+            CompanyAccess::contextBranchIds($user, $tenantId)
+        );
+
+        /*
+         * Switching to another accessible branch changes the context
+         * to that branch only.
+         */
+        session(['active_branch_id' => $branchBId]);
+
+        $this->assertSame(
+            [$branchBId],
+            CompanyAccess::contextBranchIds($user, $tenantId)
+        );
     }
 
     /**

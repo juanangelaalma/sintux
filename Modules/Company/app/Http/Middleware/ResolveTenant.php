@@ -6,7 +6,6 @@ use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Modules\Company\Application\CompanyAccess;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -58,6 +57,9 @@ class ResolveTenant
 
     /**
      * Ensure a branch scope context exists once tenancy is initialized.
+     *
+     * The active branch drives the data scope. HQ users default to their
+     * headquarters branch; "all" scope is only kept when explicitly chosen.
      */
     private function resolveBranchSession(?Authenticatable $user, string $tenantId): void
     {
@@ -77,50 +79,36 @@ class ResolveTenant
         $scope = (string) session('branch_scope');
         $activeBranchId = (int) session('active_branch_id');
 
+        /*
+         * Keep a valid explicit selection, whatever the branch.
+         */
         if ($activeBranchId && in_array($activeBranchId, $accessibleBranchIds, true)) {
-            $isHq = (bool) DB::table('branches')
-                ->where('id', $activeBranchId)
-                ->value('is_headquarters');
-
-            if ($isHq) {
-                session(['branch_scope' => 'all']);
-
-                return;
+            if ($scope !== 'all') {
+                session(['branch_scope' => 'branch']);
             }
-
-            if ($scope === 'all') {
-                session(['branch_scope' => 'all']);
-
-                return;
-            }
-
-            session(['branch_scope' => 'branch']);
 
             return;
         }
 
-        $membershipBranchId = CompanyAccess::membershipBranchId($user, $tenantId);
-        $userBranchId = $membershipBranchId && in_array($membershipBranchId, $accessibleBranchIds, true)
-            ? $membershipBranchId
-            : $accessibleBranchIds[0];
-
-        $isUserHq = (bool) DB::table('branches')
-            ->where('id', $userBranchId)
-            ->value('is_headquarters');
-
-        if ($isUserHq) {
-            session(['active_branch_id' => $userBranchId, 'branch_scope' => 'all']);
-
-            return;
-        }
-
-        if ($scope !== 'branch' && count($accessibleBranchIds) > 1) {
-            session(['branch_scope' => 'all']);
+        /*
+         * Explicit "all" scope without an active branch.
+         */
+        if ($scope === 'all') {
             session()->forget('active_branch_id');
 
             return;
         }
 
-        session(['active_branch_id' => $userBranchId, 'branch_scope' => 'branch']);
+        /*
+         * Default: the membership branch, or the first accessible branch
+         * (headquarters first for multi-branch memberships).
+         */
+        $membershipBranchId = CompanyAccess::membershipBranchId($user, $tenantId);
+
+        $defaultBranchId = $membershipBranchId && in_array($membershipBranchId, $accessibleBranchIds, true)
+            ? $membershipBranchId
+            : $accessibleBranchIds[0];
+
+        session(['active_branch_id' => $defaultBranchId, 'branch_scope' => 'branch']);
     }
 }

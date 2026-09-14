@@ -25,8 +25,7 @@ class StorePurchaseQuoteRequest extends FormRequest
         $tenantId = (string) session('active_tenant_id');
         $user = $this->user();
 
-        $branchIds = CompanyAccess::contextBranchIds($user, $tenantId)
-            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+        $branchIds = CompanyAccess::accessibleBranchIds($user, $tenantId);
 
         $branchAccessibleRule = function (string $attribute, mixed $value, Closure $fail) use ($branchIds) {
             if (! in_array((int) $value, $branchIds, true)) {

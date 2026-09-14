@@ -26,8 +26,7 @@ class StorePurchaseOrderRequest extends FormRequest
         $tenantId = (string) session('active_tenant_id');
         $user = $this->user();
 
-        $branchIds = CompanyAccess::contextBranchIds($user, $tenantId)
-            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+        $branchIds = CompanyAccess::accessibleBranchIds($user, $tenantId);
 
         $hqBranch = DB::table('branches')->where('is_headquarters', true)->first();
         $hqBranchId = $hqBranch ? (int) $hqBranch->id : null;

@@ -4,7 +4,6 @@ namespace Modules\Company\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -92,13 +91,9 @@ class CompanyBranchController extends Controller
         $accessibleBranchIds = CompanyAccess::accessibleBranchIds($user, $tenantId);
         abort_unless(in_array($branchId, $accessibleBranchIds, true), 403);
 
-        $isHq = (bool) DB::table('branches')
-            ->where('id', $branchId)
-            ->value('is_headquarters');
-
         session([
             'active_branch_id' => $branchId,
-            'branch_scope' => ($scope === 'all' || $isHq) ? 'all' : 'branch',
+            'branch_scope' => $scope === 'all' ? 'all' : 'branch',
         ]);
 
         return redirect()->back();

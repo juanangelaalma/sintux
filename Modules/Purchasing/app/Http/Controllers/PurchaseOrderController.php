@@ -165,11 +165,14 @@ class PurchaseOrderController extends Controller
     }
 
     /**
+     * PO allocation is a cross-branch write operation performed by HQ:
+     * destination branches/warehouses come from every accessible branch,
+     * not from the active branch context.
+     *
      * @return list<int>
      */
     private function resolveBranchIds(User $user, string $tenantId): array
     {
-        return CompanyAccess::contextBranchIds($user, $tenantId)
-            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+        return CompanyAccess::accessibleBranchIds($user, $tenantId);
     }
 }

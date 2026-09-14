@@ -110,11 +110,13 @@ class GoodsReceiptController extends Controller
     }
 
     /**
+     * Goods receipts are cross-branch operations performed by HQ: sourcing
+     * POs and allocation targets span every accessible branch.
+     *
      * @return list<int>
      */
     private function resolveBranchIds(User $user, string $tenantId): array
     {
-        return CompanyAccess::contextBranchIds($user, $tenantId)
-            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+        return CompanyAccess::accessibleBranchIds($user, $tenantId);
     }
 }
