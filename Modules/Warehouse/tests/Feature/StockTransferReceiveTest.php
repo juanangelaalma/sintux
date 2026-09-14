@@ -196,11 +196,19 @@ class StockTransferReceiveTest extends TestCase
         $this->assertSame('received', $transfer->status);
 
         /*
-         * Destination stock increased by received qty.
+         * Destination stock increased by received qty, recorded under the
+         * receiving branch's mirrored variant (cross-branch receive).
          */
+        $branchBVariantId = DB::table('product_variants')
+            ->where('branch_id', $branchBId)
+            ->where('sku', DB::table('product_variants')->where('id', $variant1Id)->value('sku'))
+            ->value('id');
+
+        $this->assertNotNull($branchBVariantId);
+
         $destStock = DB::table('stock_balances')
             ->where('warehouse_id', $branchBWarehouseId)
-            ->where('product_variant_id', $variant1Id)
+            ->where('product_variant_id', $branchBVariantId)
             ->first();
 
         $this->assertNotNull($destStock);
@@ -342,11 +350,19 @@ class StockTransferReceiveTest extends TestCase
         $this->assertSame('shipped', $transfer->status);
 
         /*
-         * Destination stock increased by 6.
+         * Destination stock increased by 6, recorded under the receiving
+         * branch's mirrored variant (cross-branch receive).
          */
+        $branchBVariantId = DB::table('product_variants')
+            ->where('branch_id', $branchBId)
+            ->where('sku', DB::table('product_variants')->where('id', $variant1Id)->value('sku'))
+            ->value('id');
+
+        $this->assertNotNull($branchBVariantId);
+
         $destStock = DB::table('stock_balances')
             ->where('warehouse_id', $branchBWarehouseId)
-            ->where('product_variant_id', $variant1Id)
+            ->where('product_variant_id', $branchBVariantId)
             ->first();
 
         $this->assertNotNull($destStock);

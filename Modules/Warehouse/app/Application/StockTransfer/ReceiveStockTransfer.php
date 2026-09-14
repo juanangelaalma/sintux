@@ -4,6 +4,7 @@ namespace Modules\Warehouse\Application\StockTransfer;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Product\Application\Product\EnsureVariantForBranch;
 use Modules\Warehouse\Enums\StockTransferStatus;
 use Modules\Warehouse\Models\StockLayer;
 use Modules\Warehouse\Models\StockMovement;
@@ -14,6 +15,7 @@ class ReceiveStockTransfer
 {
     public function __construct(
         private readonly CreateDiscrepancy $createDiscrepancy,
+        private readonly EnsureVariantForBranch $ensureVariantForBranch,
     ) {}
 
     /**
@@ -91,7 +93,16 @@ class ReceiveStockTransfer
         $stockTransfer = $item->stockTransfer;
 
         $toWarehouseId = (int) $stockTransfer->to_warehouse_id;
-        $productVariantId = (int) $item->product_variant_id;
+        $sourceVariantId = (int) $item->product_variant_id;
+        $toBranchId = (int) $stockTransfer->toWarehouse->branch_id;
+
+        /*
+         * Resolve the receiving branch's own master variant. Cross-branch
+         * receives mirror product/variant master data into the receiving
+         * branch so the product appears in its product list; same-branch
+         * receives keep using the source variant.
+         */
+        $productVariantId = $this->ensureVariantForBranch->execute($sourceVariantId, $toBranchId);
 
         $qtyShipped = (float) $item->qty_shipped;
         $qtyPreviouslyReceived = (float) $item->qty_received;
