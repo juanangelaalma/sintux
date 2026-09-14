@@ -1,5 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
+import ApprovalPanel from '@/components/approval/approval-panel';
+import type { ApprovalStatus as TransferApprovalStatus } from '@/components/approval/approval-panel';
 import InputError from '@/components/input-error';
 import Button from '@/components/ui/button';
 import Modal from '@/components/ui/modal';
@@ -10,6 +12,7 @@ import type { StockTransfer, StockTransferItem } from './types';
 type Props = {
     stockTransfer: StockTransfer;
     canApprove?: boolean;
+    approval?: TransferApprovalStatus | null;
 };
 
 type ReceiveItem = {
@@ -20,6 +23,7 @@ type ReceiveItem = {
 export default function StockTransferShow({
     stockTransfer,
     canApprove = false,
+    approval = null,
 }: Props) {
     const { errors } = usePage().props;
     const [isShipping, setIsShipping] = useState(false);
@@ -153,7 +157,8 @@ export default function StockTransferShow({
                                     Kirim Stock Transfer
                                 </Button>
                             )}
-                            {canApprove &&
+                            {!approval &&
+                                canApprove &&
                                 stockTransfer.status === 'pending_approval' && (
                                     <>
                                         <Button
@@ -191,6 +196,18 @@ export default function StockTransferShow({
                         <InputError message={errors.stock_transfer as string} />
                     </div>
                 )}
+
+                {errors.approval && (
+                    <div className="rounded-lg bg-amber-50 p-4 ring-1 ring-amber-300">
+                        <InputError message={errors.approval as string} />
+                        <p className="mt-1 text-xs text-amber-700">
+                            Transfer ini diatur oleh Aturan Approval. Lakukan
+                            persetujuan via Inbox Approval.
+                        </p>
+                    </div>
+                )}
+
+                {approval && <ApprovalPanel approval={approval} />}
 
                 {/* Header Information */}
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -517,7 +534,7 @@ export default function StockTransferShow({
                                             </label>
                                             <input
                                                 type="number"
-                                                step="0.0001"
+                                                step="1"
                                                 min="0"
                                                 max={remaining}
                                                 value={
@@ -527,8 +544,9 @@ export default function StockTransferShow({
                                                 onChange={(e) =>
                                                     updateReceiveQty(
                                                         item.id,
-                                                        parseFloat(
+                                                        parseInt(
                                                             e.target.value,
+                                                            10,
                                                         ) || 0,
                                                     )
                                                 }

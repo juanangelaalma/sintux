@@ -24,8 +24,9 @@ class StoreDirectTransferRequest extends FormRequest
 
         /*
          * Gudang asal wajib berada dalam branch yang accessible user,
-         * sehingga user non-HO hanya bisa membuat transfer dari gudangnya sendiri
-         * (yang otomatis berstatus pending_approval).
+         * sehingga user non-HO hanya bisa membuat transfer dari gudangnya sendiri.
+         * Transfer satu branch langsung draft; transfer antar branch
+         * dari non-HO masuk jalur approval HO.
          */
         $sourceAccessibleRule = function (string $attribute, mixed $value, Closure $fail) use ($branchIds) {
             $warehouse = Warehouse::find($value);
@@ -57,8 +58,8 @@ class StoreDirectTransferRequest extends FormRequest
             ],
             'items.*.qty' => [
                 'required',
-                'numeric',
-                'gt:0',
+                'integer',
+                'min:1',
             ],
         ];
     }

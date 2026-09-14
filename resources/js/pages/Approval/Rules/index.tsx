@@ -9,6 +9,7 @@ type TransactionType = {
     module: string;
     key: string;
     label: string;
+    criteria_basis?: string;
 };
 
 type Rule = {
@@ -149,7 +150,7 @@ export default function Index({ rules, transactionTypes, filters }: Props) {
                                         Tipe Transaksi
                                     </th>
                                     <th className="px-6 py-3.5 font-semibold">
-                                        Min Nominal
+                                        Min Kriteria
                                     </th>
                                     <th className="px-6 py-3.5 font-semibold">
                                         Jumlah Tahap

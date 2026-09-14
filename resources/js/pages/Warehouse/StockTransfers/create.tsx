@@ -229,6 +229,7 @@ export default function Create({
                                         <TextInput
                                             type="number"
                                             min={1}
+                                            step={1}
                                             value={item.qty}
                                             onChange={(e) =>
                                                 handleItemChange(

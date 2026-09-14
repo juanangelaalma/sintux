@@ -51,11 +51,13 @@ class UpdateApprovalRule
         }
 
         return DB::transaction(function () use ($rule, $data, $changedBy, $beforeState, $hasPendingDrafts) {
+            $isQuantityBasis = (($rule->transactionType->criteria_basis ?? 'nominal') === 'quantity');
+
             if (! $hasPendingDrafts) {
                 $rule->update(array_filter([
                     'name' => $data['name'] ?? $rule->name,
                     'description' => array_key_exists('description', $data) ? $data['description'] : $rule->description,
-                    'currency_code' => $data['currency_code'] ?? $rule->currency_code,
+                    'currency_code' => $isQuantityBasis ? 'QTY' : ($data['currency_code'] ?? $rule->currency_code),
                     'scope_all_users' => $data['scope_all_users'] ?? $rule->scope_all_users,
                     'apply_to_existing_draft' => $data['apply_to_existing_draft'] ?? $rule->apply_to_existing_draft,
                     'is_active' => $data['is_active'] ?? $rule->is_active,

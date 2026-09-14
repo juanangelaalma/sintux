@@ -13,6 +13,10 @@ class ApprovalEngine
     /**
      * Evaluate a transaction's facts against active approval rules and create/update/delete mapping.
      *
+     * Basis kriteria mengikuti approval_transaction_types.criteria_basis:
+     * - nominal: cocokkan currency_code dan bandingkan total nominal > min_amount.
+     * - quantity: abaikan currency, bandingkan total qty > min_amount.
+     *
      * @param  array{
      *     transaction_type: string,
      *     transaction_id: int,
@@ -52,6 +56,8 @@ class ApprovalEngine
             return $this->clearPendingMappingIfExists($typeKey, $transactionId);
         }
 
+        $isNominal = (($type->criteria_basis ?? 'nominal') !== 'quantity');
+
         $rules = ApprovalRule::query()
             ->where('transaction_type_id', $type->id)
             ->where('is_active', true)
@@ -59,8 +65,8 @@ class ApprovalEngine
             ->get();
 
         $matchingRule = $rules
-            ->filter(function (ApprovalRule $rule) use ($currencyCode, $creatorId, $total) {
-                if (strtoupper($rule->currency_code) !== strtoupper($currencyCode)) {
+            ->filter(function (ApprovalRule $rule) use ($isNominal, $currencyCode, $creatorId, $total) {
+                if ($isNominal && strtoupper($rule->currency_code) !== strtoupper($currencyCode)) {
                     return false;
                 }
 
@@ -181,5 +187,27 @@ class ApprovalEngine
         }
 
         return null;
+    }
+
+    /**
+     * Apakah ada aturan approval aktif untuk tipe transaksi tertentu.
+     *
+     * Dipakai konsumen (mis. Warehouse) untuk membedakan
+     * "tidak butuh approval karena di bawah threshold"
+     * vs "belum ada aturan yang dikonfigurasi sama sekali"
+     * tanpa mengakses model Approval secara langsung.
+     */
+    public function hasActiveRules(string $transactionTypeKey): bool
+    {
+        $type = ApprovalTransactionType::where('key', $transactionTypeKey)->first();
+
+        if (! $type) {
+            return false;
+        }
+
+        return ApprovalRule::query()
+            ->where('transaction_type_id', $type->id)
+            ->where('is_active', true)
+            ->exists();
     }
 }

@@ -4,6 +4,7 @@ namespace Modules\Warehouse\Application\StockTransfer;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Approval\Application\ApprovalEngine;
 use Modules\Warehouse\Enums\StockTransferStatus;
 use Modules\Warehouse\Models\StockBalance;
 use Modules\Warehouse\Models\StockTransfer;
@@ -11,12 +12,26 @@ use Modules\Warehouse\Models\Warehouse;
 
 class CreateDirectTransfer
 {
+    public function __construct(
+        private readonly ApprovalEngine $approvalEngine,
+    ) {}
+
     /**
      * Buat transfer stok langsung tanpa stock request.
      *
-     * Aturan status berdasarkan gudang asal:
-     * - Gudang milik cabang HQ -> draft (langsung bisa ship).
-     * - Gudang milik cabang non-HQ -> pending_approval (butuh approve HO).
+     * Aturan status:
+     * - Satu branch yang sama (mis. Jakarta regular -> Jakarta retail)
+     *   -> draft (pindah stok milik sendiri, tanpa approval).
+     * - Gudang asal HQ ke branch lain -> draft (langsung bisa ship).
+     * - Antar branch dari non-HQ -> dievaluasi via ApprovalEngine
+     *   (tipe stock_transfer, basis total qty):
+     *   - ada mapping (qty di atas threshold & ada approver efektif)
+     *     -> pending_approval, approval via Inbox Approval.
+     *   - tidak ada mapping tapi sudah ada rule aktif
+     *     -> qty di bawah threshold, langsung draft.
+     *   - tidak ada mapping dan belum ada rule aktif sama sekali
+     *     -> pending_approval fallback (approve oleh anggota HO,
+     *     perilaku lama untuk kompatibilitas).
      *
      * @param  array{
      *     from_warehouse_id: int,
@@ -24,7 +39,7 @@ class CreateDirectTransfer
      *     items: list<array{product_variant_id: int, qty: float|int}>
      * }  $data
      */
-    public function execute(array $data, int $createdById): StockTransfer
+    public function execute(array $data, int $createdById, ?string $createdByName = null): StockTransfer
     {
         $fromWarehouseId = (int) $data['from_warehouse_id'];
         $toWarehouseId = (int) $data['to_warehouse_id'];
@@ -43,31 +58,56 @@ class CreateDirectTransfer
             ]);
         }
 
-        if (! Warehouse::whereKey($toWarehouseId)->exists()) {
+        $toWarehouse = Warehouse::find($toWarehouseId);
+
+        if (! $toWarehouse) {
             throw ValidationException::withMessages([
                 'to_warehouse_id' => 'Gudang tujuan tidak ditemukan.',
             ]);
         }
 
-        $status = $fromWarehouse->branch && $fromWarehouse->branch->is_headquarters
-            ? StockTransferStatus::Draft
-            : StockTransferStatus::PendingApproval;
+        $isHqOrigin = (bool) ($fromWarehouse->branch && $fromWarehouse->branch->is_headquarters);
+        $isSameBranch = (int) $fromWarehouse->branch_id === (int) $toWarehouse->branch_id;
+        $creatorName = $createdByName ?? auth()->user()?->name;
 
         /*
-         * Transfer yang langsung draft wajib lolos cek stok saat create.
-         * Transfer pending dicek saat HO approve karena stok
-         * bisa berubah selama menunggu persetujuan.
+         * Pindah stok dalam satu branch atau dari HQ:
+         * langsung draft, wajib lolos cek stok saat create.
          */
-        if ($status === StockTransferStatus::Draft) {
+        if ($isSameBranch || $isHqOrigin) {
             $this->assertSufficientStock($fromWarehouseId, $data['items']);
+
+            return DB::transaction(function () use ($data, $createdById, $fromWarehouseId, $toWarehouseId) {
+                $transfer = StockTransfer::create([
+                    'stock_request_id' => null,
+                    'from_warehouse_id' => $fromWarehouseId,
+                    'to_warehouse_id' => $toWarehouseId,
+                    'status' => StockTransferStatus::Draft->value,
+                    'created_by' => $createdById,
+                ]);
+
+                foreach ($data['items'] as $item) {
+                    $transfer->items()->create([
+                        'product_variant_id' => $item['product_variant_id'],
+                        'qty' => $item['qty'],
+                    ]);
+                }
+
+                return $transfer->load(['items', 'fromWarehouse', 'toWarehouse']);
+            });
         }
 
-        return DB::transaction(function () use ($data, $createdById, $fromWarehouseId, $toWarehouseId, $status) {
+        /*
+         * Antar branch dari non-HQ: buat dulu sebagai pending, lalu evaluasi
+         * approval dalam transaksi yang sama (pola yang sama
+         * dengan CreatePurchaseOrder).
+         */
+        return DB::transaction(function () use ($data, $createdById, $creatorName, $fromWarehouse, $fromWarehouseId, $toWarehouseId) {
             $transfer = StockTransfer::create([
                 'stock_request_id' => null,
                 'from_warehouse_id' => $fromWarehouseId,
                 'to_warehouse_id' => $toWarehouseId,
-                'status' => $status->value,
+                'status' => StockTransferStatus::PendingApproval->value,
                 'created_by' => $createdById,
             ]);
 
@@ -77,6 +117,34 @@ class CreateDirectTransfer
                     'qty' => $item['qty'],
                 ]);
             }
+
+            $totalQty = collect($data['items'])->sum(fn ($item) => (float) $item['qty']);
+
+            $mapping = $this->approvalEngine->evaluateAndMap([
+                'transaction_type' => 'stock_transfer',
+                'transaction_id' => $transfer->id,
+                'document_number' => 'ST-'.$transfer->id,
+                'created_by' => $createdById,
+                'created_by_name' => $creatorName,
+                'branch_id' => $fromWarehouse->branch_id,
+                'total' => $totalQty,
+                'currency_code' => 'QTY',
+            ]);
+
+            if ($mapping) {
+                // Butuh approval sesuai rule. Stok dicek saat approve final / ship
+                // karena stok bisa berubah selama menunggu persetujuan.
+                return $transfer->load(['items', 'fromWarehouse', 'toWarehouse']);
+            }
+
+            if ($this->approvalEngine->hasActiveRules('stock_transfer')) {
+                // Ada rule aktif tapi qty di bawah threshold -> langsung draft.
+                $this->assertSufficientStock($fromWarehouseId, $data['items']);
+                $transfer->update(['status' => StockTransferStatus::Draft->value]);
+            }
+
+            // Tanpa rule aktif: tetap pending_approval sebagai fallback
+            // (approve oleh anggota HO via endpoint lama).
 
             return $transfer->load(['items', 'fromWarehouse', 'toWarehouse']);
         });

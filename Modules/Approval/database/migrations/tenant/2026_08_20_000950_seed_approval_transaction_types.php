@@ -15,6 +15,7 @@ return new class extends Migration
             ['module' => 'purchasing', 'key' => 'purchase_request', 'label' => 'Permintaan Pembelian', 'criteria_basis' => 'nominal'],
             ['module' => 'purchasing', 'key' => 'purchase_order', 'label' => 'Pesanan Pembelian', 'criteria_basis' => 'nominal'],
             ['module' => 'purchasing', 'key' => 'purchase_invoice', 'label' => 'Faktur Pembelian', 'criteria_basis' => 'nominal'],
+            ['module' => 'warehouse', 'key' => 'stock_transfer', 'label' => 'Transfer Stok', 'criteria_basis' => 'quantity'],
         ];
 
         foreach ($types as $type) {
@@ -31,6 +32,7 @@ return new class extends Migration
             'purchase_request',
             'purchase_order',
             'purchase_invoice',
+            'stock_transfer',
         ])->delete();
     }
 };

@@ -49,6 +49,8 @@ export default function Inbox({ pendingApprovals }: Props) {
                 return `/purchasing/orders/${item.transaction_id}`;
             case 'purchase_invoice':
                 return `/purchasing/invoices/${item.transaction_id}`;
+            case 'stock_transfer':
+                return `/warehouse/stock-transfers/${item.transaction_id}`;
             default:
                 return '#';
         }
@@ -87,7 +89,9 @@ export default function Inbox({ pendingApprovals }: Props) {
                                         Tipe Transaksi
                                     </th>
                                     <th className="px-6 py-3.5">Pembuat</th>
-                                    <th className="px-6 py-3.5">Nominal</th>
+                                    <th className="px-6 py-3.5">
+                                        Nominal / Qty
+                                    </th>
                                     <th className="px-6 py-3.5">Tahap</th>
                                     <th className="px-6 py-3.5 text-right">
                                         Aksi

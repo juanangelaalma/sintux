@@ -13,6 +13,7 @@ type TransactionType = {
     module: string;
     key: string;
     label: string;
+    criteria_basis?: string;
 };
 
 type UserOption = {
@@ -92,6 +93,8 @@ export default function Create({ transactionTypes, users }: Props) {
         (t) => t.id === Number(data.transaction_type_id),
     );
 
+    const isQuantityBasis = selectedType?.criteria_basis === 'quantity';
+
     return (
         <SettingsLayout>
             <Head title="Buat Aturan Approval" />
@@ -169,27 +172,42 @@ export default function Create({ transactionTypes, users }: Props) {
                         </FormField>
 
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                            <FormField label="Mata Uang">
-                                <SelectInput
-                                    value={data.currency_code}
-                                    onChange={(e) =>
-                                        setData('currency_code', e.target.value)
-                                    }
-                                >
-                                    <option value="IDR">IDR</option>
-                                </SelectInput>
-                            </FormField>
+                            {!isQuantityBasis && (
+                                <FormField label="Mata Uang">
+                                    <SelectInput
+                                        value={data.currency_code}
+                                        onChange={(e) =>
+                                            setData(
+                                                'currency_code',
+                                                e.target.value,
+                                            )
+                                        }
+                                    >
+                                        <option value="IDR">IDR</option>
+                                    </SelectInput>
+                                </FormField>
+                            )}
 
-                            <div className="md:col-span-2">
+                            <div
+                                className={
+                                    isQuantityBasis
+                                        ? 'md:col-span-3'
+                                        : 'md:col-span-2'
+                                }
+                            >
                                 <FormField
-                                    label={`Jumlah ${selectedType?.label ?? 'transaksi'} yang besar dari`}
+                                    label={
+                                        isQuantityBasis
+                                            ? `Total qty ${selectedType?.label ?? 'transaksi'} yang besar dari`
+                                            : `Jumlah ${selectedType?.label ?? 'transaksi'} yang besar dari`
+                                    }
                                     error={errors.min_amount}
                                     required
                                 >
                                     <TextInput
                                         type="number"
-                                        step="0.01"
-                                        min="0.01"
+                                        step={isQuantityBasis ? '1' : '0.01'}
+                                        min={isQuantityBasis ? '1' : '0.01'}
                                         value={data.min_amount}
                                         onChange={(e) =>
                                             setData(
@@ -197,12 +215,24 @@ export default function Create({ transactionTypes, users }: Props) {
                                                 e.target.value,
                                             )
                                         }
-                                        placeholder="0,00"
+                                        placeholder={
+                                            isQuantityBasis
+                                                ? 'Contoh: 10'
+                                                : '0,00'
+                                        }
                                         required
                                     />
                                 </FormField>
                             </div>
                         </div>
+
+                        {isQuantityBasis && (
+                            <p className="rounded-lg bg-sky-50 p-2.5 text-xs text-sky-700 dark:bg-sky-950/30 dark:text-sky-400">
+                                📦 Aturan Transfer Stok memakai basis total qty.
+                                Contoh: min 10 berarti transfer dengan total qty
+                                &gt; 10 butuh approval sesuai approver di bawah.
+                            </p>
+                        )}
 
                         <p className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
                             💡 Tips: Masukkan nilai terkecil jika Anda ingin

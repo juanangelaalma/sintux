@@ -10,7 +10,11 @@ use Modules\Warehouse\Models\StockTransfer;
 class ApproveDirectTransfer
 {
     /**
-     * HO menyetujui atau menolak transfer pending dari branch non-HO.
+     * Fallback approval untuk transfer pending TANPA Approval Rule.
+     *
+     * Dipakai hanya bila tidak ada mapping stock_transfer
+     * (belum ada rule aktif). Controller menolak request ini
+     * bila mapping ada dan mengarahkan ke Inbox Approval.
      *
      * - approve -> status draft (siap ship), wajib lolos cek stok sumber.
      * - reject -> status rejected.

@@ -12,6 +12,7 @@ type TransactionType = {
     module: string;
     key: string;
     label: string;
+    criteria_basis?: string;
 };
 
 type UserOption = {
@@ -53,6 +54,8 @@ type StageForm = {
 
 export default function Edit({ rule, users }: Props) {
     const isLocked = rule.pending_mappings_count > 0;
+    const isQuantityBasis =
+        rule.transaction_type?.criteria_basis === 'quantity';
 
     const initialMinAmount = rule.criteria?.[0]?.min_amount
         ? String(Number(rule.criteria[0].min_amount))
@@ -171,14 +174,18 @@ export default function Edit({ rule, users }: Props) {
                         </FormField>
 
                         <FormField
-                            label="Jumlah minimal nominal yang dipicu"
+                            label={
+                                isQuantityBasis
+                                    ? 'Total qty minimal yang dipicu'
+                                    : 'Jumlah minimal nominal yang dipicu'
+                            }
                             error={errors.min_amount}
                             required
                         >
                             <TextInput
                                 type="number"
-                                step="0.01"
-                                min="0.01"
+                                step={isQuantityBasis ? '1' : '0.01'}
+                                min={isQuantityBasis ? '1' : '0.01'}
                                 value={data.min_amount}
                                 disabled={isLocked}
                                 onChange={(e) =>

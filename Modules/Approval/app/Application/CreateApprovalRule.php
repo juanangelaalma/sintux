@@ -57,6 +57,14 @@ class CreateApprovalRule
             ]);
         }
 
+        $transactionType = DB::table('approval_transaction_types')
+            ->where('id', $transactionTypeId)
+            ->first();
+
+        // Tipe basis quantity (mis. Transfer Stok) memakai satuan QTY,
+        // bukan mata uang. Paksa agar konsisten di rule & mapping.
+        $isQuantityBasis = ($transactionType->criteria_basis ?? 'nominal') === 'quantity';
+
         if ($transactionTypeKey === 'purchase_request') {
             $existingPRRule = ApprovalRule::where('transaction_type_id', $transactionTypeId)
                 ->where('is_active', true)
@@ -80,12 +88,12 @@ class CreateApprovalRule
             }
         }
 
-        return DB::transaction(function () use ($data, $createdBy, $transactionTypeKey) {
+        return DB::transaction(function () use ($data, $createdBy, $transactionTypeKey, $isQuantityBasis) {
             $rule = ApprovalRule::create([
                 'transaction_type_id' => $data['transaction_type_id'],
                 'name' => $data['name'],
                 'description' => $data['description'] ?? null,
-                'currency_code' => $data['currency_code'] ?? 'IDR',
+                'currency_code' => $isQuantityBasis ? 'QTY' : ($data['currency_code'] ?? 'IDR'),
                 'scope_all_users' => $data['scope_all_users'] ?? true,
                 'apply_to_existing_draft' => $data['apply_to_existing_draft'] ?? true,
                 'is_active' => true,
