@@ -40,7 +40,7 @@ class ApproveStockRequestRequest extends FormRequest
         return [
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_variant_id' => ['required', 'integer', 'exists:product_variants,id'],
-            'items.*.qty_approved' => ['required', 'numeric', 'min:0'],
+            'items.*.qty_approved' => ['required', 'integer', 'min:0'],
         ];
     }
 }

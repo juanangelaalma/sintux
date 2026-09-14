@@ -62,8 +62,8 @@ export default function AdjustmentsCreate({
 
     const removeItem = (index: number) => {
         if (data.items.length === 1) {
-return;
-}
+            return;
+        }
 
         const newItems = [...data.items];
         newItems.splice(index, 1);
@@ -246,8 +246,8 @@ return;
                                         </label>
                                         <input
                                             type="number"
-                                            step="any"
-                                            min="0.0001"
+                                            step="1"
+                                            min="1"
                                             value={item.qty}
                                             onChange={(e) =>
                                                 updateItem(

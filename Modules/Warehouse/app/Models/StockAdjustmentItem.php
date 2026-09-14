@@ -21,7 +21,7 @@ class StockAdjustmentItem extends Model
         return [
             'stock_adjustment_id' => 'integer',
             'product_variant_id' => 'integer',
-            'qty' => 'float',
+            'qty' => 'integer',
             'unit_cost' => 'float',
         ];
     }

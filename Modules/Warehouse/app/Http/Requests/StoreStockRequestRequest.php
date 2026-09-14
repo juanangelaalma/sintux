@@ -53,8 +53,8 @@ class StoreStockRequestRequest extends FormRequest
             ],
             'items.*.qty_requested' => [
                 'required',
-                'numeric',
-                'gt:0',
+                'integer',
+                'min:1',
             ],
         ];
     }

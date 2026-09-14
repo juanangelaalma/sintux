@@ -29,9 +29,9 @@ class StockTransferDiscrepancy extends Model
             'stock_transfer_id' => 'integer',
             'stock_transfer_item_id' => 'integer',
             'product_variant_id' => 'integer',
-            'shipped_qty' => 'decimal:4',
-            'received_qty' => 'decimal:4',
-            'difference_qty' => 'decimal:4',
+            'shipped_qty' => 'integer',
+            'received_qty' => 'integer',
+            'difference_qty' => 'integer',
             'resolved_at' => 'datetime',
         ];
     }

@@ -22,9 +22,9 @@ class StockTransferItem extends Model
         return [
             'stock_transfer_id' => 'integer',
             'product_variant_id' => 'integer',
-            'qty' => 'decimal:4',
-            'qty_shipped' => 'decimal:4',
-            'qty_received' => 'decimal:4',
+            'qty' => 'integer',
+            'qty_shipped' => 'integer',
+            'qty_received' => 'integer',
         ];
     }
 

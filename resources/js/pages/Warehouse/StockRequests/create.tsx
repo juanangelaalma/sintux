@@ -55,8 +55,8 @@ export default function Create({
 
     const handleRemoveItem = (index: number) => {
         if (form.data.items.length <= 1) {
-return;
-}
+            return;
+        }
 
         const updated = [...form.data.items];
         updated.splice(index, 1);
@@ -226,6 +226,7 @@ return;
                                         <TextInput
                                             type="number"
                                             min={1}
+                                            step={1}
                                             value={item.qty_requested}
                                             onChange={(e) =>
                                                 handleItemChange(

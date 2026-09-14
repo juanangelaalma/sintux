@@ -47,8 +47,8 @@ class StoreStockAdjustmentRequest extends FormRequest
             ],
             'items.*.qty' => [
                 'required',
-                'numeric',
-                'gt:0',
+                'integer',
+                'min:1',
             ],
             'items.*.unit_cost' => [
                 'nullable',

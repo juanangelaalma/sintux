@@ -22,7 +22,7 @@ class StockLayer extends Model
         return [
             'product_variant_id' => 'integer',
             'warehouse_id' => 'integer',
-            'qty_remaining' => 'decimal:4',
+            'qty_remaining' => 'integer',
             'unit_cost' => 'decimal:4',
             'received_at' => 'datetime',
             'source_id' => 'integer',

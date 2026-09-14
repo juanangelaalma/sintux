@@ -20,8 +20,8 @@ class StockRequestItem extends Model
         return [
             'stock_request_id' => 'integer',
             'product_variant_id' => 'integer',
-            'qty_requested' => 'decimal:4',
-            'qty_approved' => 'decimal:4',
+            'qty_requested' => 'integer',
+            'qty_approved' => 'integer',
         ];
     }
 

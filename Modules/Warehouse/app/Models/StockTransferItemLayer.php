@@ -19,7 +19,7 @@ class StockTransferItemLayer extends Model
         return [
             'stock_transfer_item_id' => 'integer',
             'stock_layer_id' => 'integer',
-            'qty_taken' => 'decimal:4',
+            'qty_taken' => 'integer',
             'unit_cost' => 'decimal:4',
         ];
     }

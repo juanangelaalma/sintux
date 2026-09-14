@@ -289,6 +289,7 @@ export default function Show({ stockRequest }: Props) {
                                                     <TextInput
                                                         type="number"
                                                         min={0}
+                                                        step={1}
                                                         max={Math.min(
                                                             requested,
                                                             available,

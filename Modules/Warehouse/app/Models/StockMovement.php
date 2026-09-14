@@ -25,7 +25,7 @@ class StockMovement extends Model
     protected $casts = [
         'warehouse_id' => 'integer',
         'product_variant_id' => 'integer',
-        'qty' => 'decimal:4',
+        'qty' => 'integer',
         'unit_cost' => 'decimal:4',
         'stock_layer_id' => 'integer',
         'reference_id' => 'integer',
