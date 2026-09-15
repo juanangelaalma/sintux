@@ -70,6 +70,34 @@ class GetWarehouses
     }
 
     /**
+     * Flat options for sales invoice: active warehouses of one branch,
+     * optionally filtered by type. Regular first (default gudang jual).
+     *
+     * @return list<array{id: int, code: string, name: string, warehouse_type: string}>
+     */
+    public function optionsForSale(int $branchId, ?string $warehouseType = null): array
+    {
+        $query = Warehouse::where('branch_id', $branchId)
+            ->where('is_active', true);
+
+        if ($warehouseType !== null && $warehouseType !== '') {
+            $query->where('warehouse_type', $warehouseType);
+        }
+
+        return $query->orderBy('code')
+            ->get(['id', 'code', 'name', 'warehouse_type'])
+            ->map(fn (Warehouse $warehouse) => [
+                'id' => (int) $warehouse->id,
+                'code' => (string) $warehouse->code,
+                'name' => (string) $warehouse->name,
+                'warehouse_type' => (string) $warehouse->warehouse_type,
+            ])
+            ->sortBy(fn (array $option): int => $option['warehouse_type'] === 'regular' ? 0 : 1)
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  list<int>  $branchIds
      * @return list<int>
      */
