@@ -29,6 +29,9 @@ export default function FormDatePicker({
     minValue,
     error,
 }: FormDatePickerProps) {
+    const maxDate = maxValue ? parseDate(maxValue) : undefined;
+    const minDate = minValue ? parseDate(minValue) : undefined;
+
     return (
         <div>
             <DatePicker
@@ -36,8 +39,8 @@ export default function FormDatePicker({
                 isRequired={isRequired}
                 isInvalid={Boolean(error)}
                 value={value ? parseDate(value) : null}
-                maxValue={maxValue ? parseDate(maxValue) : undefined}
-                minValue={minValue ? parseDate(minValue) : undefined}
+                maxValue={maxDate}
+                minValue={minDate}
                 onChange={(date) => onChange(date ? date.toString() : '')}
             >
             <Label className="mb-1 block text-xs font-semibold text-foreground">
@@ -57,7 +60,11 @@ export default function FormDatePicker({
                 </DateField.Suffix>
             </DateField.Group>
             <DatePicker.Popover>
-                <Calendar aria-label={label}>
+                <Calendar
+                    aria-label={label}
+                    minValue={minDate}
+                    maxValue={maxDate}
+                >
                     <Calendar.Header>
                         <Calendar.Heading />
                         <Calendar.NavButton slot="previous" />
