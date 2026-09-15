@@ -3,7 +3,9 @@
 namespace Modules\Purchasing\Listeners;
 
 use Modules\Approval\Events\TransactionApprovalFinalized;
+use Modules\Purchasing\Application\PurchaseInvoice\IncrementInvoicedQuantities;
 use Modules\Purchasing\Application\PurchaseInvoice\ValidateInvoiceQuantities;
+use Modules\Purchasing\Application\PurchaseOrder\MarkPurchaseOrderClosed;
 use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Modules\Purchasing\Enums\PurchaseOrderStatus;
 use Modules\Purchasing\Enums\PurchaseRequestStatus;
@@ -37,10 +39,23 @@ class FinalizePurchaseApproval
                 break;
 
             case 'purchase_invoice':
-                $inv = PurchaseInvoice::find($id);
+                $inv = PurchaseInvoice::with('items')->find($id);
                 if ($inv) {
                     if ($status === 'approved') {
-                        app(ValidateInvoiceQuantities::class)->execute($inv);
+                        // 3-way match kumulatif dulu; gagal = approval rollback.
+                        app(ValidateInvoiceQuantities::class)->executeForInvoice($inv);
+
+                        $lines = $inv->items->map(fn ($item) => [
+                            'goods_receipt_item_id' => $item->goods_receipt_item_id,
+                            'purchase_order_item_id' => $item->purchase_order_item_id,
+                            'qty' => (float) $item->qty,
+                        ])->all();
+
+                        app(IncrementInvoicedQuantities::class)->execute($lines);
+
+                        if ($inv->purchase_order_id) {
+                            app(MarkPurchaseOrderClosed::class)->execute((int) $inv->purchase_order_id);
+                        }
                     }
                     $mapped = $status === 'rejected' ? PurchaseInvoiceStatus::Cancelled : PurchaseInvoiceStatus::from($status);
                     $inv->update(['status' => $mapped]);

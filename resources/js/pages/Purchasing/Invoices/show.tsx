@@ -29,6 +29,10 @@ type PurchaseInvoice = {
     tax_amount: number;
     total: number;
     items: Item[];
+    goods_receipt?: {
+        id: number;
+        number: string;
+    } | null;
 };
 
 type Props = {
@@ -49,6 +53,21 @@ export default function PurchaseInvoicesShow({
             label: 'Tanggal jatuh tempo',
             value: formatDate(purchaseInvoice.due_date),
         },
+        ...(purchaseInvoice.goods_receipt
+            ? [
+                  {
+                      label: 'Penerimaan (GRN)',
+                      value: (
+                          <Link
+                              href={`/purchasing/grns/${purchaseInvoice.goods_receipt.id}`}
+                              className="text-accent hover:underline"
+                          >
+                              #{purchaseInvoice.goods_receipt.number}
+                          </Link>
+                      ),
+                  } as DetailRow,
+              ]
+            : []),
         {
             label: 'Pajak (PPN)',
             value: formatCurrency(purchaseInvoice.tax_amount),

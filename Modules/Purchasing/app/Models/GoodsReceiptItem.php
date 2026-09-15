@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $sku
  * @property string|null $uom_name
  * @property float $qty_received
+ * @property float $qty_invoiced
  */
 class GoodsReceiptItem extends Model
 {
@@ -31,6 +32,7 @@ class GoodsReceiptItem extends Model
     {
         return [
             'qty_received' => 'decimal:4',
+            'qty_invoiced' => 'decimal:4',
         ];
     }
 

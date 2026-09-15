@@ -45,6 +45,7 @@ export const PurchaseOrderStatus = {
     Sent: 'sent',
     PartiallyReceived: 'partially_received',
     Received: 'received',
+    Closed: 'closed',
     Cancelled: 'cancelled',
 } as const;
 
@@ -61,6 +62,7 @@ export const PURCHASE_ORDER_STATUS_LABEL: Record<
     [PurchaseOrderStatus.Sent]: 'Terkirim',
     [PurchaseOrderStatus.PartiallyReceived]: 'Sebagian Diterima',
     [PurchaseOrderStatus.Received]: 'Diterima',
+    [PurchaseOrderStatus.Closed]: 'Selesai Ditagih',
     [PurchaseOrderStatus.Cancelled]: 'Dibatalkan',
 };
 

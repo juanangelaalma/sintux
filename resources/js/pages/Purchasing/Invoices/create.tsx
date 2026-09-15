@@ -13,6 +13,7 @@ import LineItemsEditor from '@/components/purchasing/line-items-editor';
 import type {
     LineItemRow,
     ProductVariant,
+    TaxOption,
 } from '@/components/purchasing/line-items-editor';
 import SupplierFields from '@/components/purchasing/supplier-fields';
 import type { SupplierOption } from '@/components/purchasing/supplier-fields';
@@ -28,6 +29,8 @@ export type POItem = {
     product_name: string;
     sku: string;
     qty: number;
+    qty_received?: number;
+    qty_invoiced?: number;
     unit_price: number;
     line_total: number;
 };
@@ -38,10 +41,34 @@ export type PurchaseOrderOption = {
     supplier_id: number;
     order_date: string;
     expected_date?: string;
+    due_date?: string | null;
     note?: string;
+    is_tax_inclusive?: boolean;
     subtotal?: number;
     total?: number;
     items: POItem[];
+};
+
+export type PrefillGrnItem = {
+    goods_receipt_item_id: number;
+    purchase_order_item_id: number | null;
+    product_variant_id: number;
+    product_name: string;
+    sku: string;
+    qty_receivable: number;
+    unit_price: number;
+    tax_id: number | null;
+};
+
+export type PrefillGrn = {
+    id: number;
+    number: string;
+    branch_id: number;
+    supplier_id: number;
+    purchase_order_id: number;
+    is_tax_inclusive: boolean;
+    due_date?: string | null;
+    items: PrefillGrnItem[];
 };
 
 type Props = {
@@ -50,6 +77,9 @@ type Props = {
     productVariants: ProductVariant[];
     purchaseOrders?: PurchaseOrderOption[];
     warehouses?: Warehouse[];
+    taxes?: TaxOption[];
+    prefillGrn?: PrefillGrn | null;
+    prefillError?: string | null;
 };
 
 export default function PurchaseInvoicesCreate({
@@ -57,35 +87,79 @@ export default function PurchaseInvoicesCreate({
     suppliers,
     productVariants,
     purchaseOrders = [],
+    taxes = [],
+    prefillGrn = null,
+    prefillError = null,
 }: Props) {
     const [supplierEmail, setSupplierEmail] = useState('');
     const [supplierAddress, setSupplierAddress] = useState('');
     const [poSearch, setPoSearch] = useState('');
 
+    const prefillItems: LineItemRow[] = (prefillGrn?.items ?? []).map(
+        (item) => ({
+            product_variant_id: item.product_variant_id,
+            purchase_order_item_id: item.purchase_order_item_id ?? undefined,
+            goods_receipt_item_id: item.goods_receipt_item_id,
+            description: `${item.product_name} (${item.sku})`,
+            qty: item.qty_receivable,
+            unit_price: item.unit_price,
+            tax_id: item.tax_id,
+        }),
+    );
+
     const { data, setData, post, processing, errors } = useForm<{
         branch_id: number | string;
         supplier_id: number | string;
         purchase_order_id?: number | string;
+        goods_receipt_id?: number | string;
+        is_tax_inclusive: boolean;
         invoice_date: string;
         due_date: string;
         note: string;
         items: LineItemRow[];
     }>({
-        branch_id: branches[0]?.id ?? '',
-        supplier_id: suppliers[0]?.id ?? '',
-        purchase_order_id: '',
+        branch_id: prefillGrn?.branch_id ?? branches[0]?.id ?? '',
+        supplier_id: prefillGrn?.supplier_id ?? suppliers[0]?.id ?? '',
+        purchase_order_id: prefillGrn?.purchase_order_id ?? '',
+        goods_receipt_id: prefillGrn?.id ?? '',
+        is_tax_inclusive: prefillGrn?.is_tax_inclusive ?? false,
         invoice_date: new Date().toISOString().split('T')[0],
-        due_date: '',
-        note: '',
-        items: [
-            {
-                product_variant_id: productVariants[0]?.id ?? 0,
-                description: '',
-                qty: 1,
-                unit_price: 0,
-            },
-        ],
+        due_date: prefillGrn?.due_date ? prefillGrn.due_date.slice(0, 10) : '',
+        note: prefillGrn ? `Faktur atas GRN #${prefillGrn.number}` : '',
+        items:
+            prefillItems.length > 0
+                ? prefillItems
+                : [
+                      {
+                          product_variant_id: productVariants[0]?.id ?? 0,
+                          description: '',
+                          qty: 1,
+                          unit_price: 0,
+                      },
+                  ],
     });
+
+    const lockPrices = !!prefillGrn;
+    const grnFullyBilled = !!prefillGrn && prefillItems.length === 0;
+
+    const selectedPo =
+        !prefillGrn && data.purchase_order_id
+            ? purchaseOrders.find(
+                  (p) => p.id === Number(data.purchase_order_id),
+              )
+            : undefined;
+    const selectedPoRemainder = selectedPo
+        ? selectedPo.items.reduce(
+              (sum, item) =>
+                  sum +
+                  Math.max(
+                      0,
+                      Number(item.qty_received ?? item.qty) -
+                          Number(item.qty_invoiced ?? 0),
+                  ),
+              0,
+          )
+        : null;
 
     const handleSelectPO = (poId: number | string) => {
         const po = purchaseOrders.find((p) => p.id === Number(poId));
@@ -110,7 +184,11 @@ export default function PurchaseInvoicesCreate({
             product_variant_id: item.product_variant_id,
             purchase_order_item_id: item.id,
             description: `${item.product_name} (${item.sku})`,
-            qty: item.qty,
+            qty: Math.max(
+                0,
+                Number(item.qty_received ?? item.qty) -
+                    Number(item.qty_invoiced ?? 0),
+            ),
             unit_price: item.unit_price,
         }));
 
@@ -118,6 +196,8 @@ export default function PurchaseInvoicesCreate({
             ...data,
             purchase_order_id: po.id,
             supplier_id: po.supplier_id,
+            is_tax_inclusive: po.is_tax_inclusive ?? data.is_tax_inclusive,
+            due_date: po.due_date ? po.due_date.slice(0, 10) : data.due_date,
             note: po.note || data.note,
             items: poItems.length > 0 ? poItems : data.items,
         });
@@ -270,6 +350,35 @@ export default function PurchaseInvoicesCreate({
                         </div>
                     </div>
 
+                    {selectedPoRemainder !== null &&
+                        selectedPoRemainder <= 0 && (
+                            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
+                                PO #{selectedPo?.number} belum memiliki sisa
+                                yang bisa ditagih (belum ada barang diterima
+                                atau sudah tertagih penuh).
+                            </div>
+                        )}
+
+                    {prefillError && (
+                        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-700 dark:text-rose-300">
+                            {prefillError}
+                        </div>
+                    )}
+
+                    {prefillGrn && (
+                        <div className="rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm text-foreground">
+                            Faktur atas GRN #{prefillGrn.number}. Harga dikunci
+                            mengikuti PO dan qty terisi sisa belum tertagih.
+                        </div>
+                    )}
+
+                    {grnFullyBilled && (
+                        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
+                            Seluruh barang di GRN ini sudah tertagih penuh —
+                            tidak ada sisa untuk difaktur.
+                        </div>
+                    )}
+
                     <SupplierFields
                         supplierId={data.supplier_id}
                         suppliers={suppliers}
@@ -313,6 +422,12 @@ export default function PurchaseInvoicesCreate({
                     <LineItemsEditor
                         items={data.items}
                         productVariants={productVariants}
+                        taxes={taxes}
+                        isTaxInclusive={data.is_tax_inclusive}
+                        onTaxInclusiveChange={(inclusive) =>
+                            setData('is_tax_inclusive', inclusive)
+                        }
+                        lockPrices={lockPrices}
                         onAddItem={addItem}
                         onRemoveItem={removeItem}
                         onUpdateItem={updateItem}

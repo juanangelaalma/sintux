@@ -50,7 +50,9 @@ class GetPurchaseOrderOptions
                     'status_label' => $po->status->label(),
                     'order_date' => $po->order_date,
                     'expected_date' => $po->expected_date,
+                    'due_date' => $po->due_date?->toDateString(),
                     'note' => $po->note,
+                    'is_tax_inclusive' => (bool) $po->is_tax_inclusive,
                     'subtotal' => (float) $po->subtotal,
                     'total' => (float) $po->total,
                     'items' => $po->items->map(function ($item) use ($branchMap) {
@@ -64,6 +66,7 @@ class GetPurchaseOrderOptions
                             'qty' => (float) $item['qty_ordered'],
                             'qty_ordered' => (float) $item['qty_ordered'],
                             'qty_received' => (float) ($item['qty_received'] ?? 0),
+                            'qty_invoiced' => (float) ($item['qty_invoiced'] ?? 0),
                             'unit_price' => (float) $item['unit_price'],
                             'line_total' => (float) $item['line_total'],
                             'destination_branch_id' => $item->destination_branch_id,

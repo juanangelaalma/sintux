@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $purchase_invoice_id
  * @property int|null $purchase_order_item_id
+ * @property int|null $goods_receipt_item_id
  * @property int $product_variant_id
  * @property string $product_name
  * @property string $sku
@@ -24,6 +25,7 @@ class PurchaseInvoiceItem extends Model
     protected $fillable = [
         'purchase_invoice_id',
         'purchase_order_item_id',
+        'goods_receipt_item_id',
         'product_variant_id',
         'product_name',
         'sku',

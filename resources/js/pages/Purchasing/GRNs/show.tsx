@@ -15,6 +15,7 @@ type Item = {
     sku: string;
     uom_name?: string;
     qty_received: number;
+    qty_invoiced?: number | null;
 };
 
 type GoodsReceipt = {
@@ -47,6 +48,23 @@ export default function GoodsReceiptsShow({ goodsReceipt, warehouse }: Props) {
     const [confirmPost, setConfirmPost] = useState(false);
     const { post: postPost, processing: posting } = useForm({});
 
+    const totalReceived = goodsReceipt.items.reduce(
+        (sum, item) => sum + Number(item.qty_received || 0),
+        0,
+    );
+    const totalInvoiced = goodsReceipt.items.reduce(
+        (sum, item) => sum + Number(item.qty_invoiced || 0),
+        0,
+    );
+    const remainder = totalReceived - totalInvoiced;
+    const isPosted = goodsReceipt.status === GoodsReceiptStatus.Posted;
+    const billingStatus =
+        totalInvoiced <= 0
+            ? 'Belum Difaktur'
+            : remainder > 0
+              ? 'Sebagian Difaktur'
+              : 'Sudah Difaktur Penuh';
+
     const handlePost = () => {
         postPost(`/purchasing/grns/${goodsReceipt.id}/post`);
     };
@@ -75,6 +93,10 @@ export default function GoodsReceiptsShow({ goodsReceipt, warehouse }: Props) {
                 ? `${warehouse.code} — ${warehouse.name}`
                 : `#${goodsReceipt.warehouse_id}`,
         },
+        {
+            label: 'Status Penagihan',
+            value: `${billingStatus} (tertagih ${totalInvoiced} dari ${totalReceived})`,
+        },
     ];
 
     return (
@@ -101,6 +123,15 @@ export default function GoodsReceiptsShow({ goodsReceipt, warehouse }: Props) {
                                     Posting Stok ke Gudang
                                 </Button>
                             )}
+                            {isPosted && remainder > 0 && (
+                                <Link
+                                    href={`/purchasing/invoices/create?goods_receipt_id=${goodsReceipt.id}`}
+                                >
+                                    <Button type="button" variant="primary">
+                                        Buat Faktur
+                                    </Button>
+                                </Link>
+                            )}
                         </>
                     }
                 />
@@ -124,6 +155,12 @@ export default function GoodsReceiptsShow({ goodsReceipt, warehouse }: Props) {
                                         <th className="px-4 py-3 text-right">
                                             Jumlah Diterima
                                         </th>
+                                        <th className="px-4 py-3 text-right">
+                                            Sudah Ditagih
+                                        </th>
+                                        <th className="px-4 py-3 text-right">
+                                            Sisa
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/60">
@@ -140,6 +177,15 @@ export default function GoodsReceiptsShow({ goodsReceipt, warehouse }: Props) {
                                             </td>
                                             <td className="px-4 py-3 text-right font-bold text-foreground">
                                                 {item.qty_received}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-muted">
+                                                {item.qty_invoiced ?? 0}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-bold text-accent">
+                                                {Number(item.qty_received) -
+                                                    Number(
+                                                        item.qty_invoiced ?? 0,
+                                                    )}
                                             </td>
                                         </tr>
                                     ))}

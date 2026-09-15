@@ -5,13 +5,16 @@ namespace Modules\Purchasing\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Accounting\Application\GetPurchaseTaxes;
 use Modules\Approval\Application\GetTransactionApprovalStatus;
 use Modules\Company\Application\CompanyAccess;
 use Modules\Contact\Application\GetContacts;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Purchasing\Application\PurchaseInvoice\CreatePurchaseInvoice;
+use Modules\Purchasing\Application\PurchaseInvoice\GetInvoicePrefillFromGrn;
 use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseInvoiceDetail;
 use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseInvoices;
 use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseSummary;
@@ -53,11 +56,26 @@ class PurchaseInvoiceController extends Controller
 
         $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
 
+        $prefillGrn = null;
+        $prefillError = null;
+        $grnId = request()->query('goods_receipt_id');
+
+        if ($grnId) {
+            try {
+                $prefillGrn = app(GetInvoicePrefillFromGrn::class)->execute((int) $grnId);
+            } catch (ValidationException $e) {
+                $prefillError = $e->getMessage() ?: 'GRN tidak dapat dijadikan faktur.';
+            }
+        }
+
         return Inertia::render('Purchasing/Invoices/create', [
             'branches' => CompanyAccess::accessibleBranches($user, $tenantId),
             'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
             'productVariants' => app(GetPurchaseVariants::class)->execute($accessibleBranchIds),
             'purchaseOrders' => app(GetPurchaseOrderOptions::class)->execute($accessibleBranchIds),
+            'taxes' => app(GetPurchaseTaxes::class)->execute(),
+            'prefillGrn' => $prefillGrn,
+            'prefillError' => $prefillError,
         ]);
     }
 

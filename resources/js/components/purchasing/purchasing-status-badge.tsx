@@ -13,6 +13,7 @@ const STATUS_COLOR: Record<string, StatusStyle['color']> = {
     sent: 'accent',
     partially_received: 'warning',
     received: 'success',
+    closed: 'success',
     posted: 'success',
     ready: 'success',
     accepted: 'success',

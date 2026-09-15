@@ -18,6 +18,7 @@ export type TaxOption = {
 export type LineItemRow = {
     product_variant_id: number;
     purchase_order_item_id?: number;
+    goods_receipt_item_id?: number;
     description?: string;
     qty: number;
     unit_price: number;
@@ -31,6 +32,7 @@ type LineItemsEditorProps = {
     taxes?: TaxOption[];
     isTaxInclusive?: boolean;
     onTaxInclusiveChange?: (inclusive: boolean) => void;
+    lockPrices?: boolean;
     onAddItem: () => void;
     onRemoveItem: (index: number) => void;
     onUpdateItem: (
@@ -49,6 +51,7 @@ export default function LineItemsEditor({
     taxes = [],
     isTaxInclusive = false,
     onTaxInclusiveChange,
+    lockPrices = false,
     onAddItem,
     onRemoveItem,
     onUpdateItem,
@@ -204,7 +207,13 @@ export default function LineItemsEditor({
                                                 type="number"
                                                 min="0"
                                                 aria-label="Harga satuan"
-                                                className="w-full min-w-0 border-none bg-transparent px-2 py-1.5 text-right text-xs text-foreground outline-none focus:ring-0"
+                                                disabled={lockPrices}
+                                                title={
+                                                    lockPrices
+                                                        ? 'Harga dikunci mengikuti PO'
+                                                        : undefined
+                                                }
+                                                className="w-full min-w-0 border-none bg-transparent px-2 py-1.5 text-right text-xs text-foreground outline-none focus:ring-0 disabled:cursor-not-allowed disabled:bg-surface-secondary/50 disabled:text-muted"
                                                 value={row.unit_price}
                                                 onChange={(e) =>
                                                     onUpdateItem(
