@@ -8,5 +8,6 @@
     "Product": true,
     "Warehouse": true,
     "Purchasing": true,
-    "Approval": true
+    "Approval": true,
+    "Sales": true
 }
