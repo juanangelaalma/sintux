@@ -189,6 +189,67 @@ class SalesInvoiceTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_create_page_renders_with_sale_options(): void
+    {
+        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranch();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+
+        tenancy()->initialize($tenantId);
+        [$variant1] = $this->createCatalog($branchBId);
+        $this->createContact($branchBId, 'customer');
+        $this->createContact($branchBId, 'employee');
+        tenancy()->end();
+
+        $this->actingAs($user)->get(route('sales.invoices.create'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Sales/Invoices/create')
+                ->has('warehouses')
+                ->has('customers')
+                ->has('employees')
+                ->has('productVariants')
+                ->has('taxes')
+                ->has('paymentTerms')
+                ->where('productVariants.0.id', $variant1));
+    }
+
+    public function test_index_and_show_pages_render(): void
+    {
+        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranch();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+
+        tenancy()->initialize($tenantId);
+        [$variant1, $variant2, $salesTaxId] = $this->createCatalog($branchBId);
+        $customerId = $this->createContact($branchBId, 'customer');
+        $employeeId = $this->createContact($branchBId, 'employee');
+        $warehouseId = $this->regularWarehouseOf($branchBId);
+        $this->receiveStock($warehouseId, $variant1, 25);
+        $this->receiveStock($warehouseId, $variant2, 25);
+        tenancy()->end();
+
+        $payload = $this->invoicePayload($warehouseId, $customerId, $employeeId, $variant1, $variant2, $salesTaxId);
+
+        $this->actingAs($user)->post(route('sales.invoices.store'), $payload)
+            ->assertRedirect(route('sales.invoices.index'));
+
+        $this->actingAs($user)->get(route('sales.invoices.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Sales/Invoices/index')
+                ->has('salesInvoices.data', 1));
+
+        tenancy()->initialize($tenantId);
+        $invoiceId = (int) DB::table('sales_invoices')->value('id');
+        tenancy()->end();
+
+        $this->actingAs($user)->get(route('sales.invoices.show', $invoiceId))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Sales/Invoices/show')
+                ->where('salesInvoice.id', $invoiceId)
+                ->has('salesInvoice.items', 2));
+    }
+
     public function test_insufficient_stock_is_rejected_per_line(): void
     {
         [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranch();
@@ -281,6 +342,30 @@ class SalesInvoiceTest extends TestCase
         [$variant1, $variant2, $salesTaxId] = $this->createCatalog($branchBId);
         $customerId = $this->createContact($branchBId, 'customer');
         $employeeId = $this->createContact($branchBId, 'employee');
+        $consignmentId = (int) DB::table('warehouses')
+            ->where('branch_id', $branchBId)
+            ->where('warehouse_type', 'consignment')
+            ->value('id');
+        $this->receiveStock($consignmentId, $variant1, 25);
+        $this->receiveStock($consignmentId, $variant2, 25);
+        tenancy()->end();
+
+        $payload = $this->invoicePayload($consignmentId, $customerId, $employeeId, $variant1, $variant2, $salesTaxId);
+        $payload['transaction_type'] = 'regular';
+
+        $this->actingAs($user)->post(route('sales.invoices.store'), $payload)
+            ->assertSessionHasErrors(['warehouse_id']);
+    }
+
+    public function test_regular_transaction_may_use_retail_warehouse(): void
+    {
+        [$tenantId, $branchBId, $user] = $this->createCompanyWithMemberAndBranch();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $branchBId]);
+
+        tenancy()->initialize($tenantId);
+        [$variant1, $variant2, $salesTaxId] = $this->createCatalog($branchBId);
+        $customerId = $this->createContact($branchBId, 'customer');
+        $employeeId = $this->createContact($branchBId, 'employee');
         $retailId = (int) DB::table('warehouses')
             ->where('branch_id', $branchBId)
             ->where('warehouse_type', 'retail')
@@ -293,7 +378,14 @@ class SalesInvoiceTest extends TestCase
         $payload['transaction_type'] = 'regular';
 
         $this->actingAs($user)->post(route('sales.invoices.store'), $payload)
-            ->assertSessionHasErrors(['warehouse_id']);
+            ->assertRedirect(route('sales.invoices.index'));
+
+        tenancy()->initialize($tenantId);
+        $inv = DB::table('sales_invoices')->where('branch_id', $branchBId)->first();
+        $this->assertNotNull($inv);
+        $this->assertSame(SalesInvoiceStatus::Approved->value, $inv->status);
+        $this->assertSame(15, (int) $this->balanceOf($retailId, $variant1));
+        tenancy()->end();
     }
 
     /**

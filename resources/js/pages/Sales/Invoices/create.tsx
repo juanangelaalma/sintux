@@ -9,9 +9,11 @@ import {
 import { Head, Link, useForm } from '@inertiajs/react';
 import { parseDate } from '@internationalized/date';
 import { useEffect, useMemo, useState } from 'react';
+import FormDatePicker from '@/components/ui/form-date-picker';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { formatCurrency } from '@/lib/format';
 import InvoiceItemsEditor from './invoice-items-editor';
+import SearchableSelect from './searchable-select';
 import { calculateInvoiceTotals } from './totals';
 import type {
     CustomerOption,
@@ -75,8 +77,8 @@ const getDaysFromTerm = (term: string): number | null => {
     return null;
 };
 
-const warehouseTypeFor = (transactionType: string): string =>
-    transactionType === 'consignment' ? 'consignment' : 'regular';
+const warehouseTypesFor = (transactionType: string): string[] =>
+    transactionType === 'consignment' ? ['consignment'] : ['regular', 'retail'];
 
 export default function SalesInvoicesCreate({
     activeBranch = null,
@@ -137,10 +139,10 @@ export default function SalesInvoicesCreate({
 
     const visibleWarehouses = useMemo(
         () =>
-            warehouses.filter(
-                (w) =>
-                    w.warehouse_type ===
-                    warehouseTypeFor(data.transaction_type),
+            warehouses.filter((w) =>
+                warehouseTypesFor(data.transaction_type).includes(
+                    w.warehouse_type,
+                ),
             ),
         [warehouses, data.transaction_type],
     );
@@ -161,13 +163,17 @@ export default function SalesInvoicesCreate({
     }, [data.transaction_type, warehouses]);
 
     const handleCustomerChange = (id: number) => {
-        setData('customer_id', id);
         const selected = customers.find((c) => c.id === id);
 
         if (selected?.email) {
             setCustomerEmail(selected.email);
-            setData('customer_email', selected.email);
         }
+
+        setData((prev) => ({
+            ...prev,
+            customer_id: id,
+            customer_email: selected?.email ?? prev.customer_email,
+        }));
     };
 
     const handleInvoiceDateChange = (nextDate: string) => {
@@ -216,27 +222,33 @@ export default function SalesInvoicesCreate({
     };
 
     const addItem = () => {
-        setData('items', [
-            ...data.items,
-            {
-                product_variant_id: productVariants[0]?.id ?? 0,
-                qty: 1,
-                unit_price: Number(productVariants[0]?.selling_price ?? 0),
-                discount_type: '',
-                discount_value: 0,
-                tax_id: null,
-            },
-        ]);
+        setData((prev) => ({
+            ...prev,
+            items: [
+                ...prev.items,
+                {
+                    product_variant_id: productVariants[0]?.id ?? 0,
+                    qty: 1,
+                    unit_price: Number(productVariants[0]?.selling_price ?? 0),
+                    discount_type: '',
+                    discount_value: 0,
+                    tax_id: null,
+                },
+            ],
+        }));
     };
 
     const removeItem = (index: number) => {
-        if (data.items.length === 1) {
-            return;
-        }
+        setData((prev) => {
+            if (prev.items.length === 1) {
+                return prev;
+            }
 
-        const next = [...data.items];
-        next.splice(index, 1);
-        setData('items', next);
+            const next = [...prev.items];
+            next.splice(index, 1);
+
+            return { ...prev, items: next };
+        });
     };
 
     const updateItem = (
@@ -244,9 +256,12 @@ export default function SalesInvoicesCreate({
         field: keyof SalesLineItemRow,
         value: string | number | null,
     ) => {
-        const next = [...data.items];
-        next[index] = { ...next[index], [field]: value };
-        setData('items', next);
+        setData((prev) => {
+            const next = [...prev.items];
+            next[index] = { ...next[index], [field]: value };
+
+            return { ...prev, items: next };
+        });
     };
 
     const totals = calculateInvoiceTotals(
@@ -291,48 +306,19 @@ export default function SalesInvoicesCreate({
                     className="space-y-6 rounded-xl border border-border bg-surface p-6 shadow-xs"
                 >
                     <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
-                        <div>
-                            <Label className="block text-xs font-semibold text-foreground">
-                                Pelanggan *
-                            </Label>
-                            <Select
-                                fullWidth
-                                isRequired
-                                isInvalid={Boolean(errors.customer_id)}
-                                placeholder="Pilih pelanggan"
-                                value={
-                                    data.customer_id
-                                        ? String(data.customer_id)
-                                        : ''
-                                }
-                                onChange={(val) =>
-                                    handleCustomerChange(Number(val))
-                                }
-                            >
-                                <Select.Trigger className="mt-1">
-                                    <Select.Value />
-                                    <Select.Indicator />
-                                </Select.Trigger>
-                                <Select.Popover>
-                                    <ListBox>
-                                        {customers.map((c) => (
-                                            <ListBox.Item
-                                                key={c.id}
-                                                id={String(c.id)}
-                                                textValue={c.name}
-                                            >
-                                                {c.name}
-                                            </ListBox.Item>
-                                        ))}
-                                    </ListBox>
-                                </Select.Popover>
-                            </Select>
-                            {errors.customer_id && (
-                                <p className="mt-1 text-xs text-danger">
-                                    {errors.customer_id}
-                                </p>
-                            )}
-                        </div>
+                        <SearchableSelect
+                            label="Pelanggan"
+                            placeholder="Cari pelanggan..."
+                            searchPlaceholder="Cari nama pelanggan..."
+                            items={customers.map((c) => ({
+                                id: c.id,
+                                name: c.name,
+                            }))}
+                            value={data.customer_id}
+                            onChange={handleCustomerChange}
+                            error={errors.customer_id}
+                            isRequired
+                        />
 
                         <TextField name="customer_email">
                             <Label className="block text-xs font-semibold text-foreground">
@@ -384,44 +370,22 @@ export default function SalesInvoicesCreate({
                             </Select>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-semibold text-foreground">
-                                Tgl. Transaksi *
-                            </label>
-                            <input
-                                type="date"
-                                max={todayStr}
-                                value={data.invoice_date}
-                                onChange={(e) =>
-                                    handleInvoiceDateChange(e.target.value)
-                                }
-                                className="mt-1 block w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-accent focus:ring-accent"
-                            />
-                            {errors.invoice_date && (
-                                <p className="mt-1 text-xs text-danger">
-                                    {errors.invoice_date}
-                                </p>
-                            )}
-                        </div>
+                        <FormDatePicker
+                            label="Tgl. Transaksi"
+                            value={data.invoice_date}
+                            onChange={handleInvoiceDateChange}
+                            maxValue={todayStr}
+                            error={errors.invoice_date}
+                        />
 
-                        <div>
-                            <label className="block text-xs font-semibold text-foreground">
-                                Tgl. Jatuh Tempo
-                            </label>
-                            <input
-                                type="date"
-                                value={data.due_date}
-                                onChange={(e) =>
-                                    handleDueDateChange(e.target.value)
-                                }
-                                className="mt-1 block w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-accent focus:ring-accent"
-                            />
-                            {errors.due_date && (
-                                <p className="mt-1 text-xs text-danger">
-                                    {errors.due_date}
-                                </p>
-                            )}
-                        </div>
+                        <FormDatePicker
+                            label="Tgl. Jatuh Tempo"
+                            value={data.due_date}
+                            onChange={handleDueDateChange}
+                            minValue={data.invoice_date || undefined}
+                            isRequired={false}
+                            error={errors.due_date}
+                        />
 
                         <div>
                             <Label className="block text-xs font-semibold text-foreground">
@@ -498,48 +462,19 @@ export default function SalesInvoicesCreate({
                             )}
                         </div>
 
-                        <div>
-                            <Label className="block text-xs font-semibold text-foreground">
-                                Sales / Marketing *
-                            </Label>
-                            <Select
-                                fullWidth
-                                isRequired
-                                isInvalid={Boolean(errors.salesperson_id)}
-                                placeholder="Cari karyawan"
-                                value={
-                                    data.salesperson_id
-                                        ? String(data.salesperson_id)
-                                        : ''
-                                }
-                                onChange={(val) =>
-                                    setData('salesperson_id', Number(val))
-                                }
-                            >
-                                <Select.Trigger className="mt-1">
-                                    <Select.Value />
-                                    <Select.Indicator />
-                                </Select.Trigger>
-                                <Select.Popover>
-                                    <ListBox>
-                                        {employees.map((emp) => (
-                                            <ListBox.Item
-                                                key={emp.id}
-                                                id={String(emp.id)}
-                                                textValue={emp.name}
-                                            >
-                                                {emp.name}
-                                            </ListBox.Item>
-                                        ))}
-                                    </ListBox>
-                                </Select.Popover>
-                            </Select>
-                            {errors.salesperson_id && (
-                                <p className="mt-1 text-xs text-danger">
-                                    {errors.salesperson_id}
-                                </p>
-                            )}
-                        </div>
+                        <SearchableSelect
+                            label="Sales / Marketing"
+                            placeholder="Cari karyawan..."
+                            searchPlaceholder="Cari nama karyawan..."
+                            items={employees.map((emp) => ({
+                                id: emp.id,
+                                name: emp.name,
+                            }))}
+                            value={data.salesperson_id}
+                            onChange={(id) => setData('salesperson_id', id)}
+                            error={errors.salesperson_id}
+                            isRequired
+                        />
                     </div>
 
                     <InvoiceItemsEditor

@@ -11,6 +11,9 @@ type FormDatePickerProps = {
     value: string;
     onChange: (val: string) => void;
     isRequired?: boolean;
+    maxValue?: string;
+    minValue?: string;
+    error?: string;
 };
 
 /**
@@ -22,14 +25,21 @@ export default function FormDatePicker({
     value,
     onChange,
     isRequired = true,
+    maxValue,
+    minValue,
+    error,
 }: FormDatePickerProps) {
     return (
-        <DatePicker
-            className="w-full"
-            isRequired={isRequired}
-            value={value ? parseDate(value) : null}
-            onChange={(date) => onChange(date ? date.toString() : '')}
-        >
+        <div>
+            <DatePicker
+                className="w-full"
+                isRequired={isRequired}
+                isInvalid={Boolean(error)}
+                value={value ? parseDate(value) : null}
+                maxValue={maxValue ? parseDate(maxValue) : undefined}
+                minValue={minValue ? parseDate(minValue) : undefined}
+                onChange={(date) => onChange(date ? date.toString() : '')}
+            >
             <Label className="mb-1 block text-xs font-semibold text-foreground">
                 {label} {isRequired && <span className="text-danger">*</span>}
             </Label>
@@ -65,6 +75,8 @@ export default function FormDatePicker({
                     </Calendar.Grid>
                 </Calendar>
             </DatePicker.Popover>
-        </DatePicker>
+            </DatePicker>
+            {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+        </div>
     );
 }
