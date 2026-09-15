@@ -1,6 +1,7 @@
 import { Button, Checkbox } from '@heroui/react';
 import { MinusCircle, Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
+import CurrencyInput from './currency-input';
 import SearchableSelect from './searchable-select';
 import { calculateInvoiceTotals } from './totals';
 import type {
@@ -190,17 +191,16 @@ export default function InvoiceItemsEditor({
                                             <span className="shrink-0 border-r border-border bg-surface-secondary/60 px-2 py-1.5 text-xs font-medium text-muted">
                                                 Rp
                                             </span>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                aria-label="Harga satuan"
-                                                className="w-full min-w-0 border-none bg-transparent px-2 py-1.5 text-right text-xs text-foreground outline-none focus:ring-0"
-                                                value={row.unit_price}
-                                                onChange={(e) =>
+                                            <CurrencyInput
+                                                ariaLabel="Harga satuan"
+                                                value={Number(
+                                                    row.unit_price || 0,
+                                                )}
+                                                onChange={(val) =>
                                                     onUpdateItem(
                                                         idx,
                                                         'unit_price',
-                                                        Number(e.target.value),
+                                                        val,
                                                     )
                                                 }
                                             />
@@ -233,27 +233,47 @@ export default function InvoiceItemsEditor({
                                                         Rp
                                                     </option>
                                                 </select>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    aria-label="Nilai diskon"
-                                                    disabled={
-                                                        !row.discount_type
-                                                    }
-                                                    className="w-full min-w-0 border-none bg-transparent px-2 py-1.5 text-right text-xs text-foreground outline-none focus:ring-0 disabled:bg-surface-secondary/50 disabled:text-muted"
-                                                    value={
-                                                        row.discount_value ?? 0
-                                                    }
-                                                    onChange={(e) =>
-                                                        onUpdateItem(
-                                                            idx,
-                                                            'discount_value',
-                                                            Number(
-                                                                e.target.value,
-                                                            ),
-                                                        )
-                                                    }
-                                                />
+                                                {row.discount_type ===
+                                                'nominal' ? (
+                                                    <CurrencyInput
+                                                        ariaLabel="Nilai diskon nominal"
+                                                        value={Number(
+                                                            row.discount_value ??
+                                                                0,
+                                                        )}
+                                                        onChange={(val) =>
+                                                            onUpdateItem(
+                                                                idx,
+                                                                'discount_value',
+                                                                val,
+                                                            )
+                                                        }
+                                                    />
+                                                ) : (
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        aria-label="Nilai diskon"
+                                                        disabled={
+                                                            !row.discount_type
+                                                        }
+                                                        className="w-full min-w-0 border-none bg-transparent px-2 py-1.5 text-right text-xs text-foreground outline-none focus:ring-0 disabled:bg-surface-secondary/50 disabled:text-muted"
+                                                        value={
+                                                            row.discount_value ??
+                                                            0
+                                                        }
+                                                        onChange={(e) =>
+                                                            onUpdateItem(
+                                                                idx,
+                                                                'discount_value',
+                                                                Number(
+                                                                    e.target
+                                                                        .value,
+                                                                ),
+                                                            )
+                                                        }
+                                                    />
+                                                )}
                                             </div>
                                             {errors[
                                                 `items.${idx}.discount_value`
@@ -394,19 +414,29 @@ export default function InvoiceItemsEditor({
                                 <option value="percent">%</option>
                                 <option value="nominal">Rp</option>
                             </select>
-                            <input
-                                type="number"
-                                min="0"
-                                aria-label="Nilai diskon invoice"
-                                disabled={!invoiceDiscountType}
-                                className="w-full min-w-0 border-none bg-transparent px-2 py-1.5 text-right text-xs text-foreground outline-none focus:ring-0 disabled:bg-surface-secondary/50 disabled:text-muted"
-                                value={invoiceDiscountValue}
-                                onChange={(e) =>
-                                    onInvoiceDiscountValueChange?.(
-                                        Number(e.target.value),
-                                    )
-                                }
-                            />
+                            {invoiceDiscountType === 'nominal' ? (
+                                <CurrencyInput
+                                    ariaLabel="Nilai diskon invoice nominal"
+                                    value={Number(invoiceDiscountValue || 0)}
+                                    onChange={(val) =>
+                                        onInvoiceDiscountValueChange?.(val)
+                                    }
+                                />
+                            ) : (
+                                <input
+                                    type="number"
+                                    min="0"
+                                    aria-label="Nilai diskon invoice"
+                                    disabled={!invoiceDiscountType}
+                                    className="w-full min-w-0 border-none bg-transparent px-2 py-1.5 text-right text-xs text-foreground outline-none focus:ring-0 disabled:bg-surface-secondary/50 disabled:text-muted"
+                                    value={invoiceDiscountValue}
+                                    onChange={(e) =>
+                                        onInvoiceDiscountValueChange?.(
+                                            Number(e.target.value),
+                                        )
+                                    }
+                                />
+                            )}
                         </div>
                     </div>
                     <div className="flex justify-between font-semibold text-foreground">
