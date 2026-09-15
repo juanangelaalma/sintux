@@ -8,7 +8,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Accounting\Application\GetPurchaseTaxes;
+use Modules\Accounting\Application\TaxQuery;
 use Modules\Approval\Application\GetTransactionApprovalStatus;
 use Modules\Company\Application\CompanyAccess;
 use Modules\Contact\Application\GetContacts;
@@ -96,7 +96,7 @@ class PurchaseOrderController extends Controller
             'hqWarehouse' => $hqWarehouse,
             'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
             'paymentTerms' => $paymentTerms,
-            'taxes' => app(GetPurchaseTaxes::class)->execute(),
+            'taxes' => app(TaxQuery::class)->listForPurchase(),
             'productVariants' => app(GetPurchaseVariants::class)->execute($accessibleBranchIds),
             'tags' => app(GetPurchaseTags::class)->execute(),
         ]);

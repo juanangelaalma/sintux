@@ -7,7 +7,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
-use Modules\Accounting\Application\GetPurchaseTaxes;
+use Modules\Accounting\Application\TaxQuery;
 use Modules\Company\Application\CompanyAccess;
 use Modules\Contact\Application\GetContacts;
 
@@ -41,7 +41,7 @@ class StorePurchaseOrderRequest extends FormRequest
             ->pluck('id')
             ->all();
 
-        $taxIds = collect(app(GetPurchaseTaxes::class)->execute())
+        $taxIds = collect(app(TaxQuery::class)->listForPurchase())
             ->pluck('id')
             ->all();
 

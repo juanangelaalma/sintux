@@ -3,7 +3,7 @@
 namespace Modules\Purchasing\Application\PurchaseQuote;
 
 use Illuminate\Support\Facades\DB;
-use Modules\Accounting\Application\GetPurchaseTaxes;
+use Modules\Accounting\Application\TaxQuery;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Purchasing\Enums\PurchaseQuoteStatus;
 use Modules\Purchasing\Models\PurchaseQuote;
@@ -12,7 +12,7 @@ class CreatePurchaseQuote
 {
     public function __construct(
         private readonly GetPurchaseVariants $purchaseVariants,
-        private readonly GetPurchaseTaxes $getPurchaseTaxes,
+        private readonly TaxQuery $taxQuery,
     ) {}
 
     /**
@@ -24,7 +24,7 @@ class CreatePurchaseQuote
     public function execute(array $data, string $branchCode, ?array $branchIds = null): PurchaseQuote
     {
         $variants = collect($this->purchaseVariants->execute($branchIds))->keyBy('id');
-        $taxes = collect($this->getPurchaseTaxes->execute())->keyBy('id');
+        $taxes = collect($this->taxQuery->listForPurchase())->keyBy('id');
 
         return DB::transaction(function () use ($data, $branchCode, $variants, $taxes) {
             $sequence = PurchaseQuote::where('branch_id', $data['branch_id'])->count() + 1;

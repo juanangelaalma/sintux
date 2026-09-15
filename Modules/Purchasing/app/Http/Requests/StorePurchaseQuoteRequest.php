@@ -5,7 +5,7 @@ namespace Modules\Purchasing\Http\Requests;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Modules\Accounting\Application\GetPurchaseTaxes;
+use Modules\Accounting\Application\TaxQuery;
 use Modules\Company\Application\CompanyAccess;
 use Modules\Contact\Application\GetContacts;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
@@ -41,7 +41,7 @@ class StorePurchaseQuoteRequest extends FormRequest
             ->pluck('id')
             ->all();
 
-        $taxIds = collect(app(GetPurchaseTaxes::class)->execute())
+        $taxIds = collect(app(TaxQuery::class)->listForPurchase())
             ->pluck('id')
             ->all();
 
