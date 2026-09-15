@@ -71,6 +71,11 @@ function getCompanyNavItems(): NavItem[] {
         },
         {
             icon: <ListIcon />,
+            name: 'Penjualan',
+            path: '/sales/invoices',
+        },
+        {
+            icon: <ListIcon />,
             name: 'Transfer Stok',
             path: '/warehouse/stock-transfers',
             nonHqOnly: true,
