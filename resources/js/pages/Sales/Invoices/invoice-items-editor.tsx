@@ -1,6 +1,7 @@
 import { Button, Checkbox } from '@heroui/react';
 import { MinusCircle, Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
+import SearchableSelect from './searchable-select';
 import { calculateInvoiceTotals } from './totals';
 import type {
     DiscountType,
@@ -110,16 +111,18 @@ export default function InvoiceItemsEditor({
                                         className={`grid ${GRID_COLS} items-center gap-3 px-3 py-2.5`}
                                     >
                                         <div className="min-w-0">
-                                            <select
-                                                aria-label="Produk"
-                                                className={`${inputClass} truncate`}
-                                                value={String(
-                                                    row.product_variant_id,
+                                            <SearchableSelect
+                                                placeholder="Cari produk..."
+                                                searchPlaceholder="Cari nama / SKU..."
+                                                items={productVariants.map(
+                                                    (v) => ({
+                                                        id: v.id,
+                                                        name: v.product_name,
+                                                        hint: v.sku,
+                                                    }),
                                                 )}
-                                                onChange={(e) => {
-                                                    const variantId = Number(
-                                                        e.target.value,
-                                                    );
+                                                value={row.product_variant_id}
+                                                onChange={(variantId) => {
                                                     const variant =
                                                         productVariants.find(
                                                             (v) =>
@@ -143,28 +146,12 @@ export default function InvoiceItemsEditor({
                                                         );
                                                     }
                                                 }}
-                                            >
-                                                {productVariants.map((v) => (
-                                                    <option
-                                                        key={v.id}
-                                                        value={v.id}
-                                                        title={`${v.product_name} (${v.sku})`}
-                                                    >
-                                                        {v.product_name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            {errors[
-                                                `items.${idx}.product_variant_id`
-                                            ] && (
-                                                <p className="mt-1 text-[11px] text-danger">
-                                                    {
-                                                        errors[
-                                                            `items.${idx}.product_variant_id`
-                                                        ]
-                                                    }
-                                                </p>
-                                            )}
+                                                error={
+                                                    errors[
+                                                        `items.${idx}.product_variant_id`
+                                                    ]
+                                                }
+                                            />
                                         </div>
 
                                         <div className="min-w-0">

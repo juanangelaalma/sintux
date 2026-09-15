@@ -161,16 +161,23 @@ class CreateSalesInvoice
     }
 
     /**
+     * Gudang harus milik cabang transaksi. Tipe reguler boleh memakai
+     * gudang regular atau ritel; konsinyasi hanya gudang konsinyasi.
+     *
      * @param  array<string, mixed>  $data
      * @return array{id: int, code: string, name: string}
      */
     private function resolveWarehouse(array $data, int $branchId): array
     {
-        $expectedType = $data['transaction_type'] === 'consignment' ? 'consignment' : 'regular';
+        $allowedTypes = $data['transaction_type'] === 'consignment'
+            ? ['consignment']
+            : ['regular', 'retail'];
 
-        $options = collect($this->warehouses->optionsForSale($branchId, $expectedType));
-
-        $warehouse = $options->firstWhere('id', (int) $data['warehouse_id']);
+        $warehouse = collect($this->warehouses->optionsForSale($branchId))
+            ->first(
+                fn (array $option): bool => (int) $option['id'] === (int) $data['warehouse_id']
+                    && in_array($option['warehouse_type'], $allowedTypes, true)
+            );
 
         if (! $warehouse) {
             throw ValidationException::withMessages([
