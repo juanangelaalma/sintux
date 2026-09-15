@@ -53,5 +53,7 @@ class TenantSeededOnCreationTest extends TestCase
         $this->assertNotNull($ppn, 'Pajak default PPN harus ada setelah tenant dibuat.');
         $this->assertNotNull($ppn->input_account_id, 'PPN default harus terpetakan ke akun PPN Masukan.');
         $this->assertNotNull($ppn->output_account_id, 'PPN default harus terpetakan ke akun PPN Keluaran.');
+        $this->assertEquals(12, (float) $ppn->rate, 'PPN default tenant baru = 12%.');
+        $this->assertTrue((bool) $ppn->dpp_multiplier, 'PPN default memakai pengali 11/12 (DPP Nilai Lain).');
     }
 }

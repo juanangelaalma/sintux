@@ -158,7 +158,9 @@ class ChartOfAccountsSeeder extends Seeder
                 ['code' => 'PPN'],
                 [
                     'name' => 'PPN',
-                    'rate' => 11,
+                    'rate' => 12,
+                    'type' => Tax::TYPE_SINGLE,
+                    'dpp_multiplier' => true,
                     'input_account_id' => $inputAccount->id,
                     'output_account_id' => $outputAccount->id,
                     'is_active' => true,
