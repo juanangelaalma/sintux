@@ -12,6 +12,8 @@ export type SearchableOption = {
     id: number;
     name: string;
     hint?: string;
+    /** Teks tambahan untuk pencarian, tidak ditampilkan. */
+    keywords?: string;
 };
 
 type SearchableSelectProps = {
@@ -102,11 +104,13 @@ export default function SearchableSelect({
                                 <ListBox.Item
                                     key={item.id}
                                     id={String(item.id)}
-                                    textValue={
-                                        item.hint
-                                            ? `${item.name} ${item.hint}`
-                                            : item.name
-                                    }
+                                    textValue={[
+                                        item.name,
+                                        item.hint,
+                                        item.keywords,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' ')}
                                 >
                                     <span className="block truncate">
                                         {item.name}

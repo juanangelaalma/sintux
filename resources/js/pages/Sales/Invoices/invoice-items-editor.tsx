@@ -31,7 +31,7 @@ type InvoiceItemsEditorProps = {
 };
 
 const GRID_COLS =
-    'grid-cols-[minmax(170px,1.2fr)_4.5rem_4rem_minmax(110px,1fr)_minmax(150px,1.2fr)_minmax(110px,1fr)_minmax(110px,1fr)_2.5rem]';
+    'grid-cols-[minmax(250px,1.8fr)_4.5rem_4rem_minmax(110px,1fr)_minmax(150px,1.2fr)_minmax(110px,1fr)_minmax(110px,1fr)_2.5rem]';
 
 const inputClass =
     'w-full min-w-0 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground focus:border-accent focus:ring-accent';
@@ -83,7 +83,7 @@ export default function InvoiceItemsEditor({
             <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
                 <div className="overflow-x-auto">
                     <div
-                        className={`grid ${GRID_COLS} min-w-[1080px] items-center gap-3 border-b border-border bg-surface-secondary/40 px-3 py-2.5 text-xs font-semibold text-foreground`}
+                        className={`grid ${GRID_COLS} min-w-[1180px] items-center gap-3 border-b border-border bg-surface-secondary/40 px-3 py-2.5 text-xs font-semibold text-foreground`}
                     >
                         <span>Produk</span>
                         <span>Qty</span>
@@ -95,7 +95,7 @@ export default function InvoiceItemsEditor({
                         <span></span>
                     </div>
 
-                    <div className="min-w-[1080px] divide-y divide-border/60">
+                    <div className="min-w-[1180px] divide-y divide-border/60">
                         {items.map((row, idx) => {
                             const selectedVariant = productVariants.find(
                                 (v) => v.id === row.product_variant_id,
@@ -113,12 +113,12 @@ export default function InvoiceItemsEditor({
                                         <div className="min-w-0">
                                             <SearchableSelect
                                                 placeholder="Cari produk..."
-                                                searchPlaceholder="Cari nama / SKU..."
+                                                searchPlaceholder="Cari nama produk..."
                                                 items={productVariants.map(
                                                     (v) => ({
                                                         id: v.id,
                                                         name: v.product_name,
-                                                        hint: v.sku,
+                                                        keywords: v.sku,
                                                     }),
                                                 )}
                                                 value={row.product_variant_id}
