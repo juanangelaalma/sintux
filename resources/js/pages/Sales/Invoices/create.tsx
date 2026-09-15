@@ -177,12 +177,24 @@ export default function SalesInvoicesCreate({
     };
 
     const handleInvoiceDateChange = (nextDate: string) => {
+        // Tgl. transaksi tidak boleh melebihi hari ini (YMD bisa
+        // dibandingkan sebagai string). Kalender sudah disable tanggal
+        // future; ini pengaman untuk input ketik manual.
+        const clampedDate =
+            nextDate && nextDate > todayStr ? todayStr : nextDate;
+
         setData((prev) => {
             const days = getDaysFromTerm(prev.payment_term);
             const nextDueDate =
-                days !== null ? addDaysToDate(nextDate, days) : prev.due_date;
+                days !== null
+                    ? addDaysToDate(clampedDate, days)
+                    : prev.due_date;
 
-            return { ...prev, invoice_date: nextDate, due_date: nextDueDate };
+            return {
+                ...prev,
+                invoice_date: clampedDate,
+                due_date: nextDueDate,
+            };
         });
     };
 
