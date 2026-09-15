@@ -1,0 +1,12 @@
+{
+    "name": "Sales",
+    "alias": "sales",
+    "description": "Sales invoices with warehouse reservation, discounts, and approval flow",
+    "keywords": [],
+    "priority": 0,
+    "requires": ["Company", "Contact", "Product", "Warehouse", "Accounting", "Approval"],
+    "providers": [
+        "Modules\\Sales\\Providers\\SalesServiceProvider"
+    ],
+    "files": []
+}
