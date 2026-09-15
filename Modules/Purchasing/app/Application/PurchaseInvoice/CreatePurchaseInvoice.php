@@ -5,7 +5,7 @@ namespace Modules\Purchasing\Application\PurchaseInvoice;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Modules\Accounting\Application\GetPurchaseTaxes;
+use Modules\Accounting\Application\TaxQuery;
 use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Purchasing\Application\PurchaseOrder\MarkPurchaseOrderClosed;
@@ -23,7 +23,7 @@ class CreatePurchaseInvoice
 
     public function __construct(
         private readonly GetPurchaseVariants $purchaseVariants,
-        private readonly GetPurchaseTaxes $getPurchaseTaxes,
+        private readonly TaxQuery $taxQuery,
         private readonly ApprovalEngine $approvalEngine,
         private readonly ValidateInvoiceQuantities $validateInvoiceQuantities,
         private readonly IncrementInvoicedQuantities $incrementInvoicedQuantities,
@@ -37,7 +37,7 @@ class CreatePurchaseInvoice
     public function execute(array $data, string $branchCode, ?int $userId = null, ?string $userName = null, ?array $branchIds = null): PurchaseInvoice
     {
         $variants = collect($this->purchaseVariants->execute($branchIds))->keyBy('id');
-        $taxes = collect($this->getPurchaseTaxes->execute())->keyBy('id');
+        $taxes = collect($this->taxQuery->listForPurchase())->keyBy('id');
         $creatorId = $userId ?? (int) auth()->id();
         $creatorName = $userName ?? auth()->user()?->name;
 

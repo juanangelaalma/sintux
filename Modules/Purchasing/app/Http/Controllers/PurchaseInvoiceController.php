@@ -8,7 +8,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Accounting\Application\GetPurchaseTaxes;
+use Modules\Accounting\Application\TaxQuery;
 use Modules\Approval\Application\GetTransactionApprovalStatus;
 use Modules\Company\Application\CompanyAccess;
 use Modules\Contact\Application\GetContacts;
@@ -73,7 +73,7 @@ class PurchaseInvoiceController extends Controller
             'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
             'productVariants' => app(GetPurchaseVariants::class)->execute($accessibleBranchIds),
             'purchaseOrders' => app(GetPurchaseOrderOptions::class)->execute($accessibleBranchIds),
-            'taxes' => app(GetPurchaseTaxes::class)->execute(),
+            'taxes' => app(TaxQuery::class)->listForPurchase(),
             'prefillGrn' => $prefillGrn,
             'prefillError' => $prefillError,
         ]);

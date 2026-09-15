@@ -3,7 +3,7 @@
 namespace Modules\Purchasing\Application\PurchaseRequest;
 
 use Illuminate\Support\Facades\DB;
-use Modules\Accounting\Application\GetPurchaseTaxes;
+use Modules\Accounting\Application\TaxQuery;
 use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Purchasing\Enums\PurchaseRequestStatus;
@@ -13,7 +13,7 @@ class CreatePurchaseRequest
 {
     public function __construct(
         private readonly GetPurchaseVariants $purchaseVariants,
-        private readonly GetPurchaseTaxes $getPurchaseTaxes,
+        private readonly TaxQuery $taxQuery,
         private readonly ApprovalEngine $approvalEngine,
     ) {}
 
@@ -101,10 +101,8 @@ class CreatePurchaseRequest
 
     private function resolveTaxRate(int $taxId): float
     {
-        $tax = $this->getPurchaseTaxes->execute();
-
-        foreach ($tax as $item) {
-            if ($item['id'] === $taxId) {
+        foreach ($this->taxQuery->listForPurchase() as $item) {
+            if ((int) $item['id'] === $taxId) {
                 return (float) $item['rate'];
             }
         }

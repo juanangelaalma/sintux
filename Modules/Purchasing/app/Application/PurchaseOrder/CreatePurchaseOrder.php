@@ -4,7 +4,7 @@ namespace Modules\Purchasing\Application\PurchaseOrder;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Modules\Accounting\Application\GetPurchaseTaxes;
+use Modules\Accounting\Application\TaxQuery;
 use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Purchasing\Enums\PurchaseOrderStatus;
@@ -14,7 +14,7 @@ class CreatePurchaseOrder
 {
     public function __construct(
         private readonly GetPurchaseVariants $purchaseVariants,
-        private readonly GetPurchaseTaxes $getPurchaseTaxes,
+        private readonly TaxQuery $taxQuery,
         private readonly ApprovalEngine $approvalEngine,
     ) {}
 
@@ -25,7 +25,7 @@ class CreatePurchaseOrder
     public function execute(array $data, string $branchCode, ?int $userId = null, ?string $userName = null, ?array $branchIds = null): PurchaseOrder
     {
         $variants = collect($this->purchaseVariants->execute($branchIds))->keyBy('id');
-        $taxes = collect($this->getPurchaseTaxes->execute())->keyBy('id');
+        $taxes = collect($this->taxQuery->listForPurchase())->keyBy('id');
         $creatorId = $userId ?? (int) auth()->id();
         $creatorName = $userName ?? auth()->user()?->name;
 
