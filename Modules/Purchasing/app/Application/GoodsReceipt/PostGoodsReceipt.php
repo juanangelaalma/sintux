@@ -4,6 +4,7 @@ namespace Modules\Purchasing\Application\GoodsReceipt;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Product\Application\Product\EnsureVariantForBranch;
 use Modules\Purchasing\Enums\GoodsReceiptStatus;
 use Modules\Purchasing\Enums\PurchaseOrderStatus;
 use Modules\Purchasing\Models\GoodsReceipt;
@@ -13,6 +14,7 @@ class PostGoodsReceipt
 {
     public function __construct(
         private readonly ReceivePurchaseStock $receivePurchaseStock,
+        private readonly EnsureVariantForBranch $ensureVariantForBranch,
     ) {}
 
     public function execute(int $goodsReceiptId): GoodsReceipt
@@ -26,6 +28,21 @@ class PostGoodsReceipt
         }
 
         return DB::transaction(function () use ($grn) {
+            // Kepemilikan mengikuti gudang fisik: stok yang diterima menjadi
+            // milik cabang gudang penerima. Alokasi cabang pada PO bukan
+            // perpindahan kepemilikan — itu terjadi saat Transfer Stok.
+            // Varian baris (milik cabang lain) dipetakan ke varian cabang
+            // penerima agar saldo tidak terpecah per varian cermin.
+            $receivingBranchId = (int) DB::table('warehouses')
+                ->where('id', $grn->warehouse_id)
+                ->value('branch_id');
+
+            if ($receivingBranchId <= 0) {
+                throw ValidationException::withMessages([
+                    'grn' => 'Gudang penerimaan tidak ditemukan.',
+                ]);
+            }
+
             // 1. Post stock to Warehouse for each item via public API
             foreach ($grn->items as $item) {
                 // Find unit price from PO item if present
@@ -39,7 +56,10 @@ class PostGoodsReceipt
 
                 $this->receivePurchaseStock->execute([
                     'warehouse_id' => (int) $grn->warehouse_id,
-                    'product_variant_id' => (int) $item->product_variant_id,
+                    'product_variant_id' => $this->ensureVariantForBranch->execute(
+                        (int) $item->product_variant_id,
+                        $receivingBranchId
+                    ),
                     'qty' => (float) $item->qty_received,
                     'unit_cost' => $unitCost,
                     'received_at' => $grn->receipt_date,

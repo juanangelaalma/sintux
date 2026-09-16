@@ -147,6 +147,90 @@ class GoodsReceiptTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_post_books_cross_branch_receipt_under_receiving_branch_variant(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        tenancy()->initialize($tenantId);
+
+        // Baris alokasi cabang B (varian milik B) diterima fisik di gudang HQ.
+        [$branchProductId, $branchVariantId] = $this->createProductAndVariant($branchBId, 'PRD-X');
+        $sku = DB::table('product_variants')->where('id', $branchVariantId)->value('sku');
+        $supplierId = $this->createSupplier($branchBId);
+        app(CreateWarehousesForBranch::class)->ensureForAllBranches();
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
+
+        $po = PurchaseOrder::create([
+            'number' => 'PO-X-0001',
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
+            'supplier_id' => $supplierId,
+            'status' => PurchaseOrderStatus::Sent,
+            'order_date' => now()->toDateString(),
+            'currency_code' => 'IDR',
+            'branch_mode' => 'single',
+        ]);
+        $poItem = $po->items()->create([
+            'destination_branch_id' => $branchBId,
+            'product_variant_id' => $branchVariantId,
+            'product_name' => 'Widget X',
+            'sku' => $sku,
+            'qty_ordered' => 30,
+            'qty_received' => 0,
+            'unit_price' => 10000,
+        ]);
+
+        $grn = GoodsReceipt::create([
+            'number' => 'GRN-X-0001',
+            'branch_id' => $branchBId,
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $po->id,
+            'warehouse_id' => $hqWarehouseId,
+            'status' => GoodsReceiptStatus::Draft,
+            'receipt_date' => now()->toDateString(),
+        ]);
+        $grn->items()->create([
+            'purchase_order_item_id' => $poItem->id,
+            'product_variant_id' => $branchVariantId,
+            'product_name' => 'Widget X',
+            'sku' => $sku,
+            'qty_received' => 30,
+        ]);
+        $grnId = $grn->id;
+        tenancy()->end();
+
+        $response = $this->actingAs($user)->post(route('purchasing.grns.post', $grnId));
+        $response->assertRedirect(route('purchasing.grns.show', $grnId));
+
+        tenancy()->initialize($tenantId);
+
+        // Kepemilikan mengikuti gudang fisik: varian cermin HO dibuat
+        // otomatis dan saldo masuk ke sana — bukan ke varian cabang B.
+        $hqVariantId = DB::table('product_variants')
+            ->where('branch_id', $hqBranchId)
+            ->where('sku', $sku)
+            ->value('id');
+        $this->assertNotNull($hqVariantId, 'Varian cermin HO harus dibuat saat posting.');
+
+        $balance = DB::table('stock_balances')
+            ->where('warehouse_id', $hqWarehouseId)
+            ->where('product_variant_id', $hqVariantId)
+            ->first();
+        $this->assertNotNull($balance);
+        $this->assertEquals(30, (float) $balance->qty_on_hand);
+
+        $this->assertFalse(DB::table('stock_balances')
+            ->where('warehouse_id', $hqWarehouseId)
+            ->where('product_variant_id', $branchVariantId)
+            ->exists(), 'Varian cabang lain tidak boleh punya saldo di gudang HO.');
+
+        // Baris GRN tetap snapshot varian PO (audit trail tidak berubah).
+        $this->assertEquals($branchVariantId, (int) DB::table('goods_receipt_items')
+            ->where('goods_receipt_id', $grnId)
+            ->value('product_variant_id'));
+        tenancy()->end();
+    }
+
     public function test_store_goods_receipt_via_http_creates_draft_grn_with_items(): void
     {
         [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
