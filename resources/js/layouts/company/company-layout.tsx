@@ -11,6 +11,7 @@ const settingsPrefixes = [
     '/company/users',
     '/company/branches',
     '/approval/rules',
+    '/accounting/taxes',
 ];
 
 const CompanyLayoutContent: React.FC<{ children: React.ReactNode }> = ({
@@ -25,8 +26,8 @@ const CompanyLayoutContent: React.FC<{ children: React.ReactNode }> = ({
 
     const getMarginLeft = () => {
         if (isMobileOpen) {
-return 'ml-0';
-}
+            return 'ml-0';
+        }
 
         if (isSettingsContext) {
             return isExpanded || isHovered ? 'lg:ml-[530px]' : 'lg:ml-[330px]';

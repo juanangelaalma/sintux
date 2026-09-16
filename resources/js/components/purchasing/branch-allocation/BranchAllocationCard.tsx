@@ -5,7 +5,7 @@ import { getLineTotals } from '@/lib/purchasing/calc';
 import { BranchProductRow } from './BranchProductRow';
 import type { Branch, BranchGroup, ProductVariant, Warehouse } from './types';
 
-type TaxOption = { id: number; name: string; rate: number };
+type TaxOption = { id: number; name: string; rate: number | string; type?: string; dpp_multiplier?: boolean; members?: Array<{ id: number; signed_rate: number; is_compound: boolean; dpp_multiplier: boolean }> };
 
 type Props = {
     group: BranchGroup;
@@ -44,8 +44,7 @@ export function BranchAllocationCard({
 }: Props) {
     const groupSubtotal = group.items.reduce((acc, it) => {
         const tax = taxes.find((t) => t.id === it.tax_id);
-        const rate = tax ? Number(tax.rate) : 0;
-        const { lineTotal } = getLineTotals({ qty: Number(it.qty || 0), unitPrice: Number(it.unit_price || 0), taxRate: rate }, isTaxInclusive);
+        const { lineTotal } = getLineTotals({ qty: Number(it.qty || 0), unitPrice: Number(it.unit_price || 0), taxDef: tax }, isTaxInclusive);
 
         return acc + lineTotal;
     }, 0);

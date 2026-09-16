@@ -233,9 +233,8 @@ export default function PurchaseOrdersCreate({
         groups.forEach((g) =>
             g.items.forEach((item) => {
                 const tax = taxes.find((t) => t.id === item.tax_id);
-                const rate = tax ? Number(tax.rate) : 0;
                 const { lineSubtotal, lineTax } = getLineTotals(
-                    { qty: Number(item.qty || 0), unitPrice: Number(item.unit_price || 0), taxRate: rate },
+                    { qty: Number(item.qty || 0), unitPrice: Number(item.unit_price || 0), taxDef: tax },
                     data.is_tax_inclusive,
                 );
                 subtotal += lineSubtotal;
@@ -253,9 +252,8 @@ export default function PurchaseOrdersCreate({
 
             g.items.forEach((item) => {
                 const tax = taxes.find((t) => t.id === item.tax_id);
-                const rate = tax ? Number(tax.rate) : 0;
                 const { lineTotal } = getLineTotals(
-                    { qty: Number(item.qty || 0), unitPrice: Number(item.unit_price || 0), taxRate: rate },
+                    { qty: Number(item.qty || 0), unitPrice: Number(item.unit_price || 0), taxDef: tax },
                     data.is_tax_inclusive,
                 );
                 subtotal += lineTotal;

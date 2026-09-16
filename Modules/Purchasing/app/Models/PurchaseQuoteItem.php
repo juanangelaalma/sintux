@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property float $unit_price
  * @property int|null $tax_id
  * @property float $tax_rate
+ * @property array|null $tax_breakdown
  * @property float $line_total
  */
 class PurchaseQuoteItem extends Model
@@ -30,6 +31,7 @@ class PurchaseQuoteItem extends Model
         'unit_price',
         'tax_id',
         'tax_rate',
+        'tax_breakdown',
         'line_total',
     ];
 
@@ -39,6 +41,7 @@ class PurchaseQuoteItem extends Model
             'qty' => 'decimal:4',
             'unit_price' => 'decimal:4',
             'tax_rate' => 'decimal:4',
+            'tax_breakdown' => 'array',
             'line_total' => 'decimal:4',
         ];
     }

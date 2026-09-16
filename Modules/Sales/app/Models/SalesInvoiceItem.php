@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $tax_id
  * @property float $tax_rate
  * @property float $tax_amount
+ * @property array|null $tax_breakdown
  * @property float $line_total
  */
 class SalesInvoiceItem extends Model
@@ -42,6 +43,7 @@ class SalesInvoiceItem extends Model
         'tax_id',
         'tax_rate',
         'tax_amount',
+        'tax_breakdown',
         'line_total',
     ];
 
@@ -56,6 +58,7 @@ class SalesInvoiceItem extends Model
             'line_net' => 'decimal:4',
             'tax_rate' => 'decimal:4',
             'tax_amount' => 'decimal:4',
+            'tax_breakdown' => 'array',
             'line_total' => 'decimal:4',
         ];
     }

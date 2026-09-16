@@ -1,3 +1,4 @@
+import { calculateTax } from '@/lib/tax/tax-calculator';
 import type { DiscountType, SalesLineItemRow, SaleTaxOption } from './types';
 
 export type ComputedLine = {
@@ -37,7 +38,8 @@ function discountAmount(
 /**
  * Preview perhitungan faktur di FE — mirror
  * Modules\Sales\Domain\Rules\CalculateInvoiceTotals. Backend tetap
- * sumber kebenaran; fungsi ini hanya untuk tampilan.
+ * sumber kebenaran; fungsi ini hanya untuk tampilan. Bagian pajak
+ * didelegasikan ke helper tunggal lib/tax/tax-calculator.
  */
 export function calculateInvoiceTotals(
     items: SalesLineItemRow[],
@@ -46,7 +48,7 @@ export function calculateInvoiceTotals(
     invoiceDiscountValue?: number | null,
     isTaxInclusive = false,
 ): InvoiceTotals {
-    const taxRateById = new Map(taxes.map((t) => [t.id, Number(t.rate) || 0]));
+    const taxDefById = new Map(taxes.map((t) => [Number(t.id), t]));
 
     const nets = items.map((item) => {
         const gross = Number(item.qty || 0) * Number(item.unit_price || 0);
@@ -78,20 +80,13 @@ export function calculateInvoiceTotals(
                 ? (invoiceDiscountAmount * net) / netAfterLineDiscount
                 : 0;
         const taxable = net - allocated;
-        const rate =
+        const taxDef =
             item.tax_id != null
-                ? (taxRateById.get(Number(item.tax_id)) ?? 0)
-                : 0;
+                ? taxDefById.get(Number(item.tax_id))
+                : undefined;
 
-        let tax = 0;
-        let lineTotal = taxable;
-
-        if (isTaxInclusive && rate > 0) {
-            tax = taxable - taxable / (1 + rate / 100);
-        } else {
-            tax = (taxable * rate) / 100;
-            lineTotal = taxable + tax;
-        }
+        const { total: tax } = calculateTax(taxable, taxDef, isTaxInclusive);
+        const lineTotal = isTaxInclusive ? taxable : taxable + tax;
 
         taxAmount += tax;
         total += lineTotal;

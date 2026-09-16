@@ -3,7 +3,7 @@ import { formatCurrency } from '@/lib/format';
 import { getLineTotals } from '@/lib/purchasing/calc';
 import type { BranchItem, ProductVariant } from './types';
 
-type TaxOption = { id: number; name: string; rate: number };
+type TaxOption = { id: number; name: string; rate: number | string; type?: string; dpp_multiplier?: boolean; members?: Array<{ id: number; signed_rate: number; is_compound: boolean; dpp_multiplier: boolean }> };
 
 type Props = {
     branchCode: string;
@@ -18,8 +18,7 @@ type Props = {
 
 export function BranchProductRow({ branchCode, row, variants, taxes, isTaxInclusive, canRemove, onChange, onRemove }: Props) {
     const selectedTax = taxes.find((t) => t.id === row.tax_id);
-    const taxRate = selectedTax ? Number(selectedTax.rate) : 0;
-    const { lineTotal } = getLineTotals({ qty: Number(row.qty || 0), unitPrice: Number(row.unit_price || 0), taxRate }, isTaxInclusive);
+    const { lineTotal } = getLineTotals({ qty: Number(row.qty || 0), unitPrice: Number(row.unit_price || 0), taxDef: selectedTax }, isTaxInclusive);
 
     return (
         <div className="grid grid-cols-[minmax(180px,1.5fr)_6rem_minmax(130px,1fr)_minmax(110px,1fr)_minmax(120px,1fr)_2.5rem] items-center gap-3 px-3 py-2.5 hover:bg-surface-secondary/20">
