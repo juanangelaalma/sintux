@@ -76,12 +76,6 @@ export default function PurchaseOrdersCreate({
     const [supplierInputValue, setSupplierInputValue] = useState(initialSupplier?.name || '');
 
     const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-    const formattedDate = useMemo(() => {
-        const d = new Date();
-
-        return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
-    }, []);
-    const previewNumber = `PO/${currentBranch?.code ?? 'HQ'}/${formattedDate}/001`;
 
     const {
         groups,
@@ -394,10 +388,9 @@ export default function PurchaseOrdersCreate({
                                     </div>
                                     <input
                                         type="text"
-                                        readOnly
-                                        value={previewNumber}
-                                        placeholder="[Auto]"
-                                        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground focus:border-accent focus:ring-accent"
+                                        disabled
+                                        value="Auto"
+                                        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-70"
                                     />
                                 </div>
                                 <div>

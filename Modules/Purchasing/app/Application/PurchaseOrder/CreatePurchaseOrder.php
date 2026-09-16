@@ -24,14 +24,15 @@ class CreatePurchaseOrder
      * @param  array<string, mixed>  $data
      * @param  list<int>|null  $branchIds  Branch scope for variant resolution. Null = all.
      */
-    public function execute(array $data, string $branchCode, ?int $userId = null, ?string $userName = null, ?array $branchIds = null): PurchaseOrder
+    public function execute(array $data, string $branchCode, ?int $userId = null, ?string $userName = null, ?array $branchIds = null, ?string $companySlug = null): PurchaseOrder
     {
         $variants = collect($this->purchaseVariants->execute($branchIds))->keyBy('id');
         $taxes = collect($this->taxQuery->listForPurchase())->keyBy('id');
         $creatorId = $userId ?? (int) auth()->id();
         $creatorName = $userName ?? auth()->user()?->name;
+        $companySlug = strtoupper($companySlug ?? $this->resolveCompanySlug());
 
-        return DB::transaction(function () use ($data, $branchCode, $variants, $taxes, $creatorId, $creatorName) {
+        return DB::transaction(function () use ($data, $branchCode, $companySlug, $variants, $taxes, $creatorId, $creatorName) {
             $orderDate = $data['order_date'] ?? date('Y-m-d');
             $dateObj = Carbon::parse($orderDate);
             $year = $dateObj->format('Y');
@@ -43,7 +44,7 @@ class CreatePurchaseOrder
             // so we lock the rows via SELECT ... FOR UPDATE without aggregation.
             $lockedIds = PurchaseOrder::where('branch_id', $data['branch_id'])->lockForUpdate()->pluck('id');
             $sequence = $lockedIds->count() + 1;
-            $number = sprintf('PO/%s/%s/%s/%s/%03d', $branchCode, $year, $month, $day, $sequence);
+            $number = sprintf('PO/%s/%s/%s/%s/%s/%03d', $companySlug, $branchCode, $year, $month, $day, $sequence);
 
             $isTaxInclusive = (bool) ($data['is_tax_inclusive'] ?? false);
             $subtotal = 0.0;
@@ -138,6 +139,13 @@ class CreatePurchaseOrder
 
             return $po->load('items');
         });
+    }
+
+    private function resolveCompanySlug(): string
+    {
+        $id = tenant('id');
+
+        return is_string($id) && $id !== '' ? $id : 'COMPANY';
     }
 
     /**
