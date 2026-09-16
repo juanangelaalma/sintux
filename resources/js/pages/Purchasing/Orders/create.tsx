@@ -35,6 +35,7 @@ type SupplierOption = {
 
 type ProductVariant = {
     id: number;
+    product_id: number;
     branch_id: number;
     product_name: string;
     sku: string;
@@ -464,7 +465,18 @@ export default function PurchaseOrdersCreate({
                                 const branch = branches.find((b) => String(b.id) === String(group.destination_branch_id));
                                 const warehouse = warehousesByBranch[String(group.destination_branch_id)]?.[0];
                                 const variantsForBranch = productVariants.filter((v) => v.branch_id === Number(group.destination_branch_id));
-                                const variantsToShow = variantsForBranch.length > 0 ? variantsForBranch : productVariants;
+                                const seenVariantKeys = new Set<string>();
+                                const variantsToShow = (variantsForBranch.length > 0 ? variantsForBranch : productVariants).filter((v) => {
+                                    const key = v.sku || `id:${v.id}`;
+
+                                    if (seenVariantKeys.has(key)) {
+                                        return false;
+                                    }
+
+                                    seenVariantKeys.add(key);
+
+                                    return true;
+                                });
                                 const isExpanded = expanded.has(group.uid);
                                 const flatOffset = sortedGroups.slice(0, groupIdx).reduce((acc, g) => acc + g.items.length, 0);
                                 const dateErrorKey = Object.keys(errors).find((k) => k.startsWith(`items.${flatOffset}`) && k.includes('destination_expected_date'));
