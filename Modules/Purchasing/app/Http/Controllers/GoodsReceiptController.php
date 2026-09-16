@@ -89,7 +89,7 @@ class GoodsReceiptController extends Controller
         $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
 
         $warehouse = app(GetWarehouse::class)->execute(
-            (int) $goodsReceipt->warehouse_id,
+            (int) $goodsReceipt['warehouse_id'],
             $accessibleBranchIds,
         );
 

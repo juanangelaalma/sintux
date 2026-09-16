@@ -6,16 +6,21 @@ import PurchaseDocumentDetail from '@/components/purchasing/purchase-document-de
 import type { DetailRow } from '@/components/purchasing/purchase-document-detail';
 import PurchaseDocumentHeader from '@/components/purchasing/purchase-document-header';
 import CompanyLayout from '@/layouts/company/company-layout';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatQty } from '@/lib/format';
 import { GoodsReceiptStatus } from '@/lib/purchasing/status';
 
 type Item = {
     id: number;
     product_name: string;
     sku: string;
-    uom_name?: string;
+    uom_name?: string | null;
     qty_received: number;
     qty_invoiced?: number | null;
+    destination_branch?: {
+        id: number;
+        code: string;
+        name: string;
+    } | null;
 };
 
 type GoodsReceipt = {
@@ -95,7 +100,7 @@ export default function GoodsReceiptsShow({ goodsReceipt, warehouse }: Props) {
         },
         {
             label: 'Status Penagihan',
-            value: `${billingStatus} (tertagih ${totalInvoiced} dari ${totalReceived})`,
+            value: `${billingStatus} (tertagih ${formatQty(totalInvoiced)} dari ${formatQty(totalReceived)})`,
         },
     ];
 
@@ -152,6 +157,10 @@ export default function GoodsReceiptsShow({ goodsReceipt, warehouse }: Props) {
                                     <tr>
                                         <th className="px-4 py-3">Produk</th>
                                         <th className="px-4 py-3">SKU</th>
+                                        <th className="px-4 py-3">Satuan</th>
+                                        <th className="px-4 py-3">
+                                            Cabang Tujuan
+                                        </th>
                                         <th className="px-4 py-3 text-right">
                                             Jumlah Diterima
                                         </th>
@@ -175,17 +184,30 @@ export default function GoodsReceiptsShow({ goodsReceipt, warehouse }: Props) {
                                             <td className="px-4 py-3 font-mono text-xs text-muted">
                                                 {item.sku}
                                             </td>
-                                            <td className="px-4 py-3 text-right font-bold text-foreground">
-                                                {item.qty_received}
+                                            <td className="px-4 py-3 text-muted">
+                                                {item.uom_name || '—'}
                                             </td>
-                                            <td className="px-4 py-3 text-right text-muted">
-                                                {item.qty_invoiced ?? 0}
+                                            <td className="px-4 py-3 whitespace-nowrap text-muted">
+                                                {item.destination_branch
+                                                    ? `${item.destination_branch.code} — ${item.destination_branch.name}`
+                                                    : '—'}
                                             </td>
-                                            <td className="px-4 py-3 text-right font-bold text-accent">
-                                                {Number(item.qty_received) -
-                                                    Number(
-                                                        item.qty_invoiced ?? 0,
-                                                    )}
+                                            <td className="px-4 py-3 text-right font-bold text-foreground tabular-nums">
+                                                {formatQty(item.qty_received)}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-muted tabular-nums">
+                                                {formatQty(
+                                                    item.qty_invoiced ?? 0,
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-bold text-accent tabular-nums">
+                                                {formatQty(
+                                                    Number(item.qty_received) -
+                                                        Number(
+                                                            item.qty_invoiced ??
+                                                                0,
+                                                        ),
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
