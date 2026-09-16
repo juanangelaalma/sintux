@@ -73,8 +73,8 @@ class PurchaseOrderTest extends TestCase
         $po = DB::table('purchase_orders')->where('branch_id', $hqBranchId)->first();
         $this->assertNotNull($po);
         $this->assertSame(PurchaseOrderStatus::Approved->value, $po->status);
-        $expectedPrefix = 'PO/'.$branchCode.'/'.date('Y/m/d').'/000';
-        $this->assertStringStartsWith('PO/'.$branchCode.'/', (string) $po->number);
+        $companySlug = strtoupper((string) $tenantId);
+        $this->assertStringStartsWith('PO/'.$companySlug.'/'.$branchCode.'/', (string) $po->number);
         $this->assertEquals(2000000, (float) $po->subtotal);
 
         $items = DB::table('purchase_order_items')->where('purchase_order_id', $po->id)->get();
