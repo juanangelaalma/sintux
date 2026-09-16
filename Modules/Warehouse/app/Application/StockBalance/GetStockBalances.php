@@ -39,6 +39,81 @@ class GetStockBalances
     }
 
     /**
+     * Saldo gabungan per gudang + SKU untuk tampilan ringkas.
+     *
+     * Varian cermin (nama/SKU sama, id beda antar cabang) digabung jadi
+     * satu baris dengan qty dijumlah; rincian per varian (termasuk kode
+     * cabang pemiliknya sebagai penanda alokasi) disertakan untuk
+     * drill-down. Layer FIFO / Kartu Stok tetap per varian karena layer
+     * costing tidak digabung. Paginasi dihitung per grup.
+     *
+     * @param  list<int>  $branchIds
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    public function executeGrouped(array $branchIds, array $filters = []): array
+    {
+        $query = DB::table('stock_balances as sb')
+            ->join('product_variants as pv', 'pv.id', '=', 'sb.product_variant_id')
+            ->join('products as p', 'p.id', '=', 'pv.product_id')
+            ->join('warehouses as w', 'w.id', '=', 'sb.warehouse_id')
+            ->join('branches as vb', 'vb.id', '=', 'pv.branch_id')
+            ->whereIn('w.branch_id', $branchIds);
+
+        if (! empty($filters['warehouse_id'])) {
+            $query->where('sb.warehouse_id', $filters['warehouse_id']);
+        }
+
+        if (! empty($filters['search'])) {
+            $search = '%'.$filters['search'].'%';
+            $query->where(function ($query) use ($search): void {
+                $query->where('pv.sku', 'like', $search)
+                    ->orWhere('pv.variant_name', 'like', $search)
+                    ->orWhere('p.code', 'like', $search)
+                    ->orWhere('p.name', 'like', $search);
+            });
+        }
+
+        $rows = $query
+            ->groupBy('sb.warehouse_id', 'w.code', 'w.name', 'pv.sku')
+            ->selectRaw('sb.warehouse_id, w.code as warehouse_code, w.name as warehouse_name, pv.sku')
+            ->selectRaw('MAX(p.name) as product_name')
+            ->selectRaw('SUM(sb.qty_on_hand) as qty_on_hand')
+            ->selectRaw("json_agg(json_build_object('product_variant_id', pv.id, 'variant_name', pv.variant_name, 'qty_on_hand', sb.qty_on_hand, 'branch_code', vb.code) ORDER BY pv.id) as variants")
+            ->orderBy('sb.warehouse_id')
+            ->orderBy('pv.sku')
+            ->paginate(15);
+
+        $data = collect($rows->items())->map(function ($row): array {
+            $variants = collect(json_decode($row->variants ?? '[]', true) ?? [])
+                ->map(fn (array $variant): array => [
+                    'product_variant_id' => (int) $variant['product_variant_id'],
+                    'variant_name' => $variant['variant_name'],
+                    'qty_on_hand' => (int) $variant['qty_on_hand'],
+                    'branch_code' => $variant['branch_code'],
+                ])
+                ->values()
+                ->all();
+
+            return [
+                'warehouse_id' => (int) $row->warehouse_id,
+                'warehouse' => [
+                    'id' => (int) $row->warehouse_id,
+                    'code' => $row->warehouse_code,
+                    'name' => $row->warehouse_name,
+                ],
+                'sku' => $row->sku,
+                'product_name' => $row->product_name,
+                'qty_on_hand' => (int) $row->qty_on_hand,
+                'variant_count' => count($variants),
+                'variants' => $variants,
+            ];
+        })->all();
+
+        return [...$rows->toArray(), 'data' => $data];
+    }
+
+    /**
      * Sum on-hand quantity per product variant id.
      *
      * @param  array<int, int>  $variantIds

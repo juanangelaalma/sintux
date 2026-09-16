@@ -44,7 +44,7 @@ class ProductHubController extends Controller
 
         $products = $this->getProducts->execute($filters, $branchIds);
         $warehouses = $this->getWarehouses->all($branchIds);
-        $stockBalances = $this->getStockBalances->execute($branchIds, $filters);
+        $stockBalances = $this->getStockBalances->executeGrouped($branchIds, $filters);
         $stockRequests = $this->getStockRequests->execute($branchIds, $filters);
         $stockAdjustments = $this->getStockAdjustments->execute($branchIds, $filters);
         $stockTransfers = $this->getStockTransfers->execute($branchIds, $filters);

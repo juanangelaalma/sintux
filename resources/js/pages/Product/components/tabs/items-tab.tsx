@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import DataTable from '@/components/tables/data-table';
 import type { DataTableColumn } from '@/components/tables/data-table';
 import Button from '@/components/ui/button';
+import { formatQty } from '@/lib/format';
 import { CategoryManagementModal } from '../category-management-modal';
 
 type Category = { id: number; name: string; products_count?: number };
@@ -142,14 +143,14 @@ export const ItemsTab: React.FC<Props> = ({
             header: 'Total stok ↕',
             render: (product) => (
                 <span className="font-bold text-slate-900">
-                    {product.total_stock ?? 0}
+                    {formatQty(product.total_stock ?? 0)}
                 </span>
             ),
         },
         {
             key: 'min_stock',
             header: 'Batas minimum',
-            render: (product) => product.min_stock ?? 0,
+            render: (product) => formatQty(product.min_stock ?? 0),
         },
         {
             key: 'unit',

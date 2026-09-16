@@ -16,18 +16,30 @@ type Warehouse = {
     branch?: Branch;
 };
 
-type StockBalance = {
-    id: number;
-    qty_on_hand: number;
-    warehouse_id: number;
+type StockBalanceVariant = {
     product_variant_id: number;
+    variant_name: string;
+    qty_on_hand: number;
+    branch_code: string | null;
+};
+
+type StockBalance = {
+    warehouse_id: number;
     warehouse?: Warehouse;
-    product_variant?: {
-        id: number;
-        sku: string;
-        variant_name: string;
-        product?: { name: string; code: string };
-    };
+    sku: string;
+    product_name: string;
+    qty_on_hand: number;
+    variant_count: number;
+    variants: StockBalanceVariant[];
+};
+
+type LayerTarget = {
+    warehouse_id: number;
+    warehouse_name: string;
+    product_name: string;
+    sku: string;
+    qty_on_hand: number;
+    variants: StockBalanceVariant[];
 };
 
 type StockRequest = {
@@ -66,6 +78,7 @@ type StockLayer = {
     received_at: string;
     source_type: string;
     source_id: number;
+    variant_label?: string;
 };
 
 type Paginated<T> = {
@@ -96,7 +109,7 @@ export const WarehouseTab: React.FC<Props> = ({
     filters = {},
 }) => {
     const [selectedBalanceForLayers, setSelectedBalanceForLayers] =
-        useState<StockBalance | null>(null);
+        useState<LayerTarget | null>(null);
     const [layersLoading, setLayersLoading] = useState(false);
     const [layersData, setLayersData] = useState<StockLayer[]>([]);
 
@@ -124,18 +137,44 @@ export const WarehouseTab: React.FC<Props> = ({
         );
     };
 
-    const openLayerModal = async (balance: StockBalance) => {
-        setSelectedBalanceForLayers(balance);
+    const openLayerModal = async (group: StockBalance) => {
+        setSelectedBalanceForLayers({
+            warehouse_id: group.warehouse_id,
+            warehouse_name: group.warehouse?.name ?? '',
+            product_name: group.product_name,
+            sku: group.sku,
+            qty_on_hand: group.qty_on_hand,
+            variants: group.variants,
+        });
         setLayersLoading(true);
         setLayersData([]);
 
         try {
-            const res = await fetch(
-                `/warehouse/stock-layers/${balance.warehouse_id}/${balance.product_variant_id}`,
+            const responses = await Promise.all(
+                group.variants.map(async (v) => {
+                    const res = await fetch(
+                        `/warehouse/stock-layers/${group.warehouse_id}/${v.product_variant_id}`,
+                    );
+                    const data = await res.json();
+
+                    return ((data.layers ?? []) as StockLayer[]).map(
+                        (layer) => ({
+                            ...layer,
+                            variant_label:
+                                group.variants.length > 1
+                                    ? (v.branch_code ?? undefined)
+                                    : undefined,
+                        }),
+                    );
+                }),
             );
-            const data = await res.json();
-            setLayersData(data.layers ?? []);
-        } catch (e) {
+            const merged = responses
+                .flat()
+                .sort((a, b) =>
+                    (a.received_at ?? '').localeCompare(b.received_at ?? ''),
+                );
+            setLayersData(merged);
+        } catch {
             setLayersData([]);
         } finally {
             setLayersLoading(false);
@@ -212,12 +251,22 @@ export const WarehouseTab: React.FC<Props> = ({
             render: (b) => (
                 <div>
                     <div className="font-semibold text-slate-900">
-                        {b.product_variant?.product?.name ?? 'Produk'} -{' '}
-                        {b.product_variant?.variant_name}
+                        {b.product_name}
                     </div>
-                    <div className="text-xs text-slate-500">
-                        SKU: {b.product_variant?.sku}
-                    </div>
+                    <div className="text-xs text-slate-500">SKU: {b.sku}</div>
+                    {b.variant_count > 1 && (
+                        <div
+                            className="mt-0.5 text-[11px] text-slate-400"
+                            title="Rincian varian (cabang pemilik master) — kepemilikan stok mengikuti gudang; pindah cabang hanya via Transfer Stok"
+                        >
+                            {b.variants
+                                .map(
+                                    (v) =>
+                                        `${v.branch_code ?? '?'} ${v.qty_on_hand}`,
+                                )
+                                .join(' · ')}
+                        </div>
+                    )}
                 </div>
             ),
         },
@@ -252,7 +301,7 @@ export const WarehouseTab: React.FC<Props> = ({
                         Layer FIFO
                     </button>
                     <Link
-                        href={`/warehouse/stock-movements?product_variant_id=${b.product_variant_id}&warehouse_id=${b.warehouse_id}`}
+                        href={`/warehouse/stock-movements?warehouse_id=${b.warehouse_id}&search=${encodeURIComponent(b.sku)}`}
                         className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
                     >
                         Kartu Stok &rarr;
@@ -603,7 +652,7 @@ export const WarehouseTab: React.FC<Props> = ({
                     <DataTable<StockBalance>
                         columns={balanceColumns}
                         rows={stockBalances.data}
-                        getRowKey={(row) => row.id}
+                        getRowKey={(row) => `${row.warehouse_id}:${row.sku}`}
                         emptyMessage="Belum ada data saldo stok."
                         pagination={{
                             currentPage: stockBalances.current_page,
@@ -700,26 +749,16 @@ export const WarehouseTab: React.FC<Props> = ({
                     <div className="space-y-4">
                         <div className="space-y-1 rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
                             <div>
-                                <span className="font-semibold">
-                                    Varian Produk:
-                                </span>{' '}
-                                {
-                                    selectedBalanceForLayers.product_variant
-                                        ?.product?.name
-                                }{' '}
-                                -{' '}
-                                {
-                                    selectedBalanceForLayers.product_variant
-                                        ?.variant_name
-                                }
+                                <span className="font-semibold">Produk:</span>{' '}
+                                {selectedBalanceForLayers.product_name}
                             </div>
                             <div>
                                 <span className="font-semibold">SKU:</span>{' '}
-                                {selectedBalanceForLayers.product_variant?.sku}
+                                {selectedBalanceForLayers.sku}
                             </div>
                             <div>
                                 <span className="font-semibold">Gudang:</span>{' '}
-                                {selectedBalanceForLayers.warehouse?.name}
+                                {selectedBalanceForLayers.warehouse_name}
                             </div>
                             <div>
                                 <span className="font-semibold">
@@ -761,6 +800,13 @@ export const WarehouseTab: React.FC<Props> = ({
                                                             'pembelian'}
                                                         )
                                                     </span>
+                                                    {layer.variant_label && (
+                                                        <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                                                            {
+                                                                layer.variant_label
+                                                            }
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="text-[11px] text-slate-500">
                                                     Diterima:{' '}
