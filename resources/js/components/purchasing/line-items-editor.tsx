@@ -1,6 +1,7 @@
 import { Button, Checkbox } from '@heroui/react';
 import { MinusCircle, Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
+import { getLineTotals } from '@/lib/purchasing/calc';
 
 export type ProductVariant = {
     id: number;
@@ -12,7 +13,15 @@ export type ProductVariant = {
 export type TaxOption = {
     id: number;
     name: string;
-    rate: number;
+    rate: number | string;
+    type?: string;
+    dpp_multiplier?: boolean;
+    members?: Array<{
+        id: number;
+        signed_rate: number;
+        is_compound: boolean;
+        dpp_multiplier: boolean;
+    }>;
 };
 
 export type LineItemRow = {
@@ -100,21 +109,18 @@ export default function LineItemsEditor({
                             const selectedTax = taxes.find(
                                 (t) => t.id === row.tax_id,
                             );
-                            const taxRate = selectedTax
-                                ? Number(selectedTax.rate)
-                                : 0;
                             const qty = Number(row.qty || 0);
                             const price = Number(row.unit_price || 0);
-                            const lineGross = qty * price;
 
-                            let lineDisplayTotal = lineGross;
-
-                            if (isTaxInclusive && taxRate > 0) {
-                                lineDisplayTotal = lineGross;
-                            } else {
-                                lineDisplayTotal =
-                                    lineGross * (1 + taxRate / 100);
-                            }
+                            const { lineTotal: lineDisplayTotal } =
+                                getLineTotals(
+                                    {
+                                        qty,
+                                        unitPrice: price,
+                                        taxDef: selectedTax,
+                                    },
+                                    isTaxInclusive,
+                                );
 
                             return (
                                 <div

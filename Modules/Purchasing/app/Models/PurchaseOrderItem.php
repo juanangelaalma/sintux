@@ -22,6 +22,7 @@ use Modules\Warehouse\Models\Warehouse;
  * @property float $unit_price
  * @property int|null $tax_id
  * @property float $tax_rate
+ * @property array|null $tax_breakdown
  * @property float $line_total
  */
 class PurchaseOrderItem extends Model
@@ -41,6 +42,7 @@ class PurchaseOrderItem extends Model
         'unit_price',
         'tax_id',
         'tax_rate',
+        'tax_breakdown',
         'line_total',
     ];
 
@@ -52,6 +54,7 @@ class PurchaseOrderItem extends Model
             'qty_received' => 'decimal:4',
             'unit_price' => 'decimal:4',
             'tax_rate' => 'decimal:4',
+            'tax_breakdown' => 'array',
             'line_total' => 'decimal:4',
         ];
     }

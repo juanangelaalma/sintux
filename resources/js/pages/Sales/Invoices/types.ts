@@ -26,11 +26,21 @@ export type SaleVariantOption = {
     selling_price: number;
 };
 
+export type SaleTaxMemberOption = {
+    id: number;
+    signed_rate: number;
+    is_compound: boolean;
+    dpp_multiplier: boolean;
+};
+
 export type SaleTaxOption = {
     id: number;
     code: string;
     name: string;
     rate: number | string;
+    type?: string;
+    dpp_multiplier?: boolean;
+    members?: SaleTaxMemberOption[];
 };
 
 export type PaymentTermOption = {

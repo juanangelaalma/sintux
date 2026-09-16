@@ -2,21 +2,28 @@
 
 namespace Modules\Sales\Domain\Rules;
 
+use Modules\Accounting\Application\TaxCalculator;
+
 /**
  * Kalkulasi total faktur penjualan: diskon per baris (%|nominal),
  * diskon invoice (%|nominal) dari total setelah diskon per baris,
  * lalu pajak per baris dari DPP (net − alokasi diskon invoice).
  *
- * Pure function: tanpa DB, tanpa auth. Satu-satunya sumber kebenaran
- * hitung — dipakai create maupun pengujian.
+ * Diskon tetap milik dokumen ini; bagian PAJAK didelegasikan ke
+ * Accounting\Application\TaxCalculator (pengali 11/12, grup, majemuk,
+ * pembulatan 2dp half-up per anggota). Tanpa DB, tanpa auth.
  */
 final class CalculateInvoiceTotals
 {
+    public function __construct(
+        private readonly TaxCalculator $taxCalculator,
+    ) {}
+
     /**
-     * @param  list<array{qty: int|float, unit_price: int|float, discount_type?: string|null, discount_value?: int|float|null, tax_rate?: int|float}>  $lines
+     * @param  list<array{qty: int|float, unit_price: int|float, discount_type?: string|null, discount_value?: int|float|null, tax_rate?: int|float, tax?: array{id: int, rate: float|int|string, type?: string, dpp_multiplier?: bool, members?: list<array<string, mixed>>}|null}>  $lines
      * @param  array{type?: string|null, value?: int|float|null}  $invoiceDiscount
      * @return array{
-     *     lines: list<array{line_gross: float, discount_amount: float, line_net: float, allocated_invoice_discount: float, taxable_amount: float, tax_amount: float, line_total: float}>,
+     *     lines: list<array{line_gross: float, discount_amount: float, line_net: float, allocated_invoice_discount: float, taxable_amount: float, tax_amount: float, tax_breakdown: list<array{tax_id: int, rate: float, amount: float}>, line_total: float}>,
      *     subtotal: float,
      *     line_discount_total: float,
      *     net_after_line_discount: float,
@@ -41,10 +48,11 @@ final class CalculateInvoiceTotals
                 'line_gross' => $gross,
                 'discount_amount' => $discount,
                 'line_net' => $net,
-                'tax_rate' => (float) ($line['tax_rate'] ?? 0),
+                'tax' => $line['tax'] ?? null,
                 'allocated_invoice_discount' => 0.0,
                 'taxable_amount' => $net,
                 'tax_amount' => 0.0,
+                'tax_breakdown' => [],
                 'line_total' => $net,
             ];
 
@@ -67,21 +75,17 @@ final class CalculateInvoiceTotals
                 ? $invoiceDiscountAmount * ($line['line_net'] / $netAfterLineDiscount)
                 : 0.0;
             $taxable = $line['line_net'] - $allocated;
-            $rate = $line['tax_rate'];
 
-            if ($isTaxInclusive && $rate > 0) {
-                $dpp = $taxable / (1 + ($rate / 100));
-                $tax = $taxable - $dpp;
-                $lineTotal = $taxable;
-            } else {
-                $tax = $taxable * ($rate / 100);
-                $lineTotal = $taxable + $tax;
-            }
+            $taxResult = $this->taxCalculator->calculate($taxable, $line['tax'], $isTaxInclusive);
+            $tax = $taxResult['total'];
+            $lineTotal = $isTaxInclusive ? $taxable : $taxable + $tax;
 
             $computed[$i]['allocated_invoice_discount'] = $allocated;
             $computed[$i]['taxable_amount'] = $taxable;
             $computed[$i]['tax_amount'] = $tax;
+            $computed[$i]['tax_breakdown'] = $taxResult['breakdown'];
             $computed[$i]['line_total'] = $lineTotal;
+            unset($computed[$i]['tax']);
 
             $taxTotal += $tax;
             $total += $lineTotal;

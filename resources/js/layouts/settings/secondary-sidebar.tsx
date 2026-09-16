@@ -43,6 +43,11 @@ export default function SecondarySidebar() {
             permission: 'approval.rule.view',
         },
         {
+            name: 'Pajak',
+            path: '/accounting/taxes',
+            permission: 'accounting.tax.view',
+        },
+        {
             name: 'Profil & Akun',
             path: '/settings/profile',
         },

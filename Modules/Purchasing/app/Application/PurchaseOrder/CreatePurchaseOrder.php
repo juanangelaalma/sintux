@@ -4,6 +4,7 @@ namespace Modules\Purchasing\Application\PurchaseOrder;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Modules\Accounting\Application\TaxCalculator;
 use Modules\Accounting\Application\TaxQuery;
 use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
@@ -15,6 +16,7 @@ class CreatePurchaseOrder
     public function __construct(
         private readonly GetPurchaseVariants $purchaseVariants,
         private readonly TaxQuery $taxQuery,
+        private readonly TaxCalculator $taxCalculator,
         private readonly ApprovalEngine $approvalEngine,
     ) {}
 
@@ -51,19 +53,11 @@ class CreatePurchaseOrder
                 $qty = (float) $item['qty_ordered'];
                 $unitPrice = (float) $item['unit_price'];
                 $taxId = $item['tax_id'] ?? null;
-                $taxRate = $taxId ? (float) ($taxes->get($taxId)['rate'] ?? 0) : 0.0;
+                $taxDef = $taxId ? $taxes->get($taxId) : null;
+                $line = $this->taxLine($qty * $unitPrice, $taxDef, $isTaxInclusive);
 
-                if ($isTaxInclusive && $taxRate > 0) {
-                    $lineTotal = $qty * $unitPrice;
-                    $lineSubtotal = $lineTotal / (1 + ($taxRate / 100));
-                    $lineTax = $lineTotal - $lineSubtotal;
-                } else {
-                    $lineSubtotal = $qty * $unitPrice;
-                    $lineTax = $lineSubtotal * ($taxRate / 100);
-                }
-
-                $subtotal += $lineSubtotal;
-                $taxAmount += $lineTax;
+                $subtotal += $line['subtotal'];
+                $taxAmount += $line['tax'];
             }
 
             $total = $subtotal + $taxAmount;
@@ -102,12 +96,8 @@ class CreatePurchaseOrder
                 $qty = (float) $item['qty_ordered'];
                 $unitPrice = (float) $item['unit_price'];
                 $taxId = $item['tax_id'] ?? null;
-                $taxRate = $taxId ? (float) ($taxes->get($taxId)['rate'] ?? 0) : 0.0;
-                // Keep line_total consistent with header total calculation:
-                // when tax inclusive, total already includes tax, so line_total = qty * unit_price
-                $lineTotal = $isTaxInclusive && $taxRate > 0
-                    ? $qty * $unitPrice
-                    : ($qty * $unitPrice) * (1 + ($taxRate / 100));
+                $taxDef = $taxId ? $taxes->get($taxId) : null;
+                $line = $this->taxLine($qty * $unitPrice, $taxDef, $isTaxInclusive);
 
                 $po->items()->create([
                     'destination_branch_id' => $item['destination_branch_id'],
@@ -122,8 +112,9 @@ class CreatePurchaseOrder
                     'qty_received' => 0,
                     'unit_price' => $unitPrice,
                     'tax_id' => $taxId,
-                    'tax_rate' => $taxRate,
-                    'line_total' => $lineTotal,
+                    'tax_rate' => $line['rate'],
+                    'tax_breakdown' => $line['breakdown'],
+                    'line_total' => $line['total'],
                 ]);
             }
 
@@ -147,5 +138,35 @@ class CreatePurchaseOrder
 
             return $po->load('items');
         });
+    }
+
+    /**
+     * Pajak per baris via TaxCalculator; diskon tidak ada di purchasing.
+     *
+     * @param  array<string, mixed>|null  $taxDef  Proyeksi TaxQuery.
+     * @return array{subtotal: float, tax: float, total: float, rate: float, breakdown: list<array{tax_id: int, rate: float, amount: float}>|null}
+     */
+    private function taxLine(float $gross, ?array $taxDef, bool $isTaxInclusive): array
+    {
+        $result = $this->taxCalculator->calculate($gross, $taxDef, $isTaxInclusive);
+        $rate = $taxDef ? (float) ($taxDef['rate'] ?? 0) : 0.0;
+
+        if ($isTaxInclusive) {
+            return [
+                'subtotal' => $gross - $result['total'],
+                'tax' => $result['total'],
+                'total' => $gross,
+                'rate' => $rate,
+                'breakdown' => $result['breakdown'] === [] ? null : $result['breakdown'],
+            ];
+        }
+
+        return [
+            'subtotal' => $gross,
+            'tax' => $result['total'],
+            'total' => $gross + $result['total'],
+            'rate' => $rate,
+            'breakdown' => $result['breakdown'] === [] ? null : $result['breakdown'],
+        ];
     }
 }

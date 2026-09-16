@@ -3,6 +3,7 @@
 namespace Modules\Purchasing\Application\PurchaseQuote;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Accounting\Application\TaxCalculator;
 use Modules\Accounting\Application\TaxQuery;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Purchasing\Enums\PurchaseQuoteStatus;
@@ -13,6 +14,7 @@ class CreatePurchaseQuote
     public function __construct(
         private readonly GetPurchaseVariants $purchaseVariants,
         private readonly TaxQuery $taxQuery,
+        private readonly TaxCalculator $taxCalculator,
     ) {}
 
     /**
@@ -40,8 +42,8 @@ class CreatePurchaseQuote
                 $subtotal += $lineSubtotal;
 
                 $taxId = $item['tax_id'] ?? null;
-                $taxRate = $taxId ? (float) ($taxes->get($taxId)['rate'] ?? 0) : 0.0;
-                $taxAmount += $lineSubtotal * ($taxRate / 100);
+                $taxDef = $taxId ? $taxes->get($taxId) : null;
+                $taxAmount += $this->taxCalculator->calculate($lineSubtotal, $taxDef)['total'];
             }
 
             $quote = PurchaseQuote::create([
@@ -64,8 +66,9 @@ class CreatePurchaseQuote
                 $qty = (float) $item['qty'];
                 $unitPrice = (float) $item['unit_price'];
                 $taxId = $item['tax_id'] ?? null;
-                $taxRate = $taxId ? (float) ($taxes->get($taxId)['rate'] ?? 0) : 0.0;
-                $lineTotal = ($qty * $unitPrice) * (1 + ($taxRate / 100));
+                $taxDef = $taxId ? $taxes->get($taxId) : null;
+                $taxResult = $this->taxCalculator->calculate($qty * $unitPrice, $taxDef);
+                $lineTotal = ($qty * $unitPrice) + $taxResult['total'];
 
                 $quote->items()->create([
                     'product_variant_id' => $item['product_variant_id'],
@@ -75,7 +78,8 @@ class CreatePurchaseQuote
                     'qty' => $qty,
                     'unit_price' => $unitPrice,
                     'tax_id' => $taxId,
-                    'tax_rate' => $taxRate,
+                    'tax_rate' => $taxDef ? (float) ($taxDef['rate'] ?? 0) : 0.0,
+                    'tax_breakdown' => $taxResult['breakdown'] === [] ? null : $taxResult['breakdown'],
                     'line_total' => $lineTotal,
                 ]);
             }

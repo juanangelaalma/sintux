@@ -5,6 +5,7 @@ namespace Modules\Purchasing\Application\PurchaseInvoice;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Accounting\Application\TaxCalculator;
 use Modules\Accounting\Application\TaxQuery;
 use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
@@ -24,6 +25,7 @@ class CreatePurchaseInvoice
     public function __construct(
         private readonly GetPurchaseVariants $purchaseVariants,
         private readonly TaxQuery $taxQuery,
+        private readonly TaxCalculator $taxCalculator,
         private readonly ApprovalEngine $approvalEngine,
         private readonly ValidateInvoiceQuantities $validateInvoiceQuantities,
         private readonly IncrementInvoicedQuantities $incrementInvoicedQuantities,
@@ -84,6 +86,7 @@ class CreatePurchaseInvoice
                     'unit_price' => $line['unit_price'],
                     'tax_id' => $line['tax_id'],
                     'tax_rate' => $line['tax_rate'],
+                    'tax_breakdown' => $line['tax_breakdown'],
                     'line_total' => $line['line_total'],
                 ]);
             }
@@ -176,7 +179,7 @@ class CreatePurchaseInvoice
      * ikut PO. Batas kumulatif dicek terpusat agar sama dengan finalize.
      *
      * @param  list<array<string, mixed>>  $items
-     * @return list<array{goods_receipt_item_id: int|null, purchase_order_item_id: int|null, product_variant_id: int, qty: float, unit_price: float, tax_id: int|null, tax_rate: float, line_total: float, product_name: string}>
+     * @return list<array{goods_receipt_item_id: int|null, purchase_order_item_id: int|null, product_variant_id: int, qty: float, unit_price: float, tax_id: int|null, tax_rate: float, tax_breakdown: list<array{tax_id: int, rate: float, amount: float}>|null, line_total: float, product_name: string}>
      */
     private function validateLines(array $items, ?object $grn, ?int $purchaseOrderId, mixed $taxes, mixed $variants): array
     {
@@ -234,7 +237,8 @@ class CreatePurchaseInvoice
 
             $variant = $variants->get((int) $item['product_variant_id']);
             $taxId = $item['tax_id'] ?? null;
-            $taxRate = $taxId ? (float) ($taxes->get($taxId)['rate'] ?? 0) : 0.0;
+            $taxDef = $taxId ? $taxes->get($taxId) : null;
+            $taxRate = $taxDef ? (float) ($taxDef['rate'] ?? 0) : 0.0;
 
             $lines[] = [
                 'index' => $index,
@@ -246,6 +250,8 @@ class CreatePurchaseInvoice
                 'unit_price' => $unitPrice,
                 'tax_id' => $taxId ? (int) $taxId : null,
                 'tax_rate' => $taxRate,
+                'tax_def' => $taxDef,
+                'tax_breakdown' => null,
                 'line_total' => 0.0,
             ];
         }
@@ -256,7 +262,7 @@ class CreatePurchaseInvoice
     }
 
     /**
-     * @param  list<array{qty: float, unit_price: float, tax_rate: float}>  $lines
+     * @param  list<array{qty: float, unit_price: float, tax_rate: float, tax_def: array<string, mixed>|null}>  $lines
      * @return array{0: list<array<string, mixed>>, 1: float, 2: float}
      */
     private function computeTotals(array $lines, bool $isTaxInclusive): array
@@ -265,20 +271,22 @@ class CreatePurchaseInvoice
         $taxAmount = 0.0;
 
         foreach ($lines as $i => $line) {
-            $lineSubtotal = $line['qty'] * $line['unit_price'];
+            $lineGross = $line['qty'] * $line['unit_price'];
+            $result = $this->taxCalculator->calculate($lineGross, $line['tax_def'] ?? null, $isTaxInclusive);
 
-            if ($isTaxInclusive && $line['tax_rate'] > 0) {
-                $gross = $lineSubtotal;
-                $lineSubtotal = $gross / (1 + ($line['tax_rate'] / 100));
-                $lineTax = $gross - $lineSubtotal;
-                $lines[$i]['line_total'] = $gross;
+            if ($isTaxInclusive) {
+                $lineSubtotal = $lineGross - $result['total'];
+                $lines[$i]['line_total'] = $lineGross;
             } else {
-                $lineTax = $lineSubtotal * ($line['tax_rate'] / 100);
-                $lines[$i]['line_total'] = $lineSubtotal + $lineTax;
+                $lineSubtotal = $lineGross;
+                $lines[$i]['line_total'] = $lineGross + $result['total'];
             }
 
+            $lines[$i]['tax_breakdown'] = $result['breakdown'] === [] ? null : $result['breakdown'];
+            unset($lines[$i]['tax_def']);
+
             $subtotal += $lineSubtotal;
-            $taxAmount += $lineTax;
+            $taxAmount += $result['total'];
         }
 
         return [$lines, $subtotal, $taxAmount];

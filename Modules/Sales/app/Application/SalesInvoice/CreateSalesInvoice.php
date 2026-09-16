@@ -128,6 +128,7 @@ class CreateSalesInvoice
                     'tax_id' => $line['tax_id'],
                     'tax_rate' => $line['tax_rate'],
                     'tax_amount' => $calc['tax_amount'],
+                    'tax_breakdown' => $calc['tax_breakdown'] === [] ? null : $calc['tax_breakdown'],
                     'line_total' => $calc['line_total'],
                 ]);
             }
@@ -193,7 +194,7 @@ class CreateSalesInvoice
      * pajak eligible untuk penjualan.
      *
      * @param  list<array<string, mixed>>  $items
-     * @return list<array{product_variant_id: int, qty: int, unit_price: float, discount_type: string|null, discount_value: float, tax_id: int|null, tax_rate: float}>
+     * @return list<array{product_variant_id: int, qty: int, unit_price: float, discount_type: string|null, discount_value: float, tax_id: int|null, tax_rate: float, tax: array<string, mixed>|null}>
      */
     private function validateLines(array $items, int $branchId, mixed $variants, mixed $taxes): array
     {
@@ -223,6 +224,7 @@ class CreateSalesInvoice
 
             $taxId = $item['tax_id'] ?? null;
             $taxRate = 0.0;
+            $taxDef = null;
 
             if ($taxId !== null && $taxId !== '') {
                 $tax = $taxes->get((int) $taxId);
@@ -234,6 +236,7 @@ class CreateSalesInvoice
                 }
 
                 $taxRate = (float) $tax['rate'];
+                $taxDef = $tax;
             }
 
             $lines[] = [
@@ -244,6 +247,7 @@ class CreateSalesInvoice
                 'discount_value' => $discountValue,
                 'tax_id' => $taxId ? (int) $taxId : null,
                 'tax_rate' => $taxRate,
+                'tax' => $taxDef,
             ];
         }
 

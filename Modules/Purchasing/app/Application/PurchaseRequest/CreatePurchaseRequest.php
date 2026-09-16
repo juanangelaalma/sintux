@@ -3,6 +3,7 @@
 namespace Modules\Purchasing\Application\PurchaseRequest;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Accounting\Application\TaxCalculator;
 use Modules\Accounting\Application\TaxQuery;
 use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
@@ -14,6 +15,7 @@ class CreatePurchaseRequest
     public function __construct(
         private readonly GetPurchaseVariants $purchaseVariants,
         private readonly TaxQuery $taxQuery,
+        private readonly TaxCalculator $taxCalculator,
         private readonly ApprovalEngine $approvalEngine,
     ) {}
 
@@ -33,20 +35,28 @@ class CreatePurchaseRequest
             $sequence = PurchaseRequest::where('branch_id', $data['branch_id'])->count() + 1;
             $number = 'PR-'.$branchCode.'-'.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
 
+            $taxes = collect($this->taxQuery->listForPurchase())->keyBy('id');
             $subtotal = 0.0;
             $taxAmount = 0.0;
+            $computed = [];
 
             foreach ($data['items'] as $item) {
                 $qty = (float) $item['qty_requested'];
                 $unitPrice = (float) ($item['unit_price'] ?? 0);
-                $subtotal += $qty * $unitPrice;
+                $lineSubtotal = $qty * $unitPrice;
+                $subtotal += $lineSubtotal;
+
+                $taxId = $item['tax_id'] ?? null;
+                $taxDef = $taxId ? $taxes->get($taxId) : null;
+                $taxResult = $this->taxCalculator->calculate($lineSubtotal, $taxDef);
+                $taxAmount += $taxResult['total'];
+
+                $computed[] = [
+                    'tax_rate' => $taxDef ? (float) ($taxDef['rate'] ?? 0) : null,
+                    'tax_breakdown' => $taxResult['breakdown'] === [] ? null : $taxResult['breakdown'],
+                ];
             }
 
-            $taxRate = 0.0;
-            if (($data['items'][0]['tax_id'] ?? null) !== null) {
-                $taxRate = $this->resolveTaxRate((int) $data['items'][0]['tax_id']);
-            }
-            $taxAmount = $subtotal * ($taxRate / 100);
             $total = $subtotal + $taxAmount;
 
             $request = PurchaseRequest::create([
@@ -63,7 +73,7 @@ class CreatePurchaseRequest
                 'total' => $total,
             ]);
 
-            foreach ($data['items'] as $item) {
+            foreach ($data['items'] as $i => $item) {
                 $variant = $variants->get($item['product_variant_id']);
                 $unitPrice = (float) ($item['unit_price'] ?? 0);
                 $lineTotal = (float) $item['qty_requested'] * $unitPrice;
@@ -76,7 +86,8 @@ class CreatePurchaseRequest
                     'qty_requested' => $item['qty_requested'],
                     'unit_price' => $item['unit_price'] ?? null,
                     'tax_id' => $item['tax_id'] ?? null,
-                    'tax_rate' => ($item['tax_id'] ?? null) !== null ? $taxRate : null,
+                    'tax_rate' => ($item['tax_id'] ?? null) !== null ? $computed[$i]['tax_rate'] : null,
+                    'tax_breakdown' => ($item['tax_id'] ?? null) !== null ? $computed[$i]['tax_breakdown'] : null,
                     'line_total' => $lineTotal,
                 ]);
             }
@@ -97,16 +108,5 @@ class CreatePurchaseRequest
 
             return $request->load('items');
         });
-    }
-
-    private function resolveTaxRate(int $taxId): float
-    {
-        foreach ($this->taxQuery->listForPurchase() as $item) {
-            if ((int) $item['id'] === $taxId) {
-                return (float) $item['rate'];
-            }
-        }
-
-        return 0.0;
     }
 }
