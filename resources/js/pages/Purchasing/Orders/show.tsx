@@ -1,5 +1,6 @@
 import { Button } from '@heroui/react';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Download, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import ApprovalHeaderControls from '@/components/approval/approval-header-controls';
 import type { ApprovalStatusProps } from '@/components/approval/approval-header-controls';
@@ -143,6 +144,24 @@ export default function PurchaseOrdersShow({ purchaseOrder, approval }: Props) {
                                     Kembali
                                 </Button>
                             </Link>
+                            <a
+                                href={`/purchasing/orders/${purchaseOrder.id}/print`}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <Button type="button" variant="secondary">
+                                    <Printer className="size-4" />
+                                    Cetak
+                                </Button>
+                            </a>
+                            <a
+                                href={`/purchasing/orders/${purchaseOrder.id}/download`}
+                            >
+                                <Button type="button" variant="secondary">
+                                    <Download className="size-4" />
+                                    Unduh PDF
+                                </Button>
+                            </a>
                             <ApprovalHeaderControls
                                 approval={approval}
                                 documentTitle={purchaseOrder.number}

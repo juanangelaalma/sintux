@@ -56,6 +56,12 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
                 ->only(['index', 'create', 'store', 'show'])
                 ->parameters(['orders' => 'order']);
 
+            Route::get('orders/{order}/print', [PurchaseOrderController::class, 'print'])
+                ->name('orders.print');
+
+            Route::get('orders/{order}/download', [PurchaseOrderController::class, 'download'])
+                ->name('orders.download');
+
             Route::post('orders/{order}/send', [PurchaseOrderController::class, 'send'])
                 ->name('orders.send');
 

@@ -3,7 +3,11 @@
 namespace Modules\Purchasing\Http\Controllers;
 
 use App\Models\User;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -17,16 +21,19 @@ use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseSummary;
 use Modules\Purchasing\Application\PurchaseOrder\CancelPurchaseOrder;
 use Modules\Purchasing\Application\PurchaseOrder\CreatePurchaseOrder;
 use Modules\Purchasing\Application\PurchaseOrder\GetPurchaseOrderDetail;
+use Modules\Purchasing\Application\PurchaseOrder\GetPurchaseOrderDocument;
 use Modules\Purchasing\Application\PurchaseOrder\GetPurchaseOrders;
 use Modules\Purchasing\Application\PurchaseOrder\SendPurchaseOrder;
 use Modules\Purchasing\Application\PurchaseTag\GetPurchaseTags;
 use Modules\Purchasing\Http\Requests\StorePurchaseOrderRequest;
+use Modules\Purchasing\Models\PurchaseOrder;
 
 class PurchaseOrderController extends Controller
 {
     public function __construct(
         private readonly GetPurchaseOrders $getPurchaseOrders,
         private readonly GetPurchaseOrderDetail $getPurchaseOrderDetail,
+        private readonly GetPurchaseOrderDocument $getPurchaseOrderDocument,
         private readonly CreatePurchaseOrder $createPurchaseOrder,
         private readonly SendPurchaseOrder $sendPurchaseOrder,
         private readonly CancelPurchaseOrder $cancelPurchaseOrder,
@@ -149,6 +156,54 @@ class PurchaseOrderController extends Controller
 
         return redirect()->route('purchasing.orders.show', $id)
             ->with('success', 'Pesanan pembelian dibatalkan.');
+    }
+
+    public function print(int $id): View
+    {
+        return view('purchasing::orders.print', $this->resolveDocument($id));
+    }
+
+    public function download(int $id): HttpResponse
+    {
+        $document = $this->resolveDocument($id);
+        $html = view('purchasing::orders.print', $document)->render();
+
+        $options = new Options;
+        $options->set('isRemoteEnabled', false);
+        $options->set('defaultFont', 'DejaVu Sans');
+
+        $pdf = new Dompdf($options);
+        $pdf->loadHtml($html, 'UTF-8');
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->render();
+
+        $safeNumber = preg_replace('/[^A-Za-z0-9\-_]+/', '-', (string) $document['order']->number);
+
+        return new HttpResponse($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="PO-'.$safeNumber.'.pdf"',
+        ]);
+    }
+
+    /**
+     * @return array{order: PurchaseOrder, supplier: array<string, mixed>|null, branch: object|null, companyName: string, printedAt: string, printedBy: string}
+     */
+    private function resolveDocument(int $id): array
+    {
+        $user = request()->user();
+        if (! $user) {
+            abort(403, 'Akses ditolak.');
+        }
+        $tenantId = (string) session('active_tenant_id');
+
+        $document = $this->getPurchaseOrderDocument->execute($id, $user, $tenantId);
+        $this->ensureBranchAccess($document['order']->branch_id);
+
+        return [
+            ...$document,
+            'printedAt' => now()->translatedFormat('d F Y H:i'),
+            'printedBy' => (string) ($user->name ?? $user->email ?? '-'),
+        ];
     }
 
     private function ensureBranchAccess(int $branchId): void
