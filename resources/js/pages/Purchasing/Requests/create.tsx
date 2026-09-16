@@ -18,7 +18,7 @@ export default function PurchaseRequestsCreate({
     branches,
     productVariants,
 }: Props) {
-    const { data, setData, post, processing } = useForm<{
+    const { data, setData, post, processing, errors } = useForm<{
         branch_id: number | string;
         request_date: string;
         required_date: string;
@@ -145,6 +145,7 @@ export default function PurchaseRequestsCreate({
                         onAddItem={addItem}
                         onRemoveItem={removeItem}
                         onUpdateItem={updateItem}
+                        errors={errors}
                     />
 
                     <div className="flex justify-end gap-3 border-t border-border/60 pt-4">

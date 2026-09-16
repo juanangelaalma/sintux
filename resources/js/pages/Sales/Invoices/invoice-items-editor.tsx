@@ -1,8 +1,8 @@
 import { Button, Checkbox } from '@heroui/react';
 import { MinusCircle, Plus } from 'lucide-react';
+import AutocompleteSelect from '@/components/ui/autocomplete-select';
+import CurrencyInput from '@/components/ui/currency-input';
 import { formatCurrency } from '@/lib/format';
-import CurrencyInput from './currency-input';
-import SearchableSelect from './searchable-select';
 import { calculateInvoiceTotals } from './totals';
 import type {
     DiscountType,
@@ -112,7 +112,7 @@ export default function InvoiceItemsEditor({
                                         className={`grid ${GRID_COLS} items-center gap-3 px-3 py-2.5`}
                                     >
                                         <div className="min-w-0">
-                                            <SearchableSelect
+                                            <AutocompleteSelect
                                                 placeholder="Cari produk..."
                                                 searchPlaceholder="Cari nama produk..."
                                                 items={productVariants.map(

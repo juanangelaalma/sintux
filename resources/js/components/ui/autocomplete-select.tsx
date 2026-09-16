@@ -8,7 +8,7 @@ import {
     useFilter,
 } from '@heroui/react';
 
-export type SearchableOption = {
+export type AutocompleteOption = {
     id: number;
     name: string;
     hint?: string;
@@ -16,10 +16,10 @@ export type SearchableOption = {
     keywords?: string;
 };
 
-type SearchableSelectProps = {
+type AutocompleteSelectProps = {
     label?: string;
     placeholder?: string;
-    items: SearchableOption[];
+    items: AutocompleteOption[];
     value: number | string | '';
     onChange: (id: number) => void;
     error?: string;
@@ -32,7 +32,7 @@ type SearchableSelectProps = {
  * Dropdown dengan pencarian untuk opsi dalam jumlah besar
  * (pelanggan, karyawan, produk). Single-select, full width.
  */
-export default function SearchableSelect({
+export default function AutocompleteSelect({
     label,
     placeholder = 'Ketik untuk mencari...',
     items,
@@ -42,7 +42,7 @@ export default function SearchableSelect({
     isRequired = false,
     searchPlaceholder = 'Cari...',
     emptyMessage = 'Tidak ditemukan',
-}: SearchableSelectProps) {
+}: AutocompleteSelectProps) {
     const { contains } = useFilter({ sensitivity: 'base' });
 
     return (
@@ -83,7 +83,9 @@ export default function SearchableSelect({
                     <Autocomplete.Filter filter={contains}>
                         <SearchField
                             autoFocus
-                            aria-label={`Cari ${label}`}
+                            aria-label={
+                                label ? `Cari ${label}` : searchPlaceholder
+                            }
                             variant="secondary"
                         >
                             <SearchField.Group>

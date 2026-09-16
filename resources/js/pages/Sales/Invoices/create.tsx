@@ -9,11 +9,11 @@ import {
 import { Head, Link, useForm } from '@inertiajs/react';
 import { parseDate } from '@internationalized/date';
 import { useEffect, useMemo, useState } from 'react';
+import AutocompleteSelect from '@/components/ui/autocomplete-select';
 import FormDatePicker from '@/components/ui/form-date-picker';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { formatCurrency } from '@/lib/format';
 import InvoiceItemsEditor from './invoice-items-editor';
-import SearchableSelect from './searchable-select';
 import { calculateInvoiceTotals } from './totals';
 import type {
     CustomerOption,
@@ -318,7 +318,7 @@ export default function SalesInvoicesCreate({
                     className="space-y-6 rounded-xl border border-border bg-surface p-6 shadow-xs"
                 >
                     <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
-                        <SearchableSelect
+                        <AutocompleteSelect
                             label="Pelanggan"
                             placeholder="Cari pelanggan..."
                             searchPlaceholder="Cari nama pelanggan..."
@@ -474,7 +474,7 @@ export default function SalesInvoicesCreate({
                             )}
                         </div>
 
-                        <SearchableSelect
+                        <AutocompleteSelect
                             label="Sales / Marketing"
                             placeholder="Cari karyawan..."
                             searchPlaceholder="Cari nama karyawan..."

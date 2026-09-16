@@ -24,3 +24,17 @@ export function formatDate(dateString: string | null | undefined): string {
         return String(dateString);
     }
 }
+
+/**
+ * Format kuantitas: 50.0000 -> "50", 1.5000 -> "1,5".
+ * Desimal berlebih dipangkas, ribuan memakai titik (id-ID).
+ */
+export function formatQty(value: number | string | null | undefined): string {
+    const num = Number(value ?? 0);
+
+    if (!Number.isFinite(num)) {
+        return '0';
+    }
+
+    return num.toLocaleString('id-ID', { maximumFractionDigits: 4 });
+}

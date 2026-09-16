@@ -166,6 +166,7 @@ export default function PurchaseQuotesCreate({
                         onAddItem={addItem}
                         onRemoveItem={removeItem}
                         onUpdateItem={updateItem}
+                        errors={errors}
                     />
 
                     <div className="flex justify-end gap-3 border-t border-border/60 pt-4">

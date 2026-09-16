@@ -1,5 +1,7 @@
 import { Button, Checkbox } from '@heroui/react';
 import { MinusCircle, Plus } from 'lucide-react';
+import AutocompleteSelect from '@/components/ui/autocomplete-select';
+import CurrencyInput from '@/components/ui/currency-input';
 import { formatCurrency } from '@/lib/format';
 import { getLineTotals } from '@/lib/purchasing/calc';
 
@@ -49,6 +51,7 @@ type LineItemsEditorProps = {
         field: keyof LineItemRow,
         value: string | number | null,
     ) => void;
+    errors?: Record<string, string>;
 };
 
 const GRID_COLS =
@@ -64,6 +67,7 @@ export default function LineItemsEditor({
     onAddItem,
     onRemoveItem,
     onUpdateItem,
+    errors = {},
 }: LineItemsEditorProps) {
     return (
         <div className="space-y-2">
@@ -132,30 +136,29 @@ export default function LineItemsEditor({
                                     >
                                         {/* Produk */}
                                         <div className="min-w-0">
-                                            <select
-                                                aria-label="Produk"
-                                                className="w-full min-w-0 truncate rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground focus:border-accent focus:ring-accent"
-                                                value={String(
-                                                    row.product_variant_id,
+                                            <AutocompleteSelect
+                                                placeholder="Cari produk..."
+                                                searchPlaceholder="Cari nama produk..."
+                                                items={productVariants.map(
+                                                    (v) => ({
+                                                        id: v.id,
+                                                        name: v.product_name,
+                                                    }),
                                                 )}
-                                                onChange={(e) =>
+                                                value={row.product_variant_id}
+                                                onChange={(variantId) =>
                                                     onUpdateItem(
                                                         idx,
                                                         'product_variant_id',
-                                                        Number(e.target.value),
+                                                        variantId,
                                                     )
                                                 }
-                                            >
-                                                {productVariants.map((v) => (
-                                                    <option
-                                                        key={v.id}
-                                                        value={v.id}
-                                                        title={v.product_name}
-                                                    >
-                                                        {v.product_name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                error={
+                                                    errors[
+                                                        `items.${idx}.product_variant_id`
+                                                    ]
+                                                }
+                                            />
                                         </div>
 
                                         {/* Deskripsi */}
@@ -192,6 +195,11 @@ export default function LineItemsEditor({
                                                     )
                                                 }
                                             />
+                                            {errors[`items.${idx}.qty`] && (
+                                                <p className="mt-1 text-[11px] text-danger">
+                                                    {errors[`items.${idx}.qty`]}
+                                                </p>
+                                            )}
                                         </div>
 
                                         {/* Unit (UOM) */}
@@ -205,29 +213,30 @@ export default function LineItemsEditor({
                                         </div>
 
                                         {/* Harga Satuan */}
-                                        <div className="flex min-w-0 overflow-hidden rounded-lg border border-border bg-surface focus-within:border-accent">
+                                        <div
+                                            className="flex min-w-0 overflow-hidden rounded-lg border border-border bg-surface focus-within:border-accent"
+                                            title={
+                                                lockPrices
+                                                    ? 'Harga dikunci mengikuti PO'
+                                                    : undefined
+                                            }
+                                        >
                                             <span className="shrink-0 border-r border-border bg-surface-secondary/60 px-2 py-1.5 text-xs font-medium text-muted">
                                                 Rp
                                             </span>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                aria-label="Harga satuan"
-                                                disabled={lockPrices}
-                                                title={
-                                                    lockPrices
-                                                        ? 'Harga dikunci mengikuti PO'
-                                                        : undefined
-                                                }
-                                                className="w-full min-w-0 border-none bg-transparent px-2 py-1.5 text-right text-xs text-foreground outline-none focus:ring-0 disabled:cursor-not-allowed disabled:bg-surface-secondary/50 disabled:text-muted"
-                                                value={row.unit_price}
-                                                onChange={(e) =>
+                                            <CurrencyInput
+                                                ariaLabel="Harga satuan"
+                                                value={Number(
+                                                    row.unit_price || 0,
+                                                )}
+                                                onChange={(val) =>
                                                     onUpdateItem(
                                                         idx,
                                                         'unit_price',
-                                                        Number(e.target.value),
+                                                        val,
                                                     )
                                                 }
+                                                disabled={lockPrices}
                                             />
                                         </div>
 
@@ -255,7 +264,7 @@ export default function LineItemsEditor({
                                                 }
                                             >
                                                 <option value="">
-                                                    Pilih pajak
+                                                    Tanpa pajak
                                                 </option>
                                                 {taxes.map((t) => (
                                                     <option
