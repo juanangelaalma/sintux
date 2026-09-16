@@ -524,6 +524,33 @@ class PurchaseOrderTest extends TestCase
         $response->assertSessionHasErrors(['items.0.destination_expected_date']);
     }
 
+    public function test_member_can_print_purchase_order(): void
+    {
+        [$tenantId, $hqBranchId, , $user, $poId] = $this->createPurchaseOrderWithItem('PO-HQ-PRINT-001');
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $response = $this->actingAs($user)->get(route('purchasing.orders.print', $poId));
+
+        $response->assertOk();
+        $response->assertSee('PURCHASE ORDER', false);
+        $response->assertSee('PO-HQ-PRINT-001', false);
+        $response->assertSee('Supplier Cetak Dokumen', false);
+    }
+
+    public function test_member_can_download_purchase_order_pdf(): void
+    {
+        [$tenantId, $hqBranchId, , $user, $poId] = $this->createPurchaseOrderWithItem('PO-HQ-PDF-001');
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $response = $this->actingAs($user)->get(route('purchasing.orders.download', $poId));
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $response->headers->get('Content-Type'));
+        $this->assertStringContainsString('attachment', (string) $response->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('.pdf', (string) $response->headers->get('Content-Disposition'));
+        $this->assertStringStartsWith('%PDF', (string) $response->getContent());
+    }
+
     /**
      * @return array{0: string|int, 1: int, 2: int, 3: User}
      */
@@ -593,6 +620,51 @@ class PurchaseOrderTest extends TestCase
         ]);
 
         return [$tenant->id, (int) $hqBranchId, (int) $branchBId, $user];
+    }
+
+    /**
+     * @return array{0: string|int, 1: int, 2: int, 3: User, 4: int}
+     */
+    private function createPurchaseOrderWithItem(string $number): array
+    {
+        [$tenantId, $hqBranchId, $branchBId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        tenancy()->initialize($tenantId);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
+        $supplierId = (int) DB::table('contacts')->insertGetId([
+            'branch_id' => $branchBId,
+            'type' => 'supplier',
+            'name' => 'Supplier Cetak Dokumen',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $po = PurchaseOrder::create([
+            'number' => $number,
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'status' => PurchaseOrderStatus::Approved,
+            'order_date' => '2026-08-18',
+            'expected_date' => '2026-08-25',
+            'currency_code' => 'IDR',
+            'subtotal' => 500000,
+            'tax_amount' => 0,
+            'total' => 500000,
+        ]);
+        $po->items()->create([
+            'destination_branch_id' => $branchBId,
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget Cetak',
+            'sku' => 'SKU-CETAK-001',
+            'qty_ordered' => 5,
+            'unit_price' => 100000,
+            'line_total' => 500000,
+        ]);
+        $poId = $po->id;
+        tenancy()->end();
+
+        return [$tenantId, (int) $hqBranchId, (int) $branchBId, $user, (int) $poId];
     }
 
     /**
