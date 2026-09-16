@@ -1,4 +1,10 @@
-import { Building2, CalendarDays, ChevronDown, ChevronUp, Package } from 'lucide-react';
+import {
+    Building2,
+    CalendarDays,
+    ChevronDown,
+    ChevronUp,
+    Package,
+} from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/format';
 
 type BranchRef = { id: number; name: string; code: string };
@@ -25,7 +31,16 @@ type Props = {
     onToggle: () => void;
 };
 
-export function BranchAllocationShowCard({ branchCode, branch, warehouse, date, items, subtotal, isExpanded, onToggle }: Props) {
+export function BranchAllocationShowCard({
+    branchCode,
+    branch,
+    warehouse,
+    date,
+    items,
+    subtotal,
+    isExpanded,
+    onToggle,
+}: Props) {
     const dateLabel = date ? formatDate(date) : '-';
 
     return (
@@ -38,7 +53,10 @@ export function BranchAllocationShowCard({ branchCode, branch, warehouse, date, 
                 className="flex w-full flex-wrap items-center justify-between gap-3 bg-surface-secondary/40 px-4 py-3 text-left hover:bg-surface-secondary/60"
             >
                 <span className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className="flex size-8 items-center justify-center rounded-lg bg-accent/10 text-accent" aria-hidden>
+                    <span
+                        className="flex size-8 items-center justify-center rounded-lg bg-accent/10 text-accent"
+                        aria-hidden
+                    >
                         <Building2 className="size-4" />
                     </span>
                     <span className="min-w-0">
@@ -63,34 +81,67 @@ export function BranchAllocationShowCard({ branchCode, branch, warehouse, date, 
                     </span>
                 </span>
                 <span className="inline-flex items-center gap-1 text-muted">
-                    {isExpanded ? <ChevronUp className="size-4" aria-hidden /> : <ChevronDown className="size-4" aria-hidden />}
-                    <span className="sr-only">{isExpanded ? 'Ciutkan' : 'Bentangkan'} cabang {branchCode}</span>
+                    {isExpanded ? (
+                        <ChevronUp className="size-4" aria-hidden />
+                    ) : (
+                        <ChevronDown className="size-4" aria-hidden />
+                    )}
+                    <span className="sr-only">
+                        {isExpanded ? 'Ciutkan' : 'Bentangkan'} cabang{' '}
+                        {branchCode}
+                    </span>
                 </span>
             </button>
 
             {isExpanded && (
-                <div id={`branch-group-${branchCode}`} className="border-t border-border">
+                <div
+                    id={`branch-group-${branchCode}`}
+                    className="border-t border-border"
+                >
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm text-foreground">
                             <thead className="border-b border-border bg-surface-secondary/30 text-xs font-semibold text-foreground">
                                 <tr>
                                     <th className="px-4 py-2.5">Produk</th>
                                     <th className="px-4 py-2.5">SKU</th>
-                                    <th className="px-4 py-2.5 text-right">Dipesan</th>
-                                    <th className="px-4 py-2.5 text-right">Diterima</th>
-                                    <th className="px-4 py-2.5 text-right">Harga Satuan</th>
-                                    <th className="px-4 py-2.5 text-right">Jumlah</th>
+                                    <th className="px-4 py-2.5 text-right">
+                                        Dipesan
+                                    </th>
+                                    <th className="px-4 py-2.5 text-right">
+                                        Diterima
+                                    </th>
+                                    <th className="px-4 py-2.5 text-right">
+                                        Harga Satuan
+                                    </th>
+                                    <th className="px-4 py-2.5 text-right">
+                                        Jumlah
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border/60">
                                 {items.map((item) => (
-                                    <tr key={item.id} className="hover:bg-surface-secondary/30">
-                                        <td className="px-4 py-3 font-medium text-foreground">{item.product_name}</td>
-                                        <td className="px-4 py-3 font-mono text-xs text-muted">{item.sku}</td>
-                                        <td className="px-4 py-3 text-right font-medium">{item.qty_ordered}</td>
-                                        <td className="px-4 py-3 text-right font-medium">{item.qty_received}</td>
-                                        <td className="px-4 py-3 text-right">{formatCurrency(item.unit_price)}</td>
-                                        <td className="px-4 py-3 text-right font-bold text-foreground">{formatCurrency(item.line_total)}</td>
+                                    <tr
+                                        key={item.id}
+                                        className="hover:bg-surface-secondary/30"
+                                    >
+                                        <td className="px-4 py-3 font-medium text-foreground">
+                                            {item.product_name}
+                                        </td>
+                                        <td className="px-4 py-3 font-mono text-xs text-muted">
+                                            {item.sku}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-medium">
+                                            {item.qty_ordered}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-medium">
+                                            {item.qty_received}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            {formatCurrency(item.unit_price)}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-bold text-foreground">
+                                            {formatCurrency(item.line_total)}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -98,7 +149,7 @@ export function BranchAllocationShowCard({ branchCode, branch, warehouse, date, 
                     </div>
                     <div className="flex items-center justify-end border-t border-border bg-surface px-4 py-2.5">
                         <span className="text-xs text-muted">
-                            {branchCode} • kirim {dateLabel} • {formatCurrency(subtotal)}
+                            {branchCode} • {formatCurrency(subtotal)}
                         </span>
                     </div>
                 </div>
