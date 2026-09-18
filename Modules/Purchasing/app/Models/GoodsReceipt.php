@@ -10,12 +10,19 @@ use Illuminate\Support\Carbon;
 use Modules\Purchasing\Enums\GoodsReceiptStatus;
 
 /**
+ * Dokumen penerimaan tunggal (GRN): fetch DO supplier → verifikasi fisik
+ * cabang → submit → approval HO (posting stok + transfer) → faktur.
+ *
  * @property int $id
  * @property string $number
  * @property int $branch_id
  * @property int $supplier_id
  * @property int $purchase_order_id
  * @property int $warehouse_id
+ * @property string $supplier_do_no
+ * @property string|null $supplier_invoice_no
+ * @property string|null $po_no
+ * @property string|null $rejection_reason
  * @property GoodsReceiptStatus $status
  * @property string $receipt_date
  * @property string|null $note
@@ -31,9 +38,25 @@ class GoodsReceipt extends Model
         'supplier_id',
         'purchase_order_id',
         'warehouse_id',
+        'supplier_do_no',
+        'supplier_invoice_no',
+        'po_no',
+        'do_date',
+        'cust_name',
+        'driver',
+        'nopol',
+        'transaction_type',
         'status',
         'receipt_date',
         'note',
+        'rejection_reason',
+        'submitted_by',
+        'submitted_at',
+        'decided_by',
+        'decided_at',
+        'transferred_at',
+        'transfer_error',
+        'raw_payload',
     ];
 
     protected function casts(): array
@@ -41,6 +64,11 @@ class GoodsReceipt extends Model
         return [
             'status' => GoodsReceiptStatus::class,
             'receipt_date' => 'date',
+            'do_date' => 'date',
+            'submitted_at' => 'datetime',
+            'decided_at' => 'datetime',
+            'transferred_at' => 'datetime',
+            'raw_payload' => 'array',
         ];
     }
 

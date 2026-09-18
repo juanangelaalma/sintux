@@ -9,6 +9,23 @@ export function formatCurrency(
     })}`;
 }
 
+/**
+ * Format qty barang: potong nol berlebih (100.0000 → "100") tapi
+ * pertahankan desimal yang bermakna (10,5). Maks 4 desimal sesuai
+ * presisi kolom database.
+ */
+export function formatQty(value: number | string | null | undefined): string {
+    const num = Number(value ?? 0);
+
+    if (!Number.isFinite(num)) {
+        return '-';
+    }
+
+    return num.toLocaleString('id-ID', {
+        maximumFractionDigits: 4,
+    });
+}
+
 export function formatDate(dateString: string | null | undefined): string {
     if (!dateString) {
         return '-';

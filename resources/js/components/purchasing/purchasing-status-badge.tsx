@@ -11,14 +11,15 @@ const STATUS_COLOR: Record<string, StatusStyle['color']> = {
     pending: 'warning',
     approved: 'accent',
     sent: 'accent',
+    submitted: 'warning',
     partially_received: 'warning',
     received: 'success',
     closed: 'success',
-    posted: 'success',
     ready: 'success',
     accepted: 'success',
     paid: 'success',
     cancelled: 'danger',
+    rejected: 'danger',
 };
 
 const STATUS_MAP: Record<string, StatusStyle> = Object.fromEntries(

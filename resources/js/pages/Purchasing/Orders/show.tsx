@@ -176,12 +176,12 @@ export default function PurchaseOrdersShow({ purchaseOrder, approval }: Props) {
                                     >
                                         Kirim ke Supplier
                                     </Button>
-                                    <Link href="/purchasing/grns/create">
+                                    <Link href="/purchasing/grn-inbox">
                                         <Button
                                             type="button"
                                             variant="secondary"
                                         >
-                                            Terima Barang
+                                            Approval GRN
                                         </Button>
                                     </Link>
                                     <Link href="/purchasing/invoices/create">
@@ -208,12 +208,12 @@ export default function PurchaseOrdersShow({ purchaseOrder, approval }: Props) {
                                 purchaseOrder.status ===
                                     PurchaseOrderStatus.PartiallyReceived) && (
                                 <>
-                                    <Link href="/purchasing/grns/create">
+                                    <Link href="/purchasing/grn-inbox">
                                         <Button
                                             type="button"
                                             variant="secondary"
                                         >
-                                            Terima Barang{' '}
+                                            Approval GRN{' '}
                                             {purchaseOrder.status ===
                                             PurchaseOrderStatus.PartiallyReceived
                                                 ? '(Sisa)'

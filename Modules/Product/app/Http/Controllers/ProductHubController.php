@@ -42,26 +42,29 @@ class ProductHubController extends Controller
         $stats = $this->getProductStats->execute($branchIds);
         $filters = request()->only(['search', 'category_id', 'product_type', 'status', 'warehouse_id', 'type']);
 
-        $products = $this->getProducts->execute($filters, $branchIds);
-        $warehouses = $this->getWarehouses->all($branchIds);
-        $stockBalances = $this->getStockBalances->execute($branchIds, $filters);
-        $stockRequests = $this->getStockRequests->execute($branchIds, $filters);
-        $stockAdjustments = $this->getStockAdjustments->execute($branchIds, $filters);
-        $stockTransfers = $this->getStockTransfers->execute($branchIds, $filters);
-
-        return Inertia::render('Product/Index', [
+        // Muat dataset seperlunya per tab aktif: pindah tab tidak ikut
+        // menjalankan query tab lain yang tidak ditampilkan.
+        $props = [
             'stats' => $stats,
             'activeTab' => $activeTab,
             'subTab' => $subTab,
             'filters' => $filters,
-            'products' => $products,
             'categories' => $this->getCategories->all(),
             'uoms' => $this->getUoms->all(),
-            'warehouses' => $warehouses,
-            'stockBalances' => $stockBalances,
-            'stockRequests' => $stockRequests,
-            'stockAdjustments' => $stockAdjustments,
-            'stockTransfers' => $stockTransfers,
-        ]);
+        ];
+
+        if ($activeTab === 'items') {
+            $props['products'] = $this->getProducts->execute($filters, $branchIds);
+        }
+
+        if ($activeTab === 'gudang') {
+            $props['warehouses'] = $this->getWarehouses->all($branchIds);
+            $props['stockBalances'] = $this->getStockBalances->execute($branchIds, $filters);
+            $props['stockRequests'] = $this->getStockRequests->execute($branchIds, $filters);
+            $props['stockAdjustments'] = $this->getStockAdjustments->execute($branchIds, $filters);
+            $props['stockTransfers'] = $this->getStockTransfers->execute($branchIds, $filters);
+        }
+
+        return Inertia::render('Product/Index', $props);
     }
 }

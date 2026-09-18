@@ -5,6 +5,8 @@ namespace App\Http\Middleware;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Modules\Company\Application\CompanyAccess;
+use Modules\Purchasing\Enums\GoodsReceiptStatus;
+use Modules\Purchasing\Models\GoodsReceipt;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -43,6 +45,7 @@ class HandleInertiaRequests extends Middleware
         $isHq = false;
         $roles = [];
         $permissions = [];
+        $pendingGrnCount = 0;
 
         if (tenancy()->initialized && $request->user()) {
             $activeTenant = tenant();
@@ -55,6 +58,13 @@ class HandleInertiaRequests extends Middleware
             $isHq = CompanyAccess::isActiveBranchHq($request->user(), $tenantId);
 
             $accessibleBranchIds = CompanyAccess::accessibleBranchIds($request->user(), $tenantId);
+
+            if ($isHq && $accessibleBranchIds !== []) {
+                $pendingGrnCount = (int) GoodsReceipt::query()
+                    ->whereIn('branch_id', $accessibleBranchIds)
+                    ->where('status', GoodsReceiptStatus::Submitted->value)
+                    ->count();
+            }
 
             $branchScope = (string) session('branch_scope');
 
@@ -84,6 +94,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'pendingGrnCount' => $pendingGrnCount,
             'auth' => [
                 'user' => $request->user(),
                 'tenant' => $activeTenant,

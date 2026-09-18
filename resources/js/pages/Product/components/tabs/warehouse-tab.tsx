@@ -104,7 +104,7 @@ export const WarehouseTab: React.FC<Props> = ({
         router.get(
             '/product',
             { tab: 'gudang', sub: newSub },
-            { preserveState: true },
+            { preserveState: true, preserveScroll: true },
         );
     };
 
@@ -112,7 +112,7 @@ export const WarehouseTab: React.FC<Props> = ({
         router.get(
             '/product',
             { tab: 'gudang', sub: subTab, ...filters, [key]: value },
-            { preserveState: true },
+            { preserveState: true, preserveScroll: true },
         );
     };
 
@@ -135,7 +135,7 @@ export const WarehouseTab: React.FC<Props> = ({
             );
             const data = await res.json();
             setLayersData(data.layers ?? []);
-        } catch (e) {
+        } catch {
             setLayersData([]);
         } finally {
             setLayersLoading(false);

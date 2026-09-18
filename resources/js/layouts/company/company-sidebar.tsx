@@ -75,6 +75,12 @@ function getCompanyNavItems(): NavItem[] {
             path: '/sales/invoices',
         },
         {
+            icon: <BoxIcon />,
+            name: 'GRN',
+            path: '/purchasing/grns',
+            nonHqOnly: true,
+        },
+        {
             icon: <ListIcon />,
             name: 'Transfer Stok',
             path: '/warehouse/stock-transfers',
