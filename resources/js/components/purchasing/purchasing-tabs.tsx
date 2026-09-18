@@ -7,14 +7,17 @@ export type TabKey =
 
 type PurchasingTabsProps = {
     activeTab: TabKey;
+    pendingGrnCount?: number;
 };
 
-const ALL_TABS: {
+type TabDef = {
     key: TabKey;
     label: string;
     href: string;
     hqOnly?: boolean;
-}[] = [
+};
+
+const TABS: TabDef[] = [
     {
         key: 'invoices',
         label: 'Faktur',
@@ -29,7 +32,7 @@ const ALL_TABS: {
     },
     {
         key: 'grns',
-        label: 'Penerimaan',
+        label: 'GRN',
         href: '/purchasing/grns',
         hqOnly: true,
     },
@@ -53,13 +56,18 @@ const ALL_TABS: {
     },
 ];
 
-export default function PurchasingTabs({ activeTab }: PurchasingTabsProps) {
+export default function PurchasingTabs({
+    activeTab,
+    pendingGrnCount,
+}: PurchasingTabsProps) {
     const { props } = usePage();
     const fontsReady = useFontsReady();
     const auth = (props.auth ?? {}) as { is_hq?: boolean };
+    const shared = props.pendingGrnCount as number | undefined;
     const isHq = auth.is_hq ?? false;
 
-    const tabs = ALL_TABS.filter((tab) => !tab.hqOnly || isHq);
+    const tabs = TABS.filter((tab) => !tab.hqOnly || isHq);
+    const pendingCount = Math.max(0, pendingGrnCount ?? shared ?? 0);
 
     if (tabs.length === 0) {
         return null;
@@ -79,26 +87,21 @@ export default function PurchasingTabs({ activeTab }: PurchasingTabsProps) {
                             href={tab.href}
                             render={(domProps: any) => <Link {...domProps} />}
                         >
-                            {tab.label}
+                            <span className="flex items-center gap-1.5">
+                                {tab.label}
+                                {tab.key === 'grns' && isHq && (
+                                    <Chip
+                                        size="sm"
+                                        variant="soft"
+                                        className="h-5 px-1.5 text-xs font-semibold"
+                                    >
+                                        {pendingCount}
+                                    </Chip>
+                                )}
+                            </span>
                             {showIndicator(tab.key) && <Tabs.Indicator />}
                         </Tabs.Tab>
                     ))}
-                    {isHq && (
-                        <Tabs.Tab
-                            id="approval"
-                            isDisabled
-                            className="flex items-center gap-1.5 opacity-60"
-                        >
-                            Membutuhkan persetujuan
-                            <Chip
-                                size="sm"
-                                variant="soft"
-                                className="h-5 px-1.5 text-xs font-semibold"
-                            >
-                                0
-                            </Chip>
-                        </Tabs.Tab>
-                    )}
                 </Tabs.List>
             </Tabs.ListContainer>
         </Tabs>

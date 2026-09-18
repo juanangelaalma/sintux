@@ -19,6 +19,7 @@ import type { TabKey } from './purchasing-tabs';
 type PurchasingListPageProps<T> = {
     headTitle: string;
     activeTab: TabKey;
+    pendingGrnCount?: number;
     columns: DataTableColumn<T>[];
     rows: T[];
     getRowKey: (row: T) => string | number;
@@ -32,6 +33,7 @@ type PurchasingListPageProps<T> = {
 export default function PurchasingListPage<T>({
     headTitle,
     activeTab,
+    pendingGrnCount = 0,
     columns,
     rows,
     getRowKey,
@@ -77,7 +79,10 @@ export default function PurchasingListPage<T>({
                 {summary && <PurchasingSummaryCards {...summary} />}
 
                 {/* Sub-module Navigation Tabs */}
-                <PurchasingTabs activeTab={activeTab} />
+                <PurchasingTabs
+                    activeTab={activeTab}
+                    pendingGrnCount={pendingGrnCount}
+                />
 
                 {/* Status Filter & Export Bar */}
                 <PurchasingFilterBar

@@ -13,8 +13,40 @@ use Modules\Purchasing\Http\Middleware\EnsureHeadquarters;
 
 Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(function () {
     Route::prefix('purchasing')->name('purchasing.')->group(function () {
+        // GRN tunggal: fetch DO supplier + scan + submit cabang,
+        // approval + posting + transfer oleh HO.
+        Route::get('grns', [GoodsReceiptController::class, 'index'])
+            ->name('grns.index');
+
+        Route::get('grns/create', [GoodsReceiptController::class, 'create'])
+            ->name('grns.create');
+
+        Route::post('grns/fetch', [GoodsReceiptController::class, 'fetch'])
+            ->name('grns.fetch');
+
+        Route::post('grns', [GoodsReceiptController::class, 'store'])
+            ->name('grns.store');
+
+        Route::get('grns/{grn}', [GoodsReceiptController::class, 'show'])
+            ->name('grns.show');
+
+        Route::post('grns/{grn}/verify', [GoodsReceiptController::class, 'verify'])
+            ->name('grns.verify');
+
+        Route::post('grn-items/{item}/qty', [GoodsReceiptController::class, 'updateItemQty'])
+            ->name('grn-items.qty');
+
+        Route::post('grn-items/{item}/confirm', [GoodsReceiptController::class, 'confirmQty'])
+            ->name('grn-items.confirm');
+
+        Route::post('grns/{grn}/submit', [GoodsReceiptController::class, 'submit'])
+            ->name('grns.submit');
+
+        Route::post('grns/{grn}/revise', [GoodsReceiptController::class, 'revise'])
+            ->name('grns.revise');
+
         // HQ-Only: seluruh modul purchasing hanya untuk Head Office.
-        // Branch non-HQ memakai modul Transfer Stok (Warehouse).
+        // Branch non-HQ memakai menu GRN + modul Transfer Stok (Warehouse).
         Route::middleware(EnsureHeadquarters::class)->group(function () {
             // Stock Requests
             Route::resource('requests', PurchaseRequestController::class)
@@ -71,13 +103,18 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
             Route::post('tags', [PurchaseTagController::class, 'store'])
                 ->name('tags.store');
 
-            // Goods Receipts
-            Route::resource('grns', GoodsReceiptController::class)
-                ->only(['index', 'create', 'store', 'show'])
-                ->parameters(['grns' => 'grn']);
+            // Inbox approval GRN cabang.
+            Route::get('grn-inbox', [GoodsReceiptController::class, 'inbox'])
+                ->name('grn-inbox.index');
 
-            Route::post('grns/{grn}/post', [GoodsReceiptController::class, 'post'])
-                ->name('grns.post');
+            Route::get('grn-inbox/{grn}', [GoodsReceiptController::class, 'showInbox'])
+                ->name('grn-inbox.show');
+
+            Route::post('grn-inbox/{grn}/approve', [GoodsReceiptController::class, 'approve'])
+                ->name('grn-inbox.approve');
+
+            Route::post('grn-inbox/{grn}/reject', [GoodsReceiptController::class, 'reject'])
+                ->name('grn-inbox.reject');
         });
     });
 });

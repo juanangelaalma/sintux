@@ -6,13 +6,14 @@ import PurchaseDocumentDetail from '@/components/purchasing/purchase-document-de
 import type { DetailRow } from '@/components/purchasing/purchase-document-detail';
 import PurchaseDocumentHeader from '@/components/purchasing/purchase-document-header';
 import CompanyLayout from '@/layouts/company/company-layout';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate, formatQty } from '@/lib/format';
 
 type Item = {
     id: number;
     product_name: string;
     sku: string;
     uom_name?: string;
+    color_raw?: string | null;
     qty: number;
     unit_price: number;
     line_total: number;
@@ -25,6 +26,8 @@ type PurchaseInvoice = {
     invoice_date: string;
     due_date?: string;
     note?: string;
+    supplier_invoice_no?: string | null;
+    tax_invoice_no?: string | null;
     subtotal: number;
     tax_amount: number;
     total: number;
@@ -69,8 +72,12 @@ export default function PurchaseInvoicesShow({
               ]
             : []),
         {
-            label: 'Pajak (PPN)',
-            value: formatCurrency(purchaseInvoice.tax_amount),
+            label: 'No. faktur supplier',
+            value: purchaseInvoice.supplier_invoice_no ?? '—',
+        },
+        {
+            label: 'No. faktur pajak',
+            value: purchaseInvoice.tax_invoice_no ?? '—',
         },
     ];
 
@@ -101,6 +108,7 @@ export default function PurchaseInvoicesShow({
                     statusLabel="Status Faktur"
                     rows={rows}
                     note={purchaseInvoice.note}
+                    notePosition="bottom"
                 >
                     <div>
                         <h3 className="mb-3 text-sm font-bold text-foreground">
@@ -112,6 +120,7 @@ export default function PurchaseInvoicesShow({
                                     <tr>
                                         <th className="px-4 py-3">Produk</th>
                                         <th className="px-4 py-3">SKU</th>
+                                        <th className="px-4 py-3">Warna</th>
                                         <th className="px-4 py-3 text-right">
                                             Qty
                                         </th>
@@ -135,8 +144,11 @@ export default function PurchaseInvoicesShow({
                                             <td className="px-4 py-3 font-mono text-xs text-muted">
                                                 {item.sku}
                                             </td>
+                                            <td className="px-4 py-3 font-medium">
+                                                {item.color_raw ?? '-'}
+                                            </td>
                                             <td className="px-4 py-3 text-right font-medium">
-                                                {item.qty}
+                                                {formatQty(item.qty)}
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 {formatCurrency(
@@ -161,6 +173,12 @@ export default function PurchaseInvoicesShow({
                                 <span>Subtotal</span>
                                 <span>
                                     {formatCurrency(purchaseInvoice.subtotal)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-muted">
+                                <span>Pajak (PPN)</span>
+                                <span>
+                                    {formatCurrency(purchaseInvoice.tax_amount)}
                                 </span>
                             </div>
                             <div className="flex justify-between border-t border-border pt-2 text-lg font-bold text-foreground">

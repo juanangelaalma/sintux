@@ -11,6 +11,7 @@ type PurchaseDocumentDetailProps = {
     statusLabel: string;
     rows: DetailRow[];
     note?: string | null;
+    notePosition?: 'top' | 'bottom';
     children?: ReactNode;
 };
 
@@ -19,8 +20,18 @@ export default function PurchaseDocumentDetail({
     statusLabel,
     rows,
     note,
+    notePosition = 'top',
     children,
 }: PurchaseDocumentDetailProps) {
+    const noteBlock = note && (
+        <div className="rounded-lg border border-border bg-surface-secondary p-4 text-sm">
+            <p className="text-xs font-semibold tracking-wider text-muted uppercase">
+                Catatan
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-foreground">{note}</p>
+        </div>
+    );
+
     return (
         <div className="space-y-6 rounded-xl border border-border bg-surface p-6 shadow-xs sm:p-8">
             <div className="grid grid-cols-1 gap-4 border-b border-border/60 pb-6 sm:grid-cols-2">
@@ -47,18 +58,11 @@ export default function PurchaseDocumentDetail({
                 </dl>
             </div>
 
-            {note && (
-                <div className="rounded-lg border border-border bg-surface-secondary p-4 text-sm">
-                    <p className="text-xs font-semibold tracking-wider text-muted uppercase">
-                        Catatan
-                    </p>
-                    <p className="mt-1 whitespace-pre-wrap text-foreground">
-                        {note}
-                    </p>
-                </div>
-            )}
+            {notePosition === 'top' && noteBlock}
 
             {children}
+
+            {notePosition === 'bottom' && noteBlock}
         </div>
     );
 }

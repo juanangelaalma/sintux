@@ -55,6 +55,8 @@ export type PrefillGrnItem = {
     product_variant_id: number;
     product_name: string;
     sku: string;
+    color_raw?: string | null;
+    color?: string | null;
     qty_receivable: number;
     unit_price: number;
     tax_id: number | null;
@@ -66,6 +68,7 @@ export type PrefillGrn = {
     branch_id: number;
     supplier_id: number;
     purchase_order_id: number;
+    supplier_invoice_no?: string | null;
     is_tax_inclusive: boolean;
     due_date?: string | null;
     items: PrefillGrnItem[];
@@ -100,7 +103,7 @@ export default function PurchaseInvoicesCreate({
             product_variant_id: item.product_variant_id,
             purchase_order_item_id: item.purchase_order_item_id ?? undefined,
             goods_receipt_item_id: item.goods_receipt_item_id,
-            description: `${item.product_name} (${item.sku})`,
+            description: `${item.product_name} (${item.sku}${item.color_raw ? ` — ${item.color_raw}` : ''})`,
             qty: item.qty_receivable,
             unit_price: item.unit_price,
             tax_id: item.tax_id,
@@ -112,6 +115,8 @@ export default function PurchaseInvoicesCreate({
         supplier_id: number | string;
         purchase_order_id?: number | string;
         goods_receipt_id?: number | string;
+        supplier_invoice_no: string;
+        tax_invoice_no: string;
         is_tax_inclusive: boolean;
         invoice_date: string;
         due_date: string;
@@ -122,6 +127,8 @@ export default function PurchaseInvoicesCreate({
         supplier_id: prefillGrn?.supplier_id ?? suppliers[0]?.id ?? '',
         purchase_order_id: prefillGrn?.purchase_order_id ?? '',
         goods_receipt_id: prefillGrn?.id ?? '',
+        supplier_invoice_no: prefillGrn?.supplier_invoice_no ?? '',
+        tax_invoice_no: '',
         is_tax_inclusive: prefillGrn?.is_tax_inclusive ?? false,
         invoice_date: new Date().toISOString().split('T')[0],
         due_date: prefillGrn?.due_date ? prefillGrn.due_date.slice(0, 10) : '',
@@ -140,6 +147,7 @@ export default function PurchaseInvoicesCreate({
     });
 
     const lockPrices = !!prefillGrn;
+    const lockRows = !!prefillGrn;
     const grnFullyBilled = !!prefillGrn && prefillItems.length === 0;
 
     const selectedPo =
@@ -215,6 +223,10 @@ export default function PurchaseInvoicesCreate({
     };
 
     const addItem = () => {
+        if (lockRows) {
+            return;
+        }
+
         setData('items', [
             ...data.items,
             {
@@ -227,7 +239,7 @@ export default function PurchaseInvoicesCreate({
     };
 
     const removeItem = (index: number) => {
-        if (data.items.length === 1) {
+        if (lockRows || data.items.length === 1) {
             return;
         }
 
@@ -241,6 +253,10 @@ export default function PurchaseInvoicesCreate({
         field: keyof LineItemRow,
         value: string | number | null,
     ) => {
+        if (lockRows) {
+            return;
+        }
+
         const next = [...data.items];
         next[index] = { ...next[index], [field]: value };
         setData('items', next);
@@ -284,71 +300,79 @@ export default function PurchaseInvoicesCreate({
                     onSubmit={handleSubmit}
                     className="space-y-6 rounded-xl border border-border bg-surface p-6 shadow-xs"
                 >
-                    {/* Referensi PO (Pilih atau copas nomor PO) */}
-                    <div className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface-secondary p-4 md:grid-cols-2">
-                        <div>
-                            <Label className="block text-xs font-semibold text-foreground">
-                                Ambil Data dari Purchase Order (PO)
-                            </Label>
-                            <Select
-                                fullWidth
-                                placeholder="Pilih PO terdaftar..."
-                                value={
-                                    data.purchase_order_id
-                                        ? String(data.purchase_order_id)
-                                        : ''
-                                }
-                                onChange={(val) => handleSelectPO(String(val))}
-                            >
-                                <Select.Trigger className="mt-1">
-                                    <Select.Value />
-                                    <Select.Indicator />
-                                </Select.Trigger>
-                                <Select.Popover>
-                                    <ListBox>
-                                        {purchaseOrders.map((po) => (
-                                            <ListBox.Item
-                                                key={po.id}
-                                                id={String(po.id)}
-                                                textValue={`PO #${po.number}`}
-                                            >
-                                                PO #{po.number} (Total:{' '}
-                                                {formatCurrency(po.total)})
-                                            </ListBox.Item>
-                                        ))}
-                                    </ListBox>
-                                </Select.Popover>
-                            </Select>
-                        </div>
-
-                        <div>
-                            <TextField name="po_number_copy">
+                    {/* Referensi PO (Pilih atau copas nomor PO).
+                        Disembunyikan saat faktur dari GRN: 1 faktur = 1 GRN,
+                        baris terkunci penuh (qty = diterima, harga = DO). */}
+                    {!prefillGrn && (
+                        <div className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface-secondary p-4 md:grid-cols-2">
+                            <div>
                                 <Label className="block text-xs font-semibold text-foreground">
-                                    atau Ketik / Copas Nomor PO (e.g.
-                                    PO-AIIJKT-0001)
+                                    Ambil Data dari Purchase Order (PO)
                                 </Label>
-                                <div className="mt-1 flex items-center gap-2">
-                                    <Input
-                                        placeholder="Copas nomor PO di sini..."
-                                        value={poSearch}
-                                        onChange={(e) =>
-                                            handleSearchPONumber(e.target.value)
-                                        }
-                                    />
-                                    <Button
-                                        isIconOnly
-                                        variant="secondary"
-                                        aria-label="Cari PO"
-                                        onPress={() =>
-                                            handleSearchPONumber(poSearch)
-                                        }
-                                    >
-                                        <Search className="size-4 text-muted" />
-                                    </Button>
-                                </div>
-                            </TextField>
+                                <Select
+                                    fullWidth
+                                    placeholder="Pilih PO terdaftar..."
+                                    value={
+                                        data.purchase_order_id
+                                            ? String(data.purchase_order_id)
+                                            : ''
+                                    }
+                                    onChange={(val) =>
+                                        handleSelectPO(String(val))
+                                    }
+                                >
+                                    <Select.Trigger className="mt-1">
+                                        <Select.Value />
+                                        <Select.Indicator />
+                                    </Select.Trigger>
+                                    <Select.Popover>
+                                        <ListBox>
+                                            {purchaseOrders.map((po) => (
+                                                <ListBox.Item
+                                                    key={po.id}
+                                                    id={String(po.id)}
+                                                    textValue={`PO #${po.number}`}
+                                                >
+                                                    PO #{po.number} (Total:{' '}
+                                                    {formatCurrency(po.total)})
+                                                </ListBox.Item>
+                                            ))}
+                                        </ListBox>
+                                    </Select.Popover>
+                                </Select>
+                            </div>
+
+                            <div>
+                                <TextField name="po_number_copy">
+                                    <Label className="block text-xs font-semibold text-foreground">
+                                        atau Ketik / Copas Nomor PO (e.g.
+                                        PO-AIIJKT-0001)
+                                    </Label>
+                                    <div className="mt-1 flex items-center gap-2">
+                                        <Input
+                                            placeholder="Copas nomor PO di sini..."
+                                            value={poSearch}
+                                            onChange={(e) =>
+                                                handleSearchPONumber(
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+                                        <Button
+                                            isIconOnly
+                                            variant="secondary"
+                                            aria-label="Cari PO"
+                                            onPress={() =>
+                                                handleSearchPONumber(poSearch)
+                                            }
+                                        >
+                                            <Search className="size-4 text-muted" />
+                                        </Button>
+                                    </div>
+                                </TextField>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {selectedPoRemainder !== null &&
                         selectedPoRemainder <= 0 && (
@@ -367,8 +391,9 @@ export default function PurchaseInvoicesCreate({
 
                     {prefillGrn && (
                         <div className="rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm text-foreground">
-                            Faktur atas GRN #{prefillGrn.number}. Harga dikunci
-                            mengikuti PO dan qty terisi sisa belum tertagih.
+                            Faktur HO atas GRN #{prefillGrn.number}. Qty =
+                            jumlah diterima, harga = DO supplier, pajak
+                            mengikuti PO — seluruh baris terkunci.
                         </div>
                     )}
 
@@ -391,6 +416,51 @@ export default function PurchaseInvoicesCreate({
                     />
 
                     <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+                        <div>
+                            <label className="block text-xs font-semibold text-foreground">
+                                No. faktur supplier
+                                {prefillGrn?.supplier_invoice_no
+                                    ? ' (dari DO, terkunci)'
+                                    : ''}
+                            </label>
+                            <input
+                                type="text"
+                                value={data.supplier_invoice_no}
+                                disabled={!!prefillGrn?.supplier_invoice_no}
+                                onChange={(e) =>
+                                    setData(
+                                        'supplier_invoice_no',
+                                        e.target.value,
+                                    )
+                                }
+                                placeholder="No. invoice dari supplier..."
+                                className="mt-1 block w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-accent focus:ring-accent disabled:cursor-not-allowed disabled:bg-surface-secondary/50 disabled:text-muted"
+                            />
+                            {errors.supplier_invoice_no && (
+                                <p className="mt-1 text-xs text-danger">
+                                    {errors.supplier_invoice_no}
+                                </p>
+                            )}
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-foreground">
+                                No. faktur pajak (e-Faktur)
+                            </label>
+                            <input
+                                type="text"
+                                value={data.tax_invoice_no}
+                                onChange={(e) =>
+                                    setData('tax_invoice_no', e.target.value)
+                                }
+                                placeholder="Diisi saat faktur pajak diterima..."
+                                className="mt-1 block w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-accent focus:ring-accent"
+                            />
+                            {errors.tax_invoice_no && (
+                                <p className="mt-1 text-xs text-danger">
+                                    {errors.tax_invoice_no}
+                                </p>
+                            )}
+                        </div>
                         <div>
                             <label className="block text-xs font-semibold text-foreground">
                                 Tanggal faktur *
@@ -428,6 +498,7 @@ export default function PurchaseInvoicesCreate({
                             setData('is_tax_inclusive', inclusive)
                         }
                         lockPrices={lockPrices}
+                        lockRows={lockRows}
                         onAddItem={addItem}
                         onRemoveItem={removeItem}
                         onUpdateItem={updateItem}

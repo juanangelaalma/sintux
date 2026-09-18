@@ -9,6 +9,7 @@ use Modules\Approval\Application\CreateApprovalRule;
 use Modules\Approval\Models\ApprovalMapping;
 use Modules\Approval\Models\ApprovalTransactionType;
 use Modules\Company\Models\CompanyUser;
+use Modules\Purchasing\Application\GoodsReceipt\ApproveGoodsReceipt;
 use Modules\Purchasing\Enums\GoodsReceiptStatus;
 use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Modules\Purchasing\Enums\PurchaseOrderStatus;
@@ -54,11 +55,11 @@ class PurchaseInvoiceTest extends TestCase
         tenancy()->initialize($tenantId);
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
-        $branchCode = DB::table('branches')->where('id', $branchBId)->value('code');
+        $branchCode = DB::table('branches')->where('id', $hqBranchId)->value('code');
         tenancy()->end();
 
         $response = $this->actingAs($user)->post(route('purchasing.invoices.store'), [
-            'branch_id' => $branchBId,
+            'branch_id' => $hqBranchId,
             'supplier_id' => $supplierId,
             'invoice_date' => '2026-08-18',
             'due_date' => '2026-09-18',
@@ -71,7 +72,7 @@ class PurchaseInvoiceTest extends TestCase
         $response->assertRedirect(route('purchasing.invoices.index'));
 
         tenancy()->initialize($tenantId);
-        $inv = DB::table('purchase_invoices')->where('branch_id', $branchBId)->first();
+        $inv = DB::table('purchase_invoices')->where('branch_id', $hqBranchId)->first();
         $this->assertNotNull($inv);
         $this->assertSame(PurchaseInvoiceStatus::Approved->value, $inv->status);
         $this->assertSame('FBL/'.$branchCode.'/20260818/001/A', (string) $inv->number);
@@ -100,7 +101,7 @@ class PurchaseInvoiceTest extends TestCase
         tenancy()->end();
 
         $response = $this->actingAs($user)->post(route('purchasing.invoices.store'), [
-            'branch_id' => $branchBId,
+            'branch_id' => $hqBranchId,
             'supplier_id' => $supplierId,
             'invoice_date' => '2026-08-18',
             'items' => [
@@ -111,7 +112,7 @@ class PurchaseInvoiceTest extends TestCase
         $response->assertRedirect(route('purchasing.invoices.index'));
 
         tenancy()->initialize($tenantId);
-        $inv = DB::table('purchase_invoices')->where('branch_id', $branchBId)->first();
+        $inv = DB::table('purchase_invoices')->where('branch_id', $hqBranchId)->first();
         $this->assertNotNull($inv);
         $this->assertSame(PurchaseInvoiceStatus::Pending->value, $inv->status);
         tenancy()->end();
@@ -127,10 +128,11 @@ class PurchaseInvoiceTest extends TestCase
         $supplierId = $this->createSupplier($branchBId);
 
         $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
         $po = PurchaseOrder::create([
             'number' => 'PO-BRB-0010',
-            'branch_id' => $branchBId,
-            'warehouse_id' => $destWarehouseId,
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
             'supplier_id' => $supplierId,
             'status' => PurchaseOrderStatus::Sent,
             'order_date' => now()->toDateString(),
@@ -150,7 +152,7 @@ class PurchaseInvoiceTest extends TestCase
         tenancy()->end();
 
         $response = $this->actingAs($user)->post(route('purchasing.invoices.store'), [
-            'branch_id' => $branchBId,
+            'branch_id' => $hqBranchId,
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
             'invoice_date' => now()->toDateString(),
@@ -181,10 +183,11 @@ class PurchaseInvoiceTest extends TestCase
         $supplierId = $this->createSupplier($branchBId);
 
         $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
         $po = PurchaseOrder::create([
             'number' => 'PO-DUE-001',
-            'branch_id' => $branchBId,
-            'warehouse_id' => $destWarehouseId,
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
             'supplier_id' => $supplierId,
             'status' => PurchaseOrderStatus::Received,
             'order_date' => '2026-09-01',
@@ -206,7 +209,7 @@ class PurchaseInvoiceTest extends TestCase
 
         // Payload persis prefill FE: due_date ikut PO (lampau).
         $this->actingAs($user)->post(route('purchasing.invoices.store'), [
-            'branch_id' => $branchBId,
+            'branch_id' => $hqBranchId,
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
             'invoice_date' => '2026-09-14',
@@ -226,8 +229,9 @@ class PurchaseInvoiceTest extends TestCase
     }
 
     /**
-     * Faktur kedua atas PO item yang sama lolos bila dalam sisa,
-     * dan PO otomatis closed saat tertagih penuh.
+     * Strict 1:1 — satu GRN tepat satu faktur HO penuh (qty = received,
+     * harga = DO), PO otomatis closed saat tertagih penuh. Faktur kedua
+     * untuk GRN yang sama dan qty/harga menyimpang ditolak.
      */
     public function test_cumulative_invoicing_capped_and_closes_po_when_full(): void
     {
@@ -238,13 +242,14 @@ class PurchaseInvoiceTest extends TestCase
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
 
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
         $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
         $po = PurchaseOrder::create([
             'number' => 'PO-CUM-001',
-            'branch_id' => $branchBId,
-            'warehouse_id' => $destWarehouseId,
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
             'supplier_id' => $supplierId,
-            'status' => PurchaseOrderStatus::Received,
+            'status' => PurchaseOrderStatus::Sent,
             'order_date' => now()->toDateString(),
             'currency_code' => 'IDR',
             'branch_mode' => 'single',
@@ -256,47 +261,82 @@ class PurchaseInvoiceTest extends TestCase
             'product_name' => 'Widget PRD',
             'sku' => 'SKU-PRD',
             'qty_ordered' => 20,
-            'qty_received' => 20,
+            'qty_received' => 0,
             'unit_price' => 50000,
         ]);
-        tenancy()->end();
 
-        $payload = fn (float $qty) => [
+        // GRN cabang (fisik) dengan harga DO 52000 (beda dari PO 50000).
+        $grn = GoodsReceipt::create([
+            'number' => 'GRN-CUM-001',
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
+            'warehouse_id' => $hqWarehouseId,
+            'supplier_do_no' => 'DO-CUM-001',
+            'status' => GoodsReceiptStatus::Submitted,
+            'receipt_date' => now()->toDateString(),
+        ]);
+        $grnItem = $grn->items()->create([
+            'purchase_order_item_id' => $poItem->id,
+            'product_variant_id' => $variantId,
+            'product_name' => 'Widget PRD',
+            'sku' => 'SKU-PRD',
+            'qty_received' => 20,
+            'unit_price_supplier' => 52000,
+        ]);
+
+        app(ApproveGoodsReceipt::class)->execute($grn->id, $user->id);
+        tenancy()->end();
+
+        // Stok memakai harga DO, bukan PO.
+        tenancy()->initialize($tenantId);
+        $this->assertEquals(52000, (float) DB::table('stock_layers')->orderByDesc('id')->value('unit_cost'));
+        tenancy()->end();
+
+        $payload = fn (float $qty, float $price) => [
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $po->id,
+            'goods_receipt_id' => $grn->id,
             'invoice_date' => now()->toDateString(),
             'items' => [[
                 'purchase_order_item_id' => $poItem->id,
+                'goods_receipt_item_id' => $grnItem->id,
                 'product_variant_id' => $variantId,
                 'qty' => $qty,
-                'unit_price' => 50000,
+                'unit_price' => $price,
             ]],
         ];
 
-        // Faktur 1: 12 dari 20 → approved, counter 12, PO belum closed.
-        $this->actingAs($user)->post(route('purchasing.invoices.store'), $payload(12))
-            ->assertRedirect(route('purchasing.invoices.index'));
-
-        tenancy()->initialize($tenantId);
-        $this->assertEquals(12, (float) DB::table('purchase_order_items')->where('id', $poItem->id)->value('qty_invoiced'));
-        $this->assertSame(PurchaseOrderStatus::Received->value, DB::table('purchase_orders')->where('id', $po->id)->value('status'));
-        tenancy()->end();
-
-        // Faktur 2: 8 sisa → approved, counter 20, PO closed.
-        $this->actingAs($user)->post(route('purchasing.invoices.store'), $payload(8))
-            ->assertRedirect(route('purchasing.invoices.index'));
-
-        tenancy()->initialize($tenantId);
-        $this->assertEquals(20, (float) DB::table('purchase_order_items')->where('id', $poItem->id)->value('qty_invoiced'));
-        $this->assertSame(PurchaseOrderStatus::Closed->value, DB::table('purchase_orders')->where('id', $po->id)->value('status'));
-        tenancy()->end();
-
-        // Faktur 3: 1 melebihi sisa → ditolak.
+        // Qty kurang dari received ditolak (harus penuh 1:1).
         $this->actingAs($user)
             ->from(route('purchasing.invoices.create'))
-            ->post(route('purchasing.invoices.store'), $payload(1))
+            ->post(route('purchasing.invoices.store'), $payload(19, 52000))
             ->assertSessionHasErrors(['items.0.qty']);
+
+        // Harga PO ditolak (harus harga DO).
+        $this->actingAs($user)
+            ->from(route('purchasing.invoices.create'))
+            ->post(route('purchasing.invoices.store'), $payload(20, 50000))
+            ->assertSessionHasErrors(['items.0.unit_price']);
+
+        // Faktur penuh 20 @ DO → approved, counter 20, PO closed.
+        $this->actingAs($user)->post(route('purchasing.invoices.store'), $payload(20, 52000))
+            ->assertRedirect(route('purchasing.invoices.index'));
+
+        tenancy()->initialize($tenantId);
+        $this->assertEquals(20, (float) DB::table('goods_receipt_items')->where('id', $grnItem->id)->value('qty_invoiced'));
+        $this->assertEquals(20, (float) DB::table('purchase_order_items')->where('id', $poItem->id)->value('qty_invoiced'));
+        $this->assertSame(PurchaseOrderStatus::Closed->value, DB::table('purchase_orders')->where('id', $po->id)->value('status'));
+        // Total memakai harga DO: 20 * 52000.
+        $this->assertEquals(1040000, (float) DB::table('purchase_invoices')->orderByDesc('id')->value('total'));
+        tenancy()->end();
+
+        // Faktur kedua untuk GRN yang sama ditolak.
+        $this->actingAs($user)
+            ->from(route('purchasing.invoices.create'))
+            ->post(route('purchasing.invoices.store'), $payload(20, 52000))
+            ->assertSessionHasErrors(['goods_receipt_id']);
     }
 
     /**
@@ -333,10 +373,11 @@ class PurchaseInvoiceTest extends TestCase
         ], $user->id);
 
         $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
         $po = PurchaseOrder::create([
             'number' => 'PO-APPR-001',
-            'branch_id' => $branchBId,
-            'warehouse_id' => $destWarehouseId,
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
             'supplier_id' => $supplierId,
             'status' => PurchaseOrderStatus::Received,
             'order_date' => now()->toDateString(),
@@ -356,7 +397,7 @@ class PurchaseInvoiceTest extends TestCase
         tenancy()->end();
 
         $this->actingAs($user)->post(route('purchasing.invoices.store'), [
-            'branch_id' => $branchBId,
+            'branch_id' => $hqBranchId,
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
             'invoice_date' => now()->toDateString(),
@@ -389,8 +430,8 @@ class PurchaseInvoiceTest extends TestCase
     }
 
     /**
-     * Faktur dari GRN: happy path per sisa GRN, tolak harga beda PO,
-     * tolak GRN draft.
+     * Faktur HO dari GRN cabang posted: qty = received, harga = DO.
+     * Tolak GRN draft, harga PO, qty menyimpang, dan faktur kedua.
      */
     public function test_invoice_from_posted_grn_and_rejections(): void
     {
@@ -400,12 +441,13 @@ class PurchaseInvoiceTest extends TestCase
 
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
-        $warehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
+        $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
 
         $po = PurchaseOrder::create([
             'number' => 'PO-GRN-001',
-            'branch_id' => $branchBId,
-            'warehouse_id' => $warehouseId,
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
             'supplier_id' => $supplierId,
             'status' => PurchaseOrderStatus::Sent,
             'order_date' => now()->toDateString(),
@@ -414,7 +456,7 @@ class PurchaseInvoiceTest extends TestCase
         ]);
         $poItem = $po->items()->create([
             'destination_branch_id' => $branchBId,
-            'destination_warehouse_id' => $warehouseId,
+            'destination_warehouse_id' => $destWarehouseId,
             'product_variant_id' => $variantId,
             'product_name' => 'Widget PRD',
             'sku' => 'SKU-PRD',
@@ -428,8 +470,9 @@ class PurchaseInvoiceTest extends TestCase
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
-            'warehouse_id' => $warehouseId,
-            'status' => GoodsReceiptStatus::Draft,
+            'warehouse_id' => $hqWarehouseId,
+            'supplier_do_no' => 'DO-INV-001',
+            'status' => GoodsReceiptStatus::Submitted,
             'receipt_date' => now()->toDateString(),
         ]);
         $grnItem = $grn->items()->create([
@@ -438,6 +481,7 @@ class PurchaseInvoiceTest extends TestCase
             'product_name' => 'Widget PRD',
             'sku' => 'SKU-PRD',
             'qty_received' => 12,
+            'unit_price_supplier' => 52000,
         ]);
 
         $draftGrn = GoodsReceipt::create([
@@ -445,7 +489,8 @@ class PurchaseInvoiceTest extends TestCase
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
-            'warehouse_id' => $warehouseId,
+            'warehouse_id' => $hqWarehouseId,
+            'supplier_do_no' => 'DO-INV-002',
             'status' => GoodsReceiptStatus::Draft,
             'receipt_date' => now()->toDateString(),
         ]);
@@ -455,14 +500,15 @@ class PurchaseInvoiceTest extends TestCase
             'product_name' => 'Widget PRD',
             'sku' => 'SKU-PRD',
             'qty_received' => 5,
+            'unit_price_supplier' => 52000,
         ]);
         tenancy()->end();
 
-        // GRN draft tidak bisa difaktur.
+        // GRN draft tidak bisa difaktur (hutang HO atas GRN cabang posted).
         $this->actingAs($user)
             ->from(route('purchasing.invoices.create'))
             ->post(route('purchasing.invoices.store'), [
-                'branch_id' => $branchBId,
+                'branch_id' => $hqBranchId,
                 'supplier_id' => $supplierId,
                 'purchase_order_id' => $po->id,
                 'goods_receipt_id' => $draftGrn->id,
@@ -472,17 +518,18 @@ class PurchaseInvoiceTest extends TestCase
                     'goods_receipt_item_id' => $draftGrnItem->id,
                     'product_variant_id' => $variantId,
                     'qty' => 5,
-                    'unit_price' => 50000,
+                    'unit_price' => 52000,
                 ]],
             ])
             ->assertSessionHasErrors(['goods_receipt_id']);
 
-        // Posting GRN pertama (12 diterima).
-        $this->actingAs($user)->post(route('purchasing.grns.post', $grn->id))
-            ->assertRedirect(route('purchasing.grns.show', $grn->id));
+        // Approve GRN pertama (12 diterima → posting + transfer).
+        tenancy()->initialize($tenantId);
+        app(ApproveGoodsReceipt::class)->execute($grn->id, $user->id);
+        tenancy()->end();
 
         $grnPayload = fn (float $qty, float $price) => [
-            'branch_id' => $branchBId,
+            'branch_id' => $hqBranchId,
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
             'goods_receipt_id' => $grn->id,
@@ -496,14 +543,20 @@ class PurchaseInvoiceTest extends TestCase
             ]],
         ];
 
-        // Harga beda dari PO ditolak.
+        // Harga PO ditolak (harus harga DO 52000).
         $this->actingAs($user)
             ->from(route('purchasing.invoices.create'))
-            ->post(route('purchasing.invoices.store'), $grnPayload(12, 55000))
+            ->post(route('purchasing.invoices.store'), $grnPayload(12, 50000))
             ->assertSessionHasErrors(['items.0.unit_price']);
 
-        // Tagih 12 sesuai GRN → approved + counter naik.
-        $this->actingAs($user)->post(route('purchasing.invoices.store'), $grnPayload(12, 50000))
+        // Qty kurang dari received ditolak.
+        $this->actingAs($user)
+            ->from(route('purchasing.invoices.create'))
+            ->post(route('purchasing.invoices.store'), $grnPayload(11, 52000))
+            ->assertSessionHasErrors(['items.0.qty']);
+
+        // Tagih 12 @ DO → approved + counter naik + total ikut DO.
+        $this->actingAs($user)->post(route('purchasing.invoices.store'), $grnPayload(12, 52000))
             ->assertRedirect(route('purchasing.invoices.index'));
 
         tenancy()->initialize($tenantId);
@@ -512,7 +565,16 @@ class PurchaseInvoiceTest extends TestCase
 
         $inv = DB::table('purchase_invoices')->orderByDesc('id')->first();
         $this->assertSame($grn->id, (int) $inv->goods_receipt_id);
+        $this->assertSame($hqBranchId, (int) $inv->branch_id);
+        $this->assertEquals(624000, (float) $inv->total);
         $this->assertStringStartsWith('FBL/', (string) $inv->number);
+        tenancy()->end();
+
+        // Faktur kedua untuk GRN yang sama ditolak.
+        $this->actingAs($user)
+            ->from(route('purchasing.invoices.create'))
+            ->post(route('purchasing.invoices.store'), $grnPayload(12, 52000))
+            ->assertSessionHasErrors(['goods_receipt_id']);
     }
 
     /**
@@ -528,12 +590,13 @@ class PurchaseInvoiceTest extends TestCase
 
         [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
         $supplierId = $this->createSupplier($branchBId);
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
         $warehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
 
         $po = PurchaseOrder::create([
             'number' => 'PO-DUP-001',
-            'branch_id' => $branchBId,
-            'warehouse_id' => $warehouseId,
+            'branch_id' => $hqBranchId,
+            'warehouse_id' => $hqWarehouseId,
             'supplier_id' => $supplierId,
             'status' => PurchaseOrderStatus::Sent,
             'order_date' => now()->toDateString(),
@@ -566,8 +629,9 @@ class PurchaseInvoiceTest extends TestCase
             'branch_id' => $branchBId,
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
-            'warehouse_id' => $warehouseId,
-            'status' => GoodsReceiptStatus::Draft,
+            'warehouse_id' => $hqWarehouseId,
+            'supplier_do_no' => 'DO-DUP-001',
+            'status' => GoodsReceiptStatus::Submitted,
             'receipt_date' => now()->toDateString(),
         ]);
         $grnItemA = $grn->items()->create([
@@ -576,6 +640,7 @@ class PurchaseInvoiceTest extends TestCase
             'product_name' => 'Widget PRD',
             'sku' => 'SKU-PRD',
             'qty_received' => 300,
+            'unit_price_supplier' => 52000,
         ]);
         $grnItemB = $grn->items()->create([
             'purchase_order_item_id' => $poItemB->id,
@@ -583,14 +648,13 @@ class PurchaseInvoiceTest extends TestCase
             'product_name' => 'Widget PRD',
             'sku' => 'SKU-PRD',
             'qty_received' => 200,
+            'unit_price_supplier' => 51000,
         ]);
+        app(ApproveGoodsReceipt::class)->execute($grn->id, $user->id);
         tenancy()->end();
 
-        $this->actingAs($user)->post(route('purchasing.grns.post', $grn->id))
-            ->assertRedirect(route('purchasing.grns.show', $grn->id));
-
         $this->actingAs($user)->post(route('purchasing.invoices.store'), [
-            'branch_id' => $branchBId,
+            'branch_id' => $hqBranchId,
             'supplier_id' => $supplierId,
             'purchase_order_id' => $po->id,
             'goods_receipt_id' => $grn->id,
@@ -601,14 +665,14 @@ class PurchaseInvoiceTest extends TestCase
                     'goods_receipt_item_id' => $grnItemA->id,
                     'product_variant_id' => $variantId,
                     'qty' => 300,
-                    'unit_price' => 50000,
+                    'unit_price' => 52000,
                 ],
                 [
                     'purchase_order_item_id' => $poItemB->id,
                     'goods_receipt_item_id' => $grnItemB->id,
                     'product_variant_id' => $variantId,
                     'qty' => 200,
-                    'unit_price' => 50000,
+                    'unit_price' => 51000,
                 ],
             ],
         ])->assertRedirect(route('purchasing.invoices.index'));
@@ -708,6 +772,165 @@ class PurchaseInvoiceTest extends TestCase
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
 
         $this->actingAs($user)->get(route('purchasing.invoices.index'))->assertOk();
+    }
+
+    /**
+     * Pembebanan hutang selalu di HO: faktur dengan branch cabang ditolak
+     * walau user HO yang membuatkan.
+     */
+    public function test_invoice_for_non_hq_branch_is_rejected(): void
+    {
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        tenancy()->initialize($tenantId);
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
+        $supplierId = $this->createSupplier($branchBId);
+        tenancy()->end();
+
+        $this->actingAs($user)
+            ->from(route('purchasing.invoices.create'))
+            ->post(route('purchasing.invoices.store'), [
+                'branch_id' => $branchBId,
+                'supplier_id' => $supplierId,
+                'invoice_date' => '2026-08-18',
+                'items' => [
+                    ['product_variant_id' => $variantId, 'qty' => 10, 'unit_price' => 50000],
+                ],
+            ])
+            ->assertSessionHasErrors(['branch_id']);
+    }
+
+    /**
+     * Referensi dokumen penagih: no. faktur supplier auto-isi dari DO dan
+     * wajib sama; no. faktur pajak unik per supplier (bukan global).
+     */
+    public function test_supplier_and_tax_invoice_nos(): void
+    {
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        tenancy()->initialize($tenantId);
+
+        [$variantId] = $this->createProductAndVariant($branchBId, 'PRD-001', true);
+        $supplierId = $this->createSupplier($branchBId);
+        $supplier2Id = $this->createSupplier($branchBId);
+
+        $hqWarehouseId = DB::table('warehouses')->where('branch_id', $hqBranchId)->where('warehouse_type', 'regular')->value('id');
+        $destWarehouseId = DB::table('warehouses')->where('branch_id', $branchBId)->where('warehouse_type', 'regular')->value('id');
+
+        $makePoGrn = function (string $poNumber, int $supplier, float $qty, float $doPrice, ?string $doInvNo) use ($hqBranchId, $hqWarehouseId, $branchBId, $destWarehouseId, $variantId): array {
+            $po = PurchaseOrder::create([
+                'number' => $poNumber,
+                'branch_id' => $hqBranchId,
+                'warehouse_id' => $hqWarehouseId,
+                'supplier_id' => $supplier,
+                'status' => PurchaseOrderStatus::Sent,
+                'order_date' => now()->toDateString(),
+                'currency_code' => 'IDR',
+                'branch_mode' => 'single',
+            ]);
+            $poItem = $po->items()->create([
+                'destination_branch_id' => $branchBId,
+                'destination_warehouse_id' => $destWarehouseId,
+                'product_variant_id' => $variantId,
+                'product_name' => 'Widget PRD',
+                'sku' => 'SKU-PRD',
+                'qty_ordered' => $qty,
+                'qty_received' => 0,
+                'unit_price' => 50000,
+            ]);
+            $grn = GoodsReceipt::create([
+                'number' => 'GRN-'.$poNumber,
+                'branch_id' => $branchBId,
+                'supplier_id' => $supplier,
+                'purchase_order_id' => $po->id,
+                'warehouse_id' => $hqWarehouseId,
+                'supplier_do_no' => 'DO-'.$poNumber,
+                'supplier_invoice_no' => $doInvNo,
+                'status' => GoodsReceiptStatus::Approved,
+                'receipt_date' => now()->toDateString(),
+            ]);
+            $grnItem = $grn->items()->create([
+                'purchase_order_item_id' => $poItem->id,
+                'product_variant_id' => $variantId,
+                'product_name' => 'Widget PRD',
+                'sku' => 'SKU-PRD',
+                'qty_received' => $qty,
+                'unit_price_supplier' => $doPrice,
+            ]);
+            DB::table('purchase_order_items')->where('id', $poItem->id)->update(['qty_received' => $qty]);
+
+            return [$po, $poItem, $grn, $grnItem];
+        };
+
+        [$po1, $poItem1, $grn1, $grnItem1] = $makePoGrn('PO-TAX-001', $supplierId, 10, 52000, 'SI-001');
+        [$po2, $poItem2, $grn2, $grnItem2] = $makePoGrn('PO-TAX-002', $supplierId, 5, 52000, 'SI-002');
+        [$po3, $poItem3, $grn3, $grnItem3] = $makePoGrn('PO-TAX-003', $supplier2Id, 5, 52000, null);
+        tenancy()->end();
+
+        $payload = fn (int $poId, int $poItem, int $grnId, int $grnItem, ?string $supNo, ?string $taxNo) => array_filter([
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $poId,
+            'goods_receipt_id' => $grnId,
+            'supplier_invoice_no' => $supNo,
+            'tax_invoice_no' => $taxNo,
+            'invoice_date' => now()->toDateString(),
+            'items' => [[
+                'purchase_order_item_id' => $poItem,
+                'goods_receipt_item_id' => $grnItem,
+                'product_variant_id' => $variantId,
+                'qty' => $grnItem === $grnItem1->id ? 10 : 5,
+                'unit_price' => 52000,
+            ]],
+        ], fn ($v) => $v !== null);
+
+        // No. faktur supplier beda dari DO ditolak.
+        $this->actingAs($user)
+            ->from(route('purchasing.invoices.create'))
+            ->post(route('purchasing.invoices.store'), $payload($po1->id, $poItem1->id, $grn1->id, $grnItem1->id, 'SI-X', null))
+            ->assertSessionHasErrors(['supplier_invoice_no']);
+
+        // Tanpa input no. supplier → auto-isi dari DO + simpan no. pajak.
+        $this->actingAs($user)->post(
+            route('purchasing.invoices.store'),
+            $payload($po1->id, $poItem1->id, $grn1->id, $grnItem1->id, null, 'TAX-001')
+        )->assertRedirect(route('purchasing.invoices.index'));
+
+        tenancy()->initialize($tenantId);
+        $inv1 = DB::table('purchase_invoices')->where('goods_receipt_id', $grn1->id)->first();
+        $this->assertSame('SI-001', (string) $inv1->supplier_invoice_no);
+        $this->assertSame('TAX-001', (string) $inv1->tax_invoice_no);
+        tenancy()->end();
+
+        // No. faktur supplier ganda untuk supplier yang sama ditolak.
+        $this->actingAs($user)
+            ->from(route('purchasing.invoices.create'))
+            ->post(route('purchasing.invoices.store'), $payload($po2->id, $poItem2->id, $grn2->id, $grnItem2->id, 'SI-001', null))
+            ->assertSessionHasErrors(['supplier_invoice_no']);
+
+        // No. faktur pajak ganda untuk supplier yang sama ditolak.
+        $this->actingAs($user)
+            ->from(route('purchasing.invoices.create'))
+            ->post(route('purchasing.invoices.store'), $payload($po2->id, $poItem2->id, $grn2->id, $grnItem2->id, 'SI-002', 'TAX-001'))
+            ->assertSessionHasErrors(['tax_invoice_no']);
+
+        // Pasangan nomor yang benar untuk GRN kedua lolos.
+        $this->actingAs($user)->post(
+            route('purchasing.invoices.store'),
+            $payload($po2->id, $poItem2->id, $grn2->id, $grnItem2->id, 'SI-002', 'TAX-002')
+        )->assertRedirect(route('purchasing.invoices.index'));
+
+        // Nomor yang sama untuk supplier BERBEDA tetap lolos.
+        $payload3 = $payload($po3->id, $poItem3->id, $grn3->id, $grnItem3->id, 'SI-001', 'TAX-001');
+        $payload3['supplier_id'] = $supplier2Id;
+        $this->actingAs($user)->post(route('purchasing.invoices.store'), $payload3)
+            ->assertRedirect(route('purchasing.invoices.index'));
+
+        tenancy()->initialize($tenantId);
+        $inv3 = DB::table('purchase_invoices')->where('goods_receipt_id', $grn3->id)->first();
+        $this->assertSame('SI-001', (string) $inv3->supplier_invoice_no);
+        $this->assertSame('TAX-001', (string) $inv3->tax_invoice_no);
+        tenancy()->end();
     }
 
     /**
