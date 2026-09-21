@@ -98,6 +98,21 @@ class GetWarehouses
     }
 
     /**
+     * Id gudang Regular aktif pertama milik cabang, untuk posting
+     * terpusat (mis. GRN approval). Null bila tidak ada.
+     */
+    public function defaultRegularWarehouseId(int $branchId): ?int
+    {
+        $id = Warehouse::where('branch_id', $branchId)
+            ->where('warehouse_type', 'regular')
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->value('id');
+
+        return $id === null ? null : (int) $id;
+    }
+
+    /**
      * @param  list<int>  $branchIds
      * @return list<int>
      */

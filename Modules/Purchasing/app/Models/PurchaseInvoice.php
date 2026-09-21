@@ -16,6 +16,8 @@ use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
  * @property int $supplier_id
  * @property int|null $purchase_order_id
  * @property int|null $goods_receipt_id
+ * @property string|null $supplier_invoice_no
+ * @property string|null $tax_invoice_no
  * @property PurchaseInvoiceStatus $status
  * @property string $invoice_date
  * @property string|null $due_date
@@ -37,6 +39,8 @@ class PurchaseInvoice extends Model
         'supplier_id',
         'purchase_order_id',
         'goods_receipt_id',
+        'supplier_invoice_no',
+        'tax_invoice_no',
         'status',
         'invoice_date',
         'due_date',

@@ -17,7 +17,9 @@ class UpdateVariant
         $variant->update([
             'sku' => $data['sku'] ?? $variant->sku,
             'variant_name' => $data['variant_name'] ?? $variant->variant_name,
-            'attributes' => $data['attributes'] ?? $variant->attributes,
+            'attributes' => array_key_exists('attributes', $data)
+                ? FindVariantBySkuAndColor::normalizeAttributes($data['attributes'])
+                : $variant->attributes,
             'is_active' => $data['is_active'] ?? $variant->is_active,
         ]);
 

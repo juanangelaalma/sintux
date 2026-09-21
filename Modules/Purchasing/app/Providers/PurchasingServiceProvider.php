@@ -2,6 +2,8 @@
 
 namespace Modules\Purchasing\Providers;
 
+use Modules\Purchasing\Infrastructure\External\HttpSupplierDoClient;
+use Modules\Purchasing\Infrastructure\External\SupplierDoClient;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class PurchasingServiceProvider extends ModuleServiceProvider
@@ -16,4 +18,11 @@ class PurchasingServiceProvider extends ModuleServiceProvider
     ];
 
     protected array $commands = [];
+
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->bind(SupplierDoClient::class, HttpSupplierDoClient::class);
+    }
 }

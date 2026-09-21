@@ -16,10 +16,10 @@ export default function StockTransferIndex({ stockTransfers }: Props) {
     const columns: DataTableColumn<StockTransfer>[] = [
         {
             key: 'id',
-            header: 'ID Transfer',
+            header: 'No. Transfer',
             render: (st) => (
                 <span className="font-mono text-xs font-semibold text-slate-900">
-                    #TRF-{st.id}
+                    {st.number ?? `#TRF-${st.id}`}
                 </span>
             ),
         },

@@ -3,6 +3,7 @@
 namespace Modules\Product\Application\Product;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Product\Application\Variant\FindVariantBySkuAndColor;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductVariant;
 
@@ -75,9 +76,13 @@ class EnsureVariantForBranch
         Product $branchProduct,
         int $branchId,
     ): ProductVariant {
+        $sourceColor = $source->attributes['color'] ?? null;
+        $normalized = FindVariantBySkuAndColor::normalizeColor(is_string($sourceColor) ? $sourceColor : null);
+
         $existing = ProductVariant::query()
             ->where('branch_id', $branchId)
             ->where('sku', $source->sku)
+            ->whereRaw("UPPER(COALESCE(attributes->>'color', '')) = ?", [$normalized])
             ->first();
 
         if ($existing) {
@@ -89,7 +94,7 @@ class EnsureVariantForBranch
             'product_id' => $branchProduct->id,
             'sku' => $source->sku,
             'variant_name' => $source->variant_name,
-            'attributes' => $source->attributes,
+            'attributes' => FindVariantBySkuAndColor::normalizeAttributes($source->attributes),
             'is_active' => $source->is_active,
         ]);
     }

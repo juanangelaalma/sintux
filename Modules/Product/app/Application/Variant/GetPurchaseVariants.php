@@ -11,10 +11,10 @@ class GetPurchaseVariants
      *
      * Public cross-module API: exposes only the fields a purchasing
      * document needs to snapshot at creation (id, product_name, sku,
-     * uom_name) and never leaks the full Product model.
+     * color, uom_name) and never leaks the full Product model.
      *
      * @param  list<int>|null  $branchIds  Branch scope. Null = all.
-     * @return list<array{id: int, product_id: int, branch_id: int, product_name: string, sku: string, uom_name: string|null}>
+     * @return list<array{id: int, product_id: int, branch_id: int, product_name: string, sku: string, color: string|null, uom_name: string|null}>
      */
     public function execute(?array $branchIds = null): array
     {
@@ -35,6 +35,7 @@ class GetPurchaseVariants
                 'branch_id' => (int) $variant->branch_id,
                 'product_name' => $variant->product ? $variant->product->name : '',
                 'sku' => $variant->sku,
+                'color' => $variant->attributes['color'] ?? null,
                 'uom_name' => $variant->product?->uom?->name,
             ])
             ->all());

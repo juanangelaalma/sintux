@@ -66,7 +66,10 @@ export type StockTransferDiscrepancy = {
 
 export type StockTransfer = {
     id: number;
+    number?: string | null;
     stock_request_id?: number | null;
+    source_type?: string | null;
+    source_id?: number | null;
     from_warehouse_id: number;
     to_warehouse_id: number;
     status:
