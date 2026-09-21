@@ -10,7 +10,6 @@ import { productLabels } from './types';
 import type { Product } from './types';
 
 type CategoryOption = { id: number; name: string };
-type BrandOption = { id: number; name: string };
 type UomOption = { id: number; name: string; code: string };
 
 type Paginated<T> = {
@@ -33,7 +32,7 @@ type Props = {
     };
 };
 
-export default function Index({ products, categories, uoms, filters }: Props) {
+export default function Index({ products, categories, filters }: Props) {
     const handleDelete = (product: Product) => {
         if (confirm(`Remove ${product.name}?`)) {
             router.delete(`/product/products/${product.id}`);

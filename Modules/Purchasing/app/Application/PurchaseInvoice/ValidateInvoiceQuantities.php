@@ -7,10 +7,11 @@ use Illuminate\Validation\ValidationException;
 use Modules\Purchasing\Models\PurchaseInvoice;
 
 /**
- * 3-way match kumulatif: total tertagih tidak boleh melewati
- * total diterima, baik per baris GRN maupun per baris PO.
+ * Strict 1:1 per GRN: qty faktur wajib sama persis dengan qty diterima.
+ * Mode manual (tanpa GRN) tetap memakai batas kumulatif lama.
  *
- * Menjaga invariansi: invoiced ≤ received ≤ ordered.
+ * Menjaga invariansi: invoiced == received ≤ ordered (GRN),
+ * invoiced ≤ received (manual).
  */
 class ValidateInvoiceQuantities
 {
@@ -36,8 +37,15 @@ class ValidateInvoiceQuantities
                 if ($grnItem) {
                     $already = (float) ($grnItem->qty_invoiced ?? 0) + ($grnRequested[$grnItemId] ?? 0);
 
-                    if ($already + $qty > (float) $grnItem->qty_received) {
+                    if ($already + $qty > (float) $grnItem->qty_received + 0.0001) {
                         $this->fail($itemKeyPrefix, $index, "Jumlah tagihan ({$qty}) untuk {$name} melebihi sisa belum tertagih di GRN ini.");
+                    }
+
+                    // Strict: tidak boleh kurang dari received (harus penuh 1:1).
+                    // already = 0 saat create pertama (unique cegah kedua),
+                    // sehingga total harus tepat sama dengan received.
+                    if ($already + $qty < (float) $grnItem->qty_received - 0.0001) {
+                        $this->fail($itemKeyPrefix, $index, "Jumlah tagihan ({$qty}) untuk {$name} harus sama dengan yang diterima ({$grnItem->qty_received}).");
                     }
 
                     $grnRequested[$grnItemId] = $already + $qty;

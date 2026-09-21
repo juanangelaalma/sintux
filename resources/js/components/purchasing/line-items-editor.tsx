@@ -42,6 +42,7 @@ type LineItemsEditorProps = {
     isTaxInclusive?: boolean;
     onTaxInclusiveChange?: (inclusive: boolean) => void;
     lockPrices?: boolean;
+    lockRows?: boolean;
     onAddItem: () => void;
     onRemoveItem: (index: number) => void;
     onUpdateItem: (
@@ -61,16 +62,20 @@ export default function LineItemsEditor({
     isTaxInclusive = false,
     onTaxInclusiveChange,
     lockPrices = false,
+    lockRows = false,
     onAddItem,
     onRemoveItem,
     onUpdateItem,
 }: LineItemsEditorProps) {
+    const locked = lockRows;
+
     return (
         <div className="space-y-2">
             {/* Top Right: Checkbox Harga termasuk pajak */}
             <div className="flex justify-end pr-1">
                 <Checkbox
                     isSelected={isTaxInclusive}
+                    isDisabled={locked}
                     onChange={(checked: boolean) =>
                         onTaxInclusiveChange?.(checked)
                     }
@@ -134,7 +139,8 @@ export default function LineItemsEditor({
                                         <div className="min-w-0">
                                             <select
                                                 aria-label="Produk"
-                                                className="w-full min-w-0 truncate rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground focus:border-accent focus:ring-accent"
+                                                disabled={locked}
+                                                className="w-full min-w-0 truncate rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground focus:border-accent focus:ring-accent disabled:cursor-not-allowed disabled:bg-surface-secondary/50 disabled:text-muted"
                                                 value={String(
                                                     row.product_variant_id,
                                                 )}
@@ -182,7 +188,13 @@ export default function LineItemsEditor({
                                                 type="number"
                                                 min="1"
                                                 aria-label="Kuantitas"
-                                                className="w-full min-w-0 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground focus:border-accent focus:ring-accent"
+                                                disabled={locked}
+                                                title={
+                                                    locked
+                                                        ? 'Qty = jumlah diterima (terkunci)'
+                                                        : undefined
+                                                }
+                                                className="w-full min-w-0 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground focus:border-accent focus:ring-accent disabled:cursor-not-allowed disabled:bg-surface-secondary/50 disabled:text-muted"
                                                 value={row.qty}
                                                 onChange={(e) =>
                                                     onUpdateItem(
@@ -216,7 +228,7 @@ export default function LineItemsEditor({
                                                 disabled={lockPrices}
                                                 title={
                                                     lockPrices
-                                                        ? 'Harga dikunci mengikuti PO'
+                                                        ? 'Harga mengikuti DO supplier (terkunci)'
                                                         : undefined
                                                 }
                                                 className="w-full min-w-0 border-none bg-transparent px-2 py-1.5 text-right text-xs text-foreground outline-none focus:ring-0 disabled:cursor-not-allowed disabled:bg-surface-secondary/50 disabled:text-muted"
@@ -235,7 +247,8 @@ export default function LineItemsEditor({
                                         <div className="min-w-0">
                                             <select
                                                 aria-label="Pajak"
-                                                className="w-full min-w-0 truncate rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground focus:border-accent focus:ring-accent"
+                                                disabled={locked}
+                                                className="w-full min-w-0 truncate rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground focus:border-accent focus:ring-accent disabled:cursor-not-allowed disabled:bg-surface-secondary/50 disabled:text-muted"
                                                 value={
                                                     row.tax_id
                                                         ? String(row.tax_id)
@@ -284,7 +297,7 @@ export default function LineItemsEditor({
 
                                         {/* Action Delete */}
                                         <div className="flex items-center justify-center">
-                                            {items.length > 1 && (
+                                            {items.length > 1 && !locked && (
                                                 <button
                                                     type="button"
                                                     aria-label="Hapus item"
@@ -306,16 +319,18 @@ export default function LineItemsEditor({
 
                 {/* Bottom Bar: Tambah Baris + Count Item */}
                 <div className="flex items-center justify-between border-t border-border bg-surface p-3">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="gap-1.5 text-xs font-medium"
-                        onPress={onAddItem}
-                    >
-                        <Plus className="size-3.5" />
-                        Tambah Baris Data
-                    </Button>
+                    {!locked && (
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="gap-1.5 text-xs font-medium"
+                            onPress={onAddItem}
+                        >
+                            <Plus className="size-3.5" />
+                            Tambah Baris Data
+                        </Button>
+                    )}
                     <span className="text-xs text-muted">
                         {items.length} item{items.length > 1 ? 's' : ''}
                     </span>

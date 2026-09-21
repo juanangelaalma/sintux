@@ -13,7 +13,7 @@ class CreateVariant
             'product_id' => $data['product_id'],
             'sku' => $data['sku'],
             'variant_name' => $data['variant_name'],
-            'attributes' => $data['attributes'] ?? null,
+            'attributes' => FindVariantBySkuAndColor::normalizeAttributes($data['attributes'] ?? null),
             'is_active' => $data['is_active'] ?? true,
         ]);
     }

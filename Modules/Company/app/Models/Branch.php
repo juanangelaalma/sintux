@@ -13,6 +13,7 @@ class Branch extends Model
         'phone',
         'is_active',
         'is_headquarters',
+        'supplier_customer_name',
     ];
 
     protected function casts(): array

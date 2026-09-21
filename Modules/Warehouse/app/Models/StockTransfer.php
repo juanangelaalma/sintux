@@ -6,14 +6,18 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class StockTransfer extends Model
 {
     protected $fillable = [
+        'number',
         'stock_request_id',
         'from_warehouse_id',
         'to_warehouse_id',
         'status',
+        'source_type',
+        'source_id',
         'created_by',
         'approved_by',
         'approved_at',
@@ -22,6 +26,32 @@ class StockTransfer extends Model
         'received_by',
         'received_at',
     ];
+
+    protected static function booted(): void
+    {
+        // Nomor dokumen otomatis TRF/YYYYMMDD/NNN untuk semua jalur
+        // pembuatan (manual, approval request, job otomatis). NNN urut
+        // harian; advisory lock membuat sekuens bebas race walau dua
+        // transfer dibuat konkuren. updateQuietly agar tak memicu
+        // event berulang.
+        static::created(function (StockTransfer $transfer): void {
+            if ($transfer->number !== null && trim((string) $transfer->number) !== '') {
+                return;
+            }
+
+            $date = $transfer->created_at?->format('Ymd') ?? now()->format('Ymd');
+
+            DB::statement("SELECT pg_advisory_xact_lock(hashtext('stock_transfer_number'))");
+
+            $sequence = (int) DB::table('stock_transfers')
+                ->whereDate('created_at', $transfer->created_at?->toDateString() ?? now()->toDateString())
+                ->count();
+
+            $transfer->updateQuietly([
+                'number' => sprintf('TRF/%s/%03d', $date, $sequence),
+            ]);
+        });
+    }
 
     protected function casts(): array
     {

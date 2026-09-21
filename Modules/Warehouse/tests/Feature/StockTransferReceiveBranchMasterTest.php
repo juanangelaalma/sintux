@@ -274,6 +274,8 @@ class StockTransferReceiveBranchMasterTest extends TestCase
             ]),
             'sku' => $sourceVariant->sku,
             'variant_name' => 'Branch B Own Variant',
+            // Identitas varian = (sku, warna): samakan warna agar teruji reuse.
+            'attributes' => $sourceVariant->attributes,
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),

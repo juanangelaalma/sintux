@@ -64,7 +64,8 @@ class PurchaseInvoiceController extends Controller
             try {
                 $prefillGrn = app(GetInvoicePrefillFromGrn::class)->execute((int) $grnId);
             } catch (ValidationException $e) {
-                $prefillError = $e->getMessage() ?: 'GRN tidak dapat dijadikan faktur.';
+                $prefillError = collect($e->errors())->flatten()->first()
+                    ?: 'GRN tidak dapat dijadikan faktur.';
             }
         }
 

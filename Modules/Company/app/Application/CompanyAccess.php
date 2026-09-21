@@ -6,6 +6,8 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Modules\Company\Models\Branch;
 use Modules\Company\Models\CompanyUser;
 use Modules\Company\Models\Permission;
 use Modules\Company\Models\Role;
@@ -147,6 +149,91 @@ class CompanyAccess
                 ])
                 ->all(),
         );
+    }
+
+    /**
+     * Id of the headquarters branch, if one is configured.
+     */
+    public static function headquartersBranchId(): ?int
+    {
+        $id = DB::table('branches')->where('is_headquarters', true)->orderBy('id')->value('id');
+
+        return $id === null ? null : (int) $id;
+    }
+
+    /**
+     * Whether the given branch is a headquarters branch.
+     */
+    public static function isHeadquartersBranch(int $branchId): bool
+    {
+        return (bool) DB::table('branches')->where('id', $branchId)->value('is_headquarters');
+    }
+
+    /**
+     * Branch code for display/numbering purposes. Null when unknown.
+     */
+    public static function branchCode(int $branchId): ?string
+    {
+        $code = DB::table('branches')->where('id', $branchId)->value('code');
+
+        return $code === null ? null : (string) $code;
+    }
+
+    /**
+     * Nama customer di sistem supplier yang dipetakan ke cabang ini, jika ada.
+     */
+    public static function supplierCustomerName(int $branchId): ?string
+    {
+        $name = Branch::where('id', $branchId)->value('supplier_customer_name');
+
+        return $name === null || trim((string) $name) === '' ? null : (string) $name;
+    }
+
+    /**
+     * Ikat cabang ke nama customer supplier.
+     *
+     * Binding pertama menang: cabang tanpa mapping mengikat nama yang
+     * diberikan; cabang yang sudah ter-mapping hanya menerima nama yang
+     * sama. Nama yang sudah dipakai cabang lain selalu ditolak agar tidak
+     * melanggar batas unik maupun mencuri DO cabang lain.
+     *
+     * @throws ValidationException
+     */
+    public static function bindSupplierCustomerName(int $branchId, string $customerName): void
+    {
+        $customerName = trim($customerName);
+
+        if ($customerName === '') {
+            return;
+        }
+
+        $branch = Branch::find($branchId);
+
+        if (! $branch) {
+            return;
+        }
+
+        $current = trim((string) ($branch->supplier_customer_name ?? ''));
+
+        if ($current !== '' && $current !== $customerName) {
+            throw ValidationException::withMessages([
+                'do_no' => "DO ini untuk customer {$customerName}, bukan {$current} (cabang ini).",
+            ]);
+        }
+
+        if ($current === $customerName) {
+            return;
+        }
+
+        $takenBy = (int) (Branch::where('supplier_customer_name', $customerName)->value('id') ?? 0);
+
+        if ($takenBy !== 0 && $takenBy !== $branchId) {
+            throw ValidationException::withMessages([
+                'do_no' => "Customer {$customerName} sudah dipetakan ke cabang lain.",
+            ]);
+        }
+
+        $branch->update(['supplier_customer_name' => $customerName]);
     }
 
     /**

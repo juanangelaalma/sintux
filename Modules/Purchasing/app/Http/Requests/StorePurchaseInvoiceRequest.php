@@ -26,10 +26,17 @@ class StorePurchaseInvoiceRequest extends FormRequest
         $user = $this->user();
 
         $branchIds = CompanyAccess::accessibleBranchIds($user, $tenantId);
+        $hqBranchId = CompanyAccess::headquartersBranchId();
 
-        $branchAccessibleRule = function (string $attribute, mixed $value, Closure $fail) use ($branchIds) {
+        $branchHoRule = function (string $attribute, mixed $value, Closure $fail) use ($branchIds, $hqBranchId) {
             if (! in_array((int) $value, $branchIds, true)) {
                 $fail('Branch tidak berada dalam cakupan akses Anda.');
+
+                return;
+            }
+            // Pembebanan hutang PO selalu di HO.
+            if ($hqBranchId !== null && (int) $value !== $hqBranchId) {
+                $fail('Faktur pembelian hanya dapat dibuat untuk Head Office.');
             }
         };
 
@@ -46,10 +53,12 @@ class StorePurchaseInvoiceRequest extends FormRequest
             ->all();
 
         return [
-            'branch_id' => ['required', 'integer', $branchAccessibleRule],
+            'branch_id' => ['required', 'integer', $branchHoRule],
             'supplier_id' => ['required', 'integer', Rule::in($supplierIds)],
             'purchase_order_id' => ['nullable', 'integer', 'exists:purchase_orders,id'],
             'goods_receipt_id' => ['nullable', 'integer', 'exists:goods_receipts,id'],
+            'supplier_invoice_no' => ['nullable', 'string', 'max:100'],
+            'tax_invoice_no' => ['nullable', 'string', 'max:100'],
             'is_tax_inclusive' => ['sometimes', 'boolean'],
             'invoice_date' => ['required', 'date'],
             // Jatuh tempo boleh lampau: faktur supplier yang sudah jatuh
