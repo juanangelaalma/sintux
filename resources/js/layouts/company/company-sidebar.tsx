@@ -2,103 +2,110 @@ import { Link, usePage } from '@inertiajs/react';
 import { useCallback, useMemo, useState } from 'react';
 import { useSidebar } from '@/context/SidebarContext';
 import {
-    BoxIcon,
+    ArrowRightIcon,
     BoxCubeIcon,
+    BoxIcon,
+    DocsIcon,
+    DollarLineIcon,
+    FolderIcon,
     GridIcon,
     GroupIcon,
-    HorizontaLDots,
-    ListIcon,
-    UserIcon,
+    TableIcon,
+    TaskIcon,
 } from '@/icons';
+import SidebarShell from '@/layouts/shared/sidebar-shell';
+import { isActivePrefix } from '@/lib/navigation';
+import { dashboard as dashboardRoute } from '@/routes';
+import chartOfAccountsRoute from '@/routes/accounting/chart-of-accounts';
+import inboxRoute from '@/routes/approval/inbox';
+import branchesRoute from '@/routes/company/branches';
+import contactsRoute from '@/routes/company/contacts';
+import productRoute from '@/routes/product';
+import grnsRoute from '@/routes/purchasing/grns';
+import purchaseInvoicesRoute from '@/routes/purchasing/invoices';
+import salesInvoicesRoute from '@/routes/sales/invoices';
+import stockTransfersRoute from '@/routes/warehouse/stock-transfers';
+import type {
+    SidebarChildItem,
+    SidebarEntry,
+    SidebarSubGroup,
+} from '@/types/navigation';
 
-type LeafSubItem = {
-    name: string;
-    path: string;
-    permission?: string;
-};
+const COMPANY_NAV_ITEMS: SidebarEntry[] = [
+    {
+        icon: <GridIcon />,
+        name: 'Dashboard',
+        path: dashboardRoute.url(),
+    },
+    {
+        icon: <GroupIcon />,
+        name: 'Kontak',
+        subItems: [
+            { name: 'Customer', path: contactsRoute.index.url('customers') },
+            { name: 'Supplier', path: contactsRoute.index.url('suppliers') },
+            { name: 'Employee', path: contactsRoute.index.url('employees') },
+        ],
+    },
+    {
+        icon: <TableIcon />,
+        name: 'Bagan Akun',
+        path: chartOfAccountsRoute.index.url(),
+        permission: 'accounting.account.view',
+    },
+    {
+        icon: <BoxCubeIcon />,
+        name: 'Produk',
+        path: productRoute.hub.url(),
+        permission: 'product.view',
+    },
+    {
+        icon: <DocsIcon />,
+        name: 'Pembelian',
+        path: purchaseInvoicesRoute.index.url(),
+        hqOnly: true,
+    },
+    {
+        icon: <DollarLineIcon />,
+        name: 'Penjualan',
+        path: salesInvoicesRoute.index.url(),
+    },
+    {
+        icon: <BoxIcon />,
+        name: 'GRN',
+        path: grnsRoute.index.url(),
+        nonHqOnly: true,
+    },
+    {
+        icon: <ArrowRightIcon />,
+        name: 'Transfer Stok',
+        path: stockTransfersRoute.index.url(),
+        nonHqOnly: true,
+    },
+    {
+        icon: <TaskIcon />,
+        name: 'Persetujuan',
+        path: inboxRoute.index.url(),
+    },
+    {
+        icon: <FolderIcon />,
+        name: 'Pengaturan',
+        path: branchesRoute.index.url(),
+        togglesSecondary: true,
+    },
+];
 
-type GroupSubItem = {
-    name: string;
-    permission?: string;
-    subItems: LeafSubItem[];
-};
+// Catatan: item tanpa `permission` tampil untuk semua user terautentikasi.
+// Otorisasi wajib ditegakkan server-side (middleware/policy Laravel);
+// filter di sini hanya untuk UX, bukan boundary keamanan.
 
-type SubItem = LeafSubItem | GroupSubItem;
-
-type NavItem = {
-    name: string;
-    icon: React.ReactNode;
-    path?: string;
-    permission?: string;
-    hqOnly?: boolean;
-    nonHqOnly?: boolean;
-    subItems?: SubItem[];
-};
-
-function getCompanyNavItems(): NavItem[] {
-    return [
-        {
-            icon: <GridIcon />,
-            name: 'Dashboard',
-            path: '/dashboard',
-        },
-        {
-            icon: <GroupIcon />,
-            name: 'Contact',
-            subItems: [
-                { name: 'Customer', path: '/company/contacts/customers' },
-                { name: 'Supplier', path: '/company/contacts/suppliers' },
-                { name: 'Employee', path: '/company/contacts/employees' },
-            ],
-        },
-        {
-            icon: <ListIcon />,
-            name: 'Chart of Accounts',
-            path: '/accounting/chart-of-accounts',
-            permission: 'accounting.account.view',
-        },
-        {
-            icon: <BoxCubeIcon />,
-            name: 'Produk',
-            path: '/product',
-            permission: 'product.view',
-        },
-        {
-            icon: <BoxIcon />,
-            name: 'Purchasing',
-            path: '/purchasing/invoices',
-            hqOnly: true,
-        },
-        {
-            icon: <ListIcon />,
-            name: 'Penjualan',
-            path: '/sales/invoices',
-        },
-        {
-            icon: <ListIcon />,
-            name: 'Transfer Stok',
-            path: '/warehouse/stock-transfers',
-            nonHqOnly: true,
-        },
-        {
-            icon: <ListIcon />,
-            name: 'Approval Inbox',
-            path: '/approval/inbox',
-        },
-        {
-            icon: <UserIcon />,
-            name: 'Pengaturan',
-            path: '/company/branches',
-        },
-    ];
-}
-
-function isGroupSubItem(sub: SubItem): sub is GroupSubItem {
-    return 'subItems' in sub && Array.isArray((sub as GroupSubItem).subItems);
+function isGroupSubItem(sub: SidebarChildItem): sub is SidebarSubGroup {
+    return (
+        'subItems' in sub && Array.isArray((sub as SidebarSubGroup).subItems)
+    );
 }
 
 function hasPermission(
-    item: { permission?: string; subItems?: SubItem[] },
+    item: { permission?: string; subItems?: SidebarChildItem[] },
     perms: string[],
 ): boolean {
     if (item.subItems && item.subItems.length > 0) {
@@ -108,8 +115,18 @@ function hasPermission(
     return !item.permission || perms.includes(item.permission);
 }
 
-const CompanySidebar: React.FC = () => {
-    const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+type CompanySidebarProps = {
+    isSettingsContext: boolean;
+    secondaryOpen: boolean;
+    setSecondaryOpen: (open: boolean) => void;
+};
+
+const CompanySidebar: React.FC<CompanySidebarProps> = ({
+    isSettingsContext,
+    secondaryOpen,
+    setSecondaryOpen,
+}) => {
+    const { isExpanded, isMobileOpen, isHovered } = useSidebar();
     const { url, props } = usePage();
 
     const auth = (props.auth ?? {}) as {
@@ -119,36 +136,33 @@ const CompanySidebar: React.FC = () => {
     const perms = useMemo(() => auth.permissions ?? [], [auth.permissions]);
     const isHq = auth.is_hq ?? false;
 
-    const companyNavItems = getCompanyNavItems();
-
     const visibleNavItems = useMemo(() => {
-        return companyNavItems.filter(
+        return COMPANY_NAV_ITEMS.filter(
             (n) =>
                 (!n.hqOnly || isHq) &&
                 (!n.nonHqOnly || !isHq) &&
                 hasPermission(n, perms),
         );
-    }, [companyNavItems, perms, isHq]);
+    }, [perms, isHq]);
 
-    const [manualSubmenu, setManualSubmenu] = useState<{
-        type: 'main';
-        index: number;
-    } | null>(null);
+    const [manualSubmenu, setManualSubmenu] = useState<
+        | { state: 'open'; type: 'main'; index: number; url: string }
+        | { state: 'closed'; url: string }
+        | null
+    >(null);
 
-    const [manualSubGroups, setManualSubGroups] = useState<
-        Record<string, boolean>
-    >({});
+    const [subGroupsState, setSubGroupsState] = useState<{
+        url: string;
+        values: Record<string, boolean>;
+    }>({ url, values: {} });
 
-    const [prevUrl, setPrevUrl] = useState(url);
-
-    if (prevUrl !== url) {
-        setPrevUrl(url);
-        setManualSubmenu(null);
-        setManualSubGroups({});
-    }
+    // Override manual hanya berlaku untuk url saat dibuat.
+    // Navigasi otomatis kembali ke turunan otomatis tanpa effect.
+    // State 'closed' memungkinkan menu yang terbuka otomatis (karena
+    // route aktif) untuk ditutup manual oleh user.
 
     const isActive = useCallback(
-        (path?: string) => Boolean(path && url === path),
+        (path?: string) => isActivePrefix(url, path),
         [url],
     );
 
@@ -173,19 +187,28 @@ const CompanySidebar: React.FC = () => {
         return matched;
     }, [isActive, visibleNavItems]);
 
-    const openSubmenu = manualSubmenu ?? autoOpenSubmenu;
+    const openSubmenu: { type: 'main'; index: number } | null =
+        manualSubmenu && manualSubmenu.url === url
+            ? manualSubmenu.state === 'open'
+                ? { type: manualSubmenu.type, index: manualSubmenu.index }
+                : null
+            : autoOpenSubmenu;
 
     const handleSubmenuToggle = (index: number, menuType: 'main') => {
-        setManualSubmenu((prev) => {
-            if (prev && prev.type === menuType && prev.index === index) {
-                return null;
-            }
+        const currentlyOpen =
+            openSubmenu?.type === menuType && openSubmenu?.index === index;
 
-            return { type: menuType, index };
-        });
+        if (currentlyOpen) {
+            setManualSubmenu({ state: 'closed', url });
+        } else {
+            setManualSubmenu({ state: 'open', type: menuType, index, url });
+        }
     };
 
-    const isSubGroupOpen = (groupKey: string, group: GroupSubItem) => {
+    const manualSubGroups =
+        subGroupsState.url === url ? subGroupsState.values : {};
+
+    const isSubGroupOpen = (groupKey: string, group: SidebarSubGroup) => {
         if (manualSubGroups[groupKey] !== undefined) {
             return manualSubGroups[groupKey];
         }
@@ -193,16 +216,19 @@ const CompanySidebar: React.FC = () => {
         return group.subItems.some((leaf) => isActive(leaf.path));
     };
 
-    const toggleSubGroup = (groupKey: string, group: GroupSubItem) => {
+    const toggleSubGroup = (groupKey: string, group: SidebarSubGroup) => {
         const currentState = isSubGroupOpen(groupKey, group);
-        setManualSubGroups((prev) => ({
-            ...prev,
-            [groupKey]: !currentState,
-        }));
+        setSubGroupsState({
+            url,
+            values: {
+                ...(subGroupsState.url === url ? subGroupsState.values : {}),
+                [groupKey]: !currentState,
+            },
+        });
     };
 
     const renderSubItem = (
-        sub: SubItem,
+        sub: SidebarChildItem,
         parentName: string,
         permissions: string[],
     ) => {
@@ -224,10 +250,13 @@ const CompanySidebar: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => toggleSubGroup(groupKey, sub)}
+                        aria-expanded={open}
+                        aria-controls={`subgroup-${parentName}-${sub.name}`}
                         className="flex w-full items-center justify-between py-1.5 text-xs font-semibold tracking-wider text-gray-500 uppercase hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                     >
                         <span>{sub.name}</span>
                         <svg
+                            aria-hidden="true"
                             className={`size-3.5 transition-transform duration-200 ${
                                 open ? 'rotate-180' : ''
                             }`}
@@ -245,11 +274,19 @@ const CompanySidebar: React.FC = () => {
                     </button>
 
                     {open && (
-                        <ul className="flex flex-col gap-1 border-l border-gray-200 pl-3 dark:border-gray-800">
+                        <ul
+                            id={`subgroup-${parentName}-${sub.name}`}
+                            className="flex flex-col gap-1 border-l border-gray-200 pl-3 dark:border-gray-800"
+                        >
                             {visibleLeaves.map((leaf) => (
                                 <li key={leaf.name}>
                                     <Link
                                         href={leaf.path}
+                                        aria-current={
+                                            isActive(leaf.path)
+                                                ? 'page'
+                                                : undefined
+                                        }
                                         className={`block py-1 text-sm font-medium transition-colors ${
                                             isActive(leaf.path)
                                                 ? 'font-semibold text-brand-500'
@@ -274,6 +311,7 @@ const CompanySidebar: React.FC = () => {
             <li key={sub.name}>
                 <Link
                     href={sub.path}
+                    aria-current={isActive(sub.path) ? 'page' : undefined}
                     className={`block py-1 text-sm font-medium transition-colors ${
                         isActive(sub.path)
                             ? 'font-semibold text-brand-500'
@@ -287,184 +325,170 @@ const CompanySidebar: React.FC = () => {
     };
 
     const renderMenuItems = (
-        items: NavItem[],
+        items: SidebarEntry[],
         menuType: 'main',
         permissions: string[],
     ) => (
         <ul className="flex flex-col gap-4">
-            {items.map((nav, index) => (
-                <li key={nav.name}>
-                    {nav.subItems ? (
-                        <>
-                            <button
-                                onClick={() =>
-                                    handleSubmenuToggle(index, menuType)
-                                }
-                                className={`group menu-item ${
-                                    openSubmenu?.type === menuType &&
-                                    openSubmenu?.index === index
-                                        ? 'menu-item-active'
-                                        : 'menu-item-inactive'
-                                } cursor-pointer ${
-                                    !isExpanded && !isHovered
-                                        ? 'lg:justify-center'
-                                        : 'lg:justify-start'
-                                }`}
-                            >
-                                <span
-                                    className={`menu-item-icon-size ${
-                                        openSubmenu?.type === menuType &&
-                                        openSubmenu?.index === index
-                                            ? 'menu-item-icon-active'
-                                            : 'menu-item-icon-inactive'
+            {items.map((nav, index) => {
+                const isCollapsed = !isExpanded && !isHovered && !isMobileOpen;
+                const isOpen =
+                    openSubmenu?.type === menuType &&
+                    openSubmenu?.index === index;
+
+                return (
+                    <li key={nav.name}>
+                        {nav.subItems ? (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        handleSubmenuToggle(index, menuType)
+                                    }
+                                    aria-label={nav.name}
+                                    title={isCollapsed ? nav.name : undefined}
+                                    aria-expanded={isOpen}
+                                    aria-controls={`company-submenu-${index}`}
+                                    className={`group menu-item ${
+                                        isOpen
+                                            ? 'menu-item-active'
+                                            : 'menu-item-inactive'
+                                    } cursor-pointer ${
+                                        !isExpanded && !isHovered
+                                            ? 'lg:justify-center'
+                                            : 'lg:justify-start'
                                     }`}
                                 >
-                                    {nav.icon}
-                                </span>
-                                {(isExpanded || isHovered || isMobileOpen) && (
-                                    <>
+                                    <span
+                                        aria-hidden="true"
+                                        className={`menu-item-icon-size ${
+                                            isOpen
+                                                ? 'menu-item-icon-active'
+                                                : 'menu-item-icon-inactive'
+                                        }`}
+                                    >
+                                        {nav.icon}
+                                    </span>
+                                    {(isExpanded ||
+                                        isHovered ||
+                                        isMobileOpen) && (
+                                        <>
+                                            <span className="menu-item-text">
+                                                {nav.name}
+                                            </span>
+                                            <svg
+                                                aria-hidden="true"
+                                                className={`ml-auto size-4 transition-transform duration-200 ${
+                                                    isOpen ? 'rotate-180' : ''
+                                                }`}
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M19 9l-7 7-7-7"
+                                                />
+                                            </svg>
+                                        </>
+                                    )}
+                                </button>
+
+                                {isOpen &&
+                                    (isExpanded ||
+                                        isHovered ||
+                                        isMobileOpen) && (
+                                        <ul
+                                            id={`company-submenu-${index}`}
+                                            className="mt-2 flex flex-col gap-2 pl-9"
+                                        >
+                                            {nav.subItems.map((sub) =>
+                                                renderSubItem(
+                                                    sub,
+                                                    nav.name,
+                                                    permissions,
+                                                ),
+                                            )}
+                                        </ul>
+                                    )}
+                            </>
+                        ) : (
+                            nav.path && (
+                                <Link
+                                    href={nav.path}
+                                    aria-label={nav.name}
+                                    title={isCollapsed ? nav.name : undefined}
+                                    aria-current={
+                                        isActive(nav.path) ? 'page' : undefined
+                                    }
+                                    aria-expanded={
+                                        nav.togglesSecondary
+                                            ? secondaryOpen
+                                            : undefined
+                                    }
+                                    onClick={
+                                        nav.togglesSecondary
+                                            ? (e: React.MouseEvent) => {
+                                                  if (isSettingsContext) {
+                                                      // Sudah di area pengaturan:
+                                                      // jadikan toggle buka/tutup
+                                                      // tanpa navigasi ulang.
+                                                      e.preventDefault();
+                                                      setSecondaryOpen(
+                                                          !secondaryOpen,
+                                                      );
+                                                  } else {
+                                                      // Dari luar: navigasi ke halaman
+                                                      // pengaturan dan minta secondary
+                                                      // langsung terbuka saat mendarat.
+                                                      setSecondaryOpen(true);
+                                                  }
+                                              }
+                                            : undefined
+                                    }
+                                    className={`group menu-item ${
+                                        isActive(nav.path)
+                                            ? 'menu-item-active'
+                                            : 'menu-item-inactive'
+                                    }`}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        className={`menu-item-icon-size ${
+                                            isActive(nav.path)
+                                                ? 'menu-item-icon-active'
+                                                : 'menu-item-icon-inactive'
+                                        }`}
+                                    >
+                                        {nav.icon}
+                                    </span>
+                                    {(isExpanded ||
+                                        isHovered ||
+                                        isMobileOpen) && (
                                         <span className="menu-item-text">
                                             {nav.name}
                                         </span>
-                                        <svg
-                                            className={`ml-auto size-4 transition-transform duration-200 ${
-                                                openSubmenu?.type ===
-                                                    menuType &&
-                                                openSubmenu?.index === index
-                                                    ? 'rotate-180'
-                                                    : ''
-                                            }`}
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M19 9l-7 7-7-7"
-                                            />
-                                        </svg>
-                                    </>
-                                )}
-                            </button>
-
-                            {openSubmenu?.type === menuType &&
-                                openSubmenu?.index === index &&
-                                (isExpanded || isHovered || isMobileOpen) && (
-                                    <ul className="mt-2 flex flex-col gap-2 pl-9">
-                                        {nav.subItems.map((sub) =>
-                                            renderSubItem(
-                                                sub,
-                                                nav.name,
-                                                permissions,
-                                            ),
-                                        )}
-                                    </ul>
-                                )}
-                        </>
-                    ) : (
-                        nav.path && (
-                            <Link
-                                href={nav.path}
-                                className={`group menu-item ${
-                                    isActive(nav.path)
-                                        ? 'menu-item-active'
-                                        : 'menu-item-inactive'
-                                }`}
-                            >
-                                <span
-                                    className={`menu-item-icon-size ${
-                                        isActive(nav.path)
-                                            ? 'menu-item-icon-active'
-                                            : 'menu-item-icon-inactive'
-                                    }`}
-                                >
-                                    {nav.icon}
-                                </span>
-                                {(isExpanded || isHovered || isMobileOpen) && (
-                                    <span className="menu-item-text">
-                                        {nav.name}
-                                    </span>
-                                )}
-                            </Link>
-                        )
-                    )}
-                </li>
-            ))}
+                                    )}
+                                </Link>
+                            )
+                        )}
+                    </li>
+                );
+            })}
         </ul>
     );
 
     return (
-        <aside
-            className={`fixed top-0 left-0 z-50 mt-16 flex h-screen flex-col border-r border-gray-200 bg-white px-5 text-gray-900 transition-all duration-300 ease-in-out lg:mt-0 dark:border-gray-800 dark:bg-gray-900 ${
-                isExpanded || isMobileOpen
-                    ? 'w-[290px]'
-                    : isHovered
-                      ? 'w-[290px]'
-                      : 'w-[90px]'
-            } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
-            onMouseEnter={() => !isExpanded && setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+        <SidebarShell
+            asideAriaLabel="Navigasi perusahaan"
+            navAriaLabel="Menu perusahaan"
+            menuTitle="Company Menu"
+            logoHref={dashboardRoute.url()}
         >
-            <div
-                className={`flex py-8 ${
-                    !isExpanded && !isHovered
-                        ? 'lg:justify-center'
-                        : 'justify-start'
-                }`}
-            >
-                <Link href="/dashboard">
-                    {isExpanded || isHovered || isMobileOpen ? (
-                        <>
-                            <img
-                                className="dark:hidden"
-                                src="/images/logo/logo.svg"
-                                alt="Logo"
-                                width={150}
-                                height={40}
-                            />
-                            <img
-                                className="hidden dark:block"
-                                src="/images/logo/logo-dark.svg"
-                                alt="Logo"
-                                width={150}
-                                height={40}
-                            />
-                        </>
-                    ) : (
-                        <img
-                            src="/images/logo/logo-icon.svg"
-                            alt="Logo"
-                            width={32}
-                            height={32}
-                        />
-                    )}
-                </Link>
-            </div>
-            <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
-                <nav className="mb-6">
-                    <div className="flex flex-col gap-4">
-                        <div>
-                            <h2
-                                className={`mb-4 flex text-xs leading-[20px] text-gray-400 uppercase ${
-                                    !isExpanded && !isHovered
-                                        ? 'lg:justify-center'
-                                        : 'justify-start'
-                                }`}
-                            >
-                                {isExpanded || isHovered || isMobileOpen ? (
-                                    'Company Menu'
-                                ) : (
-                                    <HorizontaLDots className="size-6" />
-                                )}
-                            </h2>
-                            {renderMenuItems(visibleNavItems, 'main', perms)}
-                        </div>
-                    </div>
-                </nav>
-            </div>
-        </aside>
+            {renderMenuItems(visibleNavItems, 'main', perms)}
+        </SidebarShell>
     );
 };
 

@@ -37,7 +37,9 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
 
     useEffect(() => {
         const handleResize = () => {
-            const mobile = window.innerWidth < 768;
+            // Selaras dengan breakpoint Tailwind `lg` (1024px) yang dipakai
+            // layout (`lg:ml-*`, `lg:translate-x-0`) dan app-header.
+            const mobile = window.innerWidth < 1024;
             setIsMobile(mobile);
 
             if (!mobile) {

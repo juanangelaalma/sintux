@@ -1,173 +1,110 @@
 import { Link, usePage } from '@inertiajs/react';
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSidebar } from '@/context/SidebarContext';
+import { SIDEBAR_OFFSET } from '@/layouts/shared/sidebar-layout';
+import { isActivePrefix } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
+import { SETTINGS_NAV_ITEMS } from './settings-navigation';
 
-type SubItem = {
-    name: string;
-    path: string;
-    permission?: string;
-    subItems?: Array<{ name: string; path: string; permission?: string }>;
-};
-
-export default function SecondarySidebar() {
+export default function SecondarySidebar({ open }: { open: boolean }) {
     const { url, props } = usePage();
-    const { isExpanded, isHovered } = useSidebar();
+    const { isExpanded, isHovered, isMobileOpen, toggleMobileSidebar } =
+        useSidebar();
     const auth = (props.auth ?? {}) as { permissions?: string[] };
     const perms = auth.permissions ?? [];
 
-    const navItems: SubItem[] = [
-        {
-            name: 'Perusahaan',
-            path: '/company/branches',
-            permission: 'company.branch.manage',
-        },
-        {
-            name: 'Pengaturan Pengguna',
-            path: '/company/users',
-            permission: 'company.user.manage',
-        },
-        {
-            name: 'Pembelian',
-            path: '/purchasing/orders',
-            permission: 'purchasing.po.view',
-        },
-        {
-            name: 'Produk',
-            path: '/product',
-            permission: 'product.view',
-        },
-        {
-            name: 'Aturan Approval',
-            path: '/approval/rules',
-            permission: 'approval.rule.view',
-        },
-        {
-            name: 'Pajak',
-            path: '/accounting/taxes',
-            permission: 'accounting.tax.view',
-        },
-        {
-            name: 'Profil & Akun',
-            path: '/settings/profile',
-        },
-    ];
+    const navItems = SETTINGS_NAV_ITEMS;
 
-    const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+    // Dua fase agar mount ikut beranimasi: render pertama tersembunyi,
+    // frame berikutnya baru terlihat sehingga transisi fade/slide berjalan.
+    const [entered, setEntered] = useState(false);
 
-    const toggleGroup = (name: string) => {
-        setOpenGroups((prev) => ({
-            ...prev,
-            [name]: !prev[name],
-        }));
-    };
+    useEffect(() => {
+        const frame = requestAnimationFrame(() => setEntered(true));
 
-    const isActive = (path: string) => url.startsWith(path);
+        return () => cancelAnimationFrame(frame);
+    }, []);
 
+    const shown = open && entered;
+
+    const isActive = (path: string) => isActivePrefix(url, path);
     const leftPosition =
-        isExpanded || isHovered ? 'left-[290px]' : 'left-[90px]';
+        isExpanded || isHovered
+            ? SIDEBAR_OFFSET.expanded
+            : SIDEBAR_OFFSET.collapsed;
+    const visibleItems = navItems.filter(
+        (item) => !item.permission || perms.includes(item.permission),
+    );
 
     return (
         <aside
+            aria-label="Navigasi pengaturan"
             className={cn(
-                'fixed top-0 z-40 hidden h-screen w-[240px] border-r border-gray-200 bg-[#f8fafc] pt-16 transition-all duration-300 ease-in-out lg:block lg:pt-0 dark:border-gray-800 dark:bg-gray-900',
+                'fixed top-0 left-0 z-50 h-screen w-[240px] border-r border-gray-200 bg-[#f8fafc] pt-16 transition-all duration-300 ease-in-out lg:z-40 lg:pt-0 dark:border-gray-800 dark:bg-gray-900',
                 leftPosition,
+                isMobileOpen ? 'translate-x-0' : '-translate-x-full',
+                // Desktop: meluncur dari balik main sidebar (kiri ke kanan)
+                // dengan fade. Tertutup = terselip tak terlihat & tak
+                // terjangkau keyboard (lg:invisible).
+                shown
+                    ? 'lg:translate-x-0 lg:opacity-100'
+                    : 'lg:invisible lg:-translate-x-6 lg:opacity-0',
             )}
         >
-            <div className="flex h-full flex-col overflow-y-auto px-4 py-6">
+            <nav
+                aria-label="Menu pengaturan"
+                className="flex h-full flex-col overflow-y-auto px-4 py-6"
+            >
                 <div className="mb-5 flex items-center justify-between px-2">
-                    <h2 className="text-xs font-bold tracking-wider text-indigo-600 uppercase dark:text-indigo-400">
+                    <h2 className="text-xs font-bold tracking-wider text-brand-600 uppercase dark:text-brand-400">
                         PENGATURAN
                     </h2>
+                    <button
+                        type="button"
+                        onClick={toggleMobileSidebar}
+                        aria-label="Tutup navigasi pengaturan"
+                        className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 lg:hidden dark:text-gray-400 dark:hover:bg-gray-800"
+                    >
+                        <svg
+                            aria-hidden="true"
+                            className="size-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
                 </div>
 
+                {visibleItems.length === 0 ? (
+                    <p
+                        role="status"
+                        className="rounded-lg bg-gray-100 px-3.5 py-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                    >
+                        Tidak ada menu pengaturan untuk peran Anda. Hubungi
+                        admin jika ini keliru.
+                    </p>
+                ) : null}
+
                 <div className="flex flex-col gap-1">
-                    {navItems.map((item) => {
-                        if (
-                            item.permission &&
-                            !perms.includes(item.permission)
-                        ) {
-                            return null;
-                        }
-
+                    {visibleItems.map((item) => {
                         const active = isActive(item.path);
-                        const hasSub = Boolean(
-                            item.subItems && item.subItems.length > 0,
-                        );
-                        const isOpen = openGroups[item.name] ?? false;
-
-                        if (hasSub) {
-                            return (
-                                <div
-                                    key={item.name}
-                                    className="flex flex-col gap-1"
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleGroup(item.name)}
-                                        className={cn(
-                                            'flex w-full items-center justify-between rounded-lg px-3.5 py-2 text-sm font-medium transition-colors',
-                                            active
-                                                ? 'bg-indigo-100/80 font-semibold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
-                                                : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
-                                        )}
-                                    >
-                                        <span>{item.name}</span>
-                                        <svg
-                                            className={cn(
-                                                'size-4 text-gray-500 transition-transform duration-200',
-                                                isOpen ? 'rotate-180' : '',
-                                            )}
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M19 9l-7 7-7-7"
-                                            />
-                                        </svg>
-                                    </button>
-
-                                    {isOpen && item.subItems && (
-                                        <ul className="ml-3 flex flex-col gap-0.5 border-l border-gray-200 pl-4 dark:border-gray-800">
-                                            {item.subItems.map((sub) => {
-                                                const subActive = isActive(
-                                                    sub.path,
-                                                );
-
-                                                return (
-                                                    <li key={sub.name}>
-                                                        <Link
-                                                            href={sub.path}
-                                                            className={cn(
-                                                                'block rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                                                                subActive
-                                                                    ? 'bg-indigo-100/80 font-semibold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
-                                                                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white',
-                                                            )}
-                                                        >
-                                                            {sub.name}
-                                                        </Link>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    )}
-                                </div>
-                            );
-                        }
 
                         return (
                             <Link
                                 key={item.name}
                                 href={item.path}
+                                aria-current={active ? 'page' : undefined}
                                 className={cn(
                                     'block rounded-lg px-3.5 py-2 text-sm font-medium transition-colors',
                                     active
-                                        ? 'bg-indigo-100/80 font-semibold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
+                                        ? 'bg-brand-50 font-semibold text-brand-600 dark:bg-brand-500/[0.12] dark:text-brand-300'
                                         : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
                                 )}
                             >
@@ -176,7 +113,7 @@ export default function SecondarySidebar() {
                         );
                     })}
                 </div>
-            </div>
+            </nav>
         </aside>
     );
 }

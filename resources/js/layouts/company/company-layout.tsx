@@ -1,18 +1,13 @@
 import { usePage } from '@inertiajs/react';
-import React from 'react';
+import React, { useState } from 'react';
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
+import { LAYOUT_MARGIN } from '@/layouts/shared/sidebar-layout';
+import { isActivePrefix } from '@/lib/navigation';
 import SecondarySidebar from '../settings/secondary-sidebar';
+import { SETTINGS_PREFIXES } from '../settings/settings-navigation';
 import AppHeader from '../shared/app-header';
 import Backdrop from '../shared/backdrop';
 import CompanySidebar from './company-sidebar';
-
-const settingsPrefixes = [
-    '/settings',
-    '/company/users',
-    '/company/branches',
-    '/approval/rules',
-    '/accounting/taxes',
-];
 
 const CompanyLayoutContent: React.FC<{ children: React.ReactNode }> = ({
     children,
@@ -20,27 +15,52 @@ const CompanyLayoutContent: React.FC<{ children: React.ReactNode }> = ({
     const { isExpanded, isHovered, isMobileOpen } = useSidebar();
     const { url } = usePage();
 
-    const isSettingsContext = settingsPrefixes.some((prefix) =>
-        url.startsWith(prefix),
+    const isSettingsContext = SETTINGS_PREFIXES.some((prefix) =>
+        isActivePrefix(url, prefix),
     );
+
+    // Override manual hanya berlaku untuk url saat dibuat: pindah halaman
+    // kembali ikut konteks tanpa effect. Masuk area pengaturan → buka
+    // (dengan animasi), keluar area → tutup.
+    const [secondaryOverride, setSecondaryOverride] = useState<{
+        open: boolean;
+        url: string;
+    } | null>(null);
+
+    const secondaryOpen =
+        secondaryOverride && secondaryOverride.url === url
+            ? secondaryOverride.open
+            : isSettingsContext;
+
+    const showSecondary = isSettingsContext && secondaryOpen;
 
     const getMarginLeft = () => {
         if (isMobileOpen) {
             return 'ml-0';
         }
 
-        if (isSettingsContext) {
-            return isExpanded || isHovered ? 'lg:ml-[530px]' : 'lg:ml-[330px]';
+        if (showSecondary) {
+            return isExpanded || isHovered
+                ? LAYOUT_MARGIN.settingsExpanded
+                : LAYOUT_MARGIN.settingsCollapsed;
         }
 
-        return isExpanded || isHovered ? 'lg:ml-[290px]' : 'lg:ml-[90px]';
+        return isExpanded || isHovered
+            ? LAYOUT_MARGIN.expanded
+            : LAYOUT_MARGIN.collapsed;
     };
 
     return (
         <div className="min-h-screen xl:flex">
             <div>
-                <CompanySidebar />
-                {isSettingsContext && <SecondarySidebar />}
+                <CompanySidebar
+                    isSettingsContext={isSettingsContext}
+                    secondaryOpen={secondaryOpen}
+                    setSecondaryOpen={(open) =>
+                        setSecondaryOverride({ open, url })
+                    }
+                />
+                {isSettingsContext && <SecondarySidebar open={secondaryOpen} />}
                 <Backdrop />
             </div>
             <div
