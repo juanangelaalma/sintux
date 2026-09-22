@@ -68,7 +68,9 @@ export const PURCHASE_ORDER_STATUS_LABEL: Record<
 
 export const GoodsReceiptStatus = {
     Draft: 'draft',
-    Posted: 'posted',
+    Submitted: 'submitted',
+    Approved: 'approved',
+    Rejected: 'rejected',
 } as const;
 
 export type GoodsReceiptStatusType =
@@ -78,8 +80,10 @@ export const GOODS_RECEIPT_STATUS_LABEL: Record<
     GoodsReceiptStatusType,
     string
 > = {
-    [GoodsReceiptStatus.Draft]: 'Draft',
-    [GoodsReceiptStatus.Posted]: 'Diposting',
+    [GoodsReceiptStatus.Draft]: 'GRN (Draft)',
+    [GoodsReceiptStatus.Submitted]: 'GRN (Menunggu HO)',
+    [GoodsReceiptStatus.Approved]: 'GRN (Disetujui HO)',
+    [GoodsReceiptStatus.Rejected]: 'GRN (Ditolak HO)',
 };
 
 export const PurchaseInvoiceStatus = {

@@ -13,16 +13,12 @@ type UseBranchGroupsOptions = {
     branches: Branch[];
     warehousesByBranch: Record<string, Warehouse[]>;
     productVariants: ProductVariant[];
-    initialDate: string;
-    initialBranchId?: number | string;
 };
 
 export function useBranchGroups({
     branches,
     warehousesByBranch,
     productVariants,
-    initialDate,
-    initialBranchId,
 }: UseBranchGroupsOptions) {
     const getRegularWarehouseId = useCallback(
         (branchId: number | string): number | string => {

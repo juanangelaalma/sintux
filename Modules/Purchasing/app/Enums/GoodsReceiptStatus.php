@@ -5,13 +5,17 @@ namespace Modules\Purchasing\Enums;
 enum GoodsReceiptStatus: string
 {
     case Draft = 'draft';
-    case Posted = 'posted';
+    case Submitted = 'submitted';
+    case Approved = 'approved';
+    case Rejected = 'rejected';
 
     public function label(): string
     {
         return match ($this) {
-            self::Draft => 'Draft',
-            self::Posted => 'Diposting',
+            self::Draft => 'GRN (Draft)',
+            self::Submitted => 'GRN (Menunggu HO)',
+            self::Approved => 'GRN (Disetujui HO)',
+            self::Rejected => 'GRN (Ditolak HO)',
         };
     }
 
@@ -20,13 +24,23 @@ enum GoodsReceiptStatus: string
         return $this === self::Draft;
     }
 
-    public function isPosted(): bool
+    public function isApproved(): bool
     {
-        return $this === self::Posted;
+        return $this === self::Approved;
     }
 
-    public function canPost(): bool
+    public function canSubmit(): bool
     {
         return $this === self::Draft;
+    }
+
+    public function canDecide(): bool
+    {
+        return $this === self::Submitted;
+    }
+
+    public function canRevise(): bool
+    {
+        return $this === self::Rejected;
     }
 }

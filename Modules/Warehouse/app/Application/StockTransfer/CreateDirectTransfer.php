@@ -36,7 +36,9 @@ class CreateDirectTransfer
      * @param  array{
      *     from_warehouse_id: int,
      *     to_warehouse_id: int,
-     *     items: list<array{product_variant_id: int, qty: float|int}>
+     *     items: list<array{product_variant_id: int, qty: float|int}>,
+     *     source_type?: string|null,
+     *     source_id?: int|null
      * }  $data
      */
     public function execute(array $data, int $createdById, ?string $createdByName = null): StockTransfer
@@ -83,6 +85,8 @@ class CreateDirectTransfer
                     'from_warehouse_id' => $fromWarehouseId,
                     'to_warehouse_id' => $toWarehouseId,
                     'status' => StockTransferStatus::Draft->value,
+                    'source_type' => $data['source_type'] ?? null,
+                    'source_id' => $data['source_id'] ?? null,
                     'created_by' => $createdById,
                 ]);
 
@@ -108,6 +112,8 @@ class CreateDirectTransfer
                 'from_warehouse_id' => $fromWarehouseId,
                 'to_warehouse_id' => $toWarehouseId,
                 'status' => StockTransferStatus::PendingApproval->value,
+                'source_type' => $data['source_type'] ?? null,
+                'source_id' => $data['source_id'] ?? null,
                 'created_by' => $createdById,
             ]);
 
@@ -123,7 +129,7 @@ class CreateDirectTransfer
             $mapping = $this->approvalEngine->evaluateAndMap([
                 'transaction_type' => 'stock_transfer',
                 'transaction_id' => $transfer->id,
-                'document_number' => 'ST-'.$transfer->id,
+                'document_number' => $transfer->number ?? 'TRF/'.$transfer->id,
                 'created_by' => $createdById,
                 'created_by_name' => $creatorName,
                 'branch_id' => $fromWarehouse->branch_id,

@@ -60,7 +60,7 @@ export const ItemsTab: React.FC<Props> = ({
         router.get(
             '/product',
             { tab: 'items', search, category_id: filters.category_id },
-            { preserveState: true },
+            { preserveState: true, preserveScroll: true },
         );
     };
 

@@ -138,11 +138,13 @@ export default function StockTransferShow({
 
     return (
         <CompanyLayout>
-            <Head title={`Detail Transfer #${stockTransfer.id}`} />
+            <Head
+                title={`Detail Transfer ${stockTransfer.number ?? `#${stockTransfer.id}`}`}
+            />
 
             <div className="space-y-6">
                 <PageHeader
-                    title={`Transfer Stok #${stockTransfer.id}`}
+                    title={`Transfer Stok ${stockTransfer.number ?? `#${stockTransfer.id}`}`}
                     description="Detail barang dan status pengiriman stok antar gudang."
                     actions={
                         <div className="flex items-center gap-3">
@@ -232,6 +234,18 @@ export default function StockTransferShow({
                                 {stockTransfer.stock_request_id}
                             </div>
                         )}
+                        {stockTransfer.source_type?.endsWith('GoodsReceipt') &&
+                            stockTransfer.source_id != null && (
+                                <div className="text-xs text-slate-600">
+                                    Dari GRN:{' '}
+                                    <Link
+                                        href={`/purchasing/grn-inbox/${stockTransfer.source_id}`}
+                                        className="font-semibold text-indigo-600 hover:underline"
+                                    >
+                                        Lihat approval HO
+                                    </Link>
+                                </div>
+                            )}
                     </div>
 
                     <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -95,8 +95,6 @@ export default function PurchaseOrdersCreate({
         branches,
         warehousesByBranch,
         productVariants,
-        initialDate: todayStr,
-        initialBranchId: branches.find((b) => !b.is_headquarters)?.id ?? branches[0]?.id,
     });
 
     const { data, setData, post, processing, errors, transform } = useForm<{

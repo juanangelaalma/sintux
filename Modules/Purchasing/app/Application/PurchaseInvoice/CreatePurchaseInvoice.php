@@ -8,6 +8,7 @@ use Illuminate\Validation\ValidationException;
 use Modules\Accounting\Application\TaxCalculator;
 use Modules\Accounting\Application\TaxQuery;
 use Modules\Approval\Application\ApprovalEngine;
+use Modules\Company\Application\CompanyAccess;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Purchasing\Application\PurchaseOrder\MarkPurchaseOrderClosed;
 use Modules\Purchasing\Enums\GoodsReceiptStatus;
@@ -44,14 +45,33 @@ class CreatePurchaseInvoice
         $creatorName = $userName ?? auth()->user()?->name;
 
         return DB::transaction(function () use ($data, $branchCode, $variants, $taxes, $creatorId, $creatorName) {
+            // Pembebanan hutang selalu di HO (PO milik HO). Faktur cabang ditolak.
+            $hqBranchId = CompanyAccess::headquartersBranchId();
+            if ($hqBranchId !== null && (int) $data['branch_id'] !== $hqBranchId) {
+                throw ValidationException::withMessages([
+                    'branch_id' => 'Faktur pembelian hanya dapat dibuat untuk Head Office (pembebanan hutang di HO).',
+                ]);
+            }
+
             $grn = $this->resolveGrn($data);
             $purchaseOrderId = $this->resolvePurchaseOrderId($data, $grn);
+            // Mode pajak faktur ber-GRN mengikuti PO (DO tidak bawa info pajak).
             $isTaxInclusive = (bool) ($data['is_tax_inclusive'] ?? false);
+            if ($grn && $purchaseOrderId) {
+                $poRow = DB::table('purchase_orders')->where('id', $purchaseOrderId)->first();
+                if ($poRow) {
+                    $isTaxInclusive = (bool) $poRow->is_tax_inclusive;
+                }
+            }
 
             $lines = $this->validateLines($data['items'], $grn, $purchaseOrderId, $taxes, $variants);
 
             [$lines, $subtotal, $taxAmount] = $this->computeTotals($lines, $isTaxInclusive);
             $total = $subtotal + $taxAmount;
+
+            $supplierInvoiceNo = $this->resolveSupplierInvoiceNo($data, $grn);
+            $taxInvoiceNo = $this->normalizeNo($data['tax_invoice_no'] ?? null);
+            $this->assertUniqueInvoiceNos((int) $data['supplier_id'], $supplierInvoiceNo, $taxInvoiceNo);
 
             $number = $this->nextNumber((int) $data['branch_id'], (string) $branchCode, (string) $data['invoice_date']);
 
@@ -61,6 +81,8 @@ class CreatePurchaseInvoice
                 'supplier_id' => $data['supplier_id'],
                 'purchase_order_id' => $purchaseOrderId,
                 'goods_receipt_id' => $grn?->id,
+                'supplier_invoice_no' => $supplierInvoiceNo,
+                'tax_invoice_no' => $taxInvoiceNo,
                 'status' => PurchaseInvoiceStatus::Pending,
                 'invoice_date' => $data['invoice_date'],
                 'due_date' => $data['due_date'] ?? null,
@@ -82,6 +104,8 @@ class CreatePurchaseInvoice
                     'product_name' => $variant['product_name'] ?? '',
                     'sku' => $variant['sku'] ?? '',
                     'uom_name' => $variant['uom_name'] ?? null,
+                    'color_raw' => $line['color_raw'] ?? null,
+                    'color' => $line['color'] ?? null,
                     'qty' => $line['qty'],
                     'unit_price' => $line['unit_price'],
                     'tax_id' => $line['tax_id'],
@@ -134,15 +158,29 @@ class CreatePurchaseInvoice
             ]);
         }
 
-        if ($grn->status !== GoodsReceiptStatus::Posted->value) {
+        if ($grn->status !== GoodsReceiptStatus::Approved->value) {
             throw ValidationException::withMessages([
-                'goods_receipt_id' => 'Faktur hanya dapat dibuat dari penerimaan barang yang sudah diposting.',
+                'goods_receipt_id' => 'Faktur hanya dapat dibuat dari penerimaan barang yang sudah disetujui HO.',
             ]);
         }
 
-        if ((int) $grn->branch_id !== (int) $data['branch_id']) {
+        // Strict 1:1 — satu GRN tepat satu faktur.
+        $exists = DB::table('purchase_invoices')
+            ->where('goods_receipt_id', (int) $grn->id)
+            ->exists();
+        if ($exists) {
             throw ValidationException::withMessages([
-                'goods_receipt_id' => 'Cabang penerimaan barang tidak sama dengan cabang faktur.',
+                'goods_receipt_id' => 'Penerimaan barang ini sudah memiliki faktur.',
+            ]);
+        }
+
+        // Faktur HO boleh menagih GRN cabang mana pun, asal PO-nya milik HO
+        // yang sama dan supplier sama. GRN branch (cabang fisik) tidak harus
+        // sama dengan invoice branch (HO pembebanan).
+        $po = DB::table('purchase_orders')->where('id', (int) $grn->purchase_order_id)->first();
+        if ($po && (int) $po->branch_id !== (int) $data['branch_id']) {
+            throw ValidationException::withMessages([
+                'goods_receipt_id' => 'PO penerimaan barang bukan milik HO faktur ini.',
             ]);
         }
 
@@ -175,15 +213,96 @@ class CreatePurchaseInvoice
     }
 
     /**
-     * Validasi + normalisasi baris: konsistensi PO/GRN dan harga dikunci
-     * ikut PO. Batas kumulatif dicek terpusat agar sama dengan finalize.
+     * No. faktur dagang supplier: wajib sama dengan DO (kolom GRN)
+     * bila GRN-nya punya nomor; auto-isi bila form kosong.
+     */
+    private function resolveSupplierInvoiceNo(array $data, ?object $grn): ?string
+    {
+        $input = $this->normalizeNo($data['supplier_invoice_no'] ?? null);
+
+        if (! $grn) {
+            return $input;
+        }
+
+        $grnNo = $this->normalizeNo($grn->supplier_invoice_no ?? null);
+
+        if ($grnNo === null) {
+            return $input;
+        }
+
+        if ($input === null) {
+            return $grnNo;
+        }
+
+        if ($input !== $grnNo) {
+            throw ValidationException::withMessages([
+                'supplier_invoice_no' => "No. faktur supplier harus sama dengan DO ({$grnNo}).",
+            ]);
+        }
+
+        return $input;
+    }
+
+    private function normalizeNo(mixed $value): ?string
+    {
+        $trimmed = trim((string) ($value ?? ''));
+
+        return $trimmed === '' ? null : mb_substr($trimmed, 0, 100);
+    }
+
+    /**
+     * Cegah faktur ganda per supplier. DB unique index adalah pengaman
+     * akhir; cek ini memberi pesan yang jelas + mencakup transaksi ini.
+     */
+    private function assertUniqueInvoiceNos(int $supplierId, ?string $supplierInvoiceNo, ?string $taxInvoiceNo): void
+    {
+        if ($supplierInvoiceNo !== null && DB::table('purchase_invoices')
+            ->where('supplier_id', $supplierId)
+            ->where('supplier_invoice_no', $supplierInvoiceNo)
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'supplier_invoice_no' => 'No. faktur supplier ini sudah pernah dicatat untuk supplier ini.',
+            ]);
+        }
+
+        if ($taxInvoiceNo !== null && DB::table('purchase_invoices')
+            ->where('supplier_id', $supplierId)
+            ->where('tax_invoice_no', $taxInvoiceNo)
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'tax_invoice_no' => 'No. faktur pajak ini sudah pernah dicatat untuk supplier ini.',
+            ]);
+        }
+    }
+
+    /**
+     * Validasi + normalisasi baris:
+     * - Mode GRN (strict 1:1): qty = received persis, harga = DO persis,
+     *   pajak ikut PO, semua item GRN wajib ter-cover tepat sekali.
+     * - Mode manual (tanpa GRN, kompatibilitas lama): harga bebas,
+     *   batas kumulatif dicek terpusat agar sama dengan finalize.
      *
      * @param  list<array<string, mixed>>  $items
-     * @return list<array{goods_receipt_item_id: int|null, purchase_order_item_id: int|null, product_variant_id: int, qty: float, unit_price: float, tax_id: int|null, tax_rate: float, tax_breakdown: list<array{tax_id: int, rate: float, amount: float}>|null, line_total: float, product_name: string}>
+     * @return list<array{goods_receipt_item_id: int|null, purchase_order_item_id: int|null, product_variant_id: int, qty: float, unit_price: float, tax_id: int|null, tax_rate: float, tax_breakdown: list<array{tax_id: int, rate: float, amount: float}>|null, line_total: float, product_name: string, color_raw: string|null, color: string|null}>
      */
     private function validateLines(array $items, ?object $grn, ?int $purchaseOrderId, mixed $taxes, mixed $variants): array
     {
         $lines = [];
+
+        if ($grn) {
+            $grnItems = DB::table('goods_receipt_items')->where('goods_receipt_id', (int) $grn->id)->get()->keyBy('id');
+            if ($grnItems->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'goods_receipt_id' => 'Penerimaan barang ini tidak memiliki item.',
+                ]);
+            }
+            if (count($items) !== $grnItems->count()) {
+                throw ValidationException::withMessages([
+                    'items' => 'Jumlah baris faktur harus sama dengan jumlah baris penerimaan ('.$grnItems->count().' baris).',
+                ]);
+            }
+            $seen = [];
+        }
 
         foreach ($items as $index => $item) {
             $qty = (float) $item['qty'];
@@ -204,16 +323,13 @@ class CreatePurchaseInvoice
                 ]);
             }
 
-            // Harga dikunci mengikuti PO untuk baris ber-PO.
-            $unitPrice = (float) $item['unit_price'];
+            $grnItem = $grnItemId ? DB::table('goods_receipt_items')->where('id', $grnItemId)->first() : null;
 
-            if ($poItem && round($unitPrice, 4) !== round((float) $poItem->unit_price, 4)) {
+            if ($grn && ! $grnItem) {
                 throw ValidationException::withMessages([
-                    "items.{$index}.unit_price" => "Harga harus sama dengan harga PO ({$poItem->unit_price}).",
+                    "items.{$index}.goods_receipt_item_id" => 'Item penerimaan wajib diisi untuk faktur ber-GRN.',
                 ]);
             }
-
-            $grnItem = $grnItemId ? DB::table('goods_receipt_items')->where('id', $grnItemId)->first() : null;
 
             if ($grnItemId && ! $grnItem) {
                 throw ValidationException::withMessages([
@@ -233,6 +349,48 @@ class CreatePurchaseInvoice
                         "items.{$index}.goods_receipt_item_id" => 'Item penerimaan tidak cocok dengan item PO.',
                     ]);
                 }
+
+                if (isset($seen[$grnItemId])) {
+                    throw ValidationException::withMessages([
+                        "items.{$index}.goods_receipt_item_id" => 'Item penerimaan duplikat dalam faktur ini.',
+                    ]);
+                }
+                $seen[$grnItemId] = true;
+
+                // Qty strict = received persis.
+                if (abs($qty - (float) $grnItem->qty_received) > 0.0001) {
+                    throw ValidationException::withMessages([
+                        "items.{$index}.qty" => 'Qty harus sama dengan yang diterima ('.$grnItem->qty_received.').',
+                    ]);
+                }
+
+                // Harga strict = DO supplier (snapshot GRN). Satu-satunya
+                // sumber kebenaran; tidak ada fallback ke harga PO.
+                $expectedPrice = (float) ($grnItem->unit_price_supplier ?? 0);
+                $unitPrice = (float) $item['unit_price'];
+                if (round($unitPrice, 4) !== round($expectedPrice, 4)) {
+                    throw ValidationException::withMessages([
+                        "items.{$index}.unit_price" => "Harga harus sama dengan harga DO ({$expectedPrice}).",
+                    ]);
+                }
+
+                // Varian tidak boleh ditukar.
+                if ((int) $item['product_variant_id'] !== (int) $grnItem->product_variant_id) {
+                    throw ValidationException::withMessages([
+                        "items.{$index}.product_variant_id" => 'Varian harus sama dengan baris penerimaan.',
+                    ]);
+                }
+
+                // Pajak ikut PO item (DO tidak bawa info pajak).
+                $poTaxId = $poItem && $poItem->tax_id ? (int) $poItem->tax_id : null;
+                if ($poTaxId !== null && (int) ($item['tax_id'] ?? 0) !== $poTaxId) {
+                    throw ValidationException::withMessages([
+                        "items.{$index}.tax_id" => 'Pajak harus mengikuti PO.',
+                    ]);
+                }
+            } else {
+                // Mode manual: harga bebas.
+                $unitPrice = (float) $item['unit_price'];
             }
 
             $variant = $variants->get((int) $item['product_variant_id']);
@@ -246,6 +404,8 @@ class CreatePurchaseInvoice
                 'purchase_order_item_id' => $poItemId,
                 'product_variant_id' => (int) $item['product_variant_id'],
                 'product_name' => $variant['product_name'] ?? '',
+                'color_raw' => $grnItem->color_raw ?? null,
+                'color' => $grnItem->color ?? null,
                 'qty' => $qty,
                 'unit_price' => $unitPrice,
                 'tax_id' => $taxId ? (int) $taxId : null,

@@ -22,7 +22,7 @@ export const MasterDataTab: React.FC<Props> = ({
         router.get(
             '/product',
             { tab: 'master', sub: newSub },
-            { preserveState: true },
+            { preserveState: true, preserveScroll: true },
         );
     };
 

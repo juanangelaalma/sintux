@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $product_name
  * @property string $sku
  * @property string|null $uom_name
+ * @property string|null $color_raw
+ * @property string|null $color
  * @property float $qty
  * @property float $unit_price
  * @property int|null $tax_id
@@ -31,6 +33,8 @@ class PurchaseInvoiceItem extends Model
         'product_name',
         'sku',
         'uom_name',
+        'color_raw',
+        'color',
         'qty',
         'unit_price',
         'tax_id',

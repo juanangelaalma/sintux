@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Modules\Company\Database\Seeders\RolePermissionSeeder;
 use Modules\Company\Models\CompanyUser;
+use Modules\Warehouse\Application\StockTransfer\CreateDirectTransfer;
+use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
+use Modules\Warehouse\Application\StockTransfer\ShipStockTransfer;
 use Tests\TestCase;
 
 class DirectTransferTest extends TestCase
@@ -118,6 +121,88 @@ class DirectTransferTest extends TestCase
      * Branch non-HO yang membuat transfer ke branch lain
      * harus menunggu approval HO (status pending_approval).
      */
+    /**
+     * Setiap transfer otomatis bernomor dokumen (unik) dan dapat
+     * membawa tautan sumber administratif (mis. penerimaan cabang).
+     */
+    public function test_direct_transfer_gets_number_and_source_link(): void
+    {
+        [$tenantId, $hqBranchId, $branchBId, $user] =
+            $this->createCompanyWithMemberAndBranches();
+
+        session([
+            'active_tenant_id' => $tenantId,
+            'active_branch_id' => $hqBranchId,
+        ]);
+
+        tenancy()->initialize($tenantId);
+
+        [
+            $hqWarehouseId,
+            $branchBWarehouseId,
+            $variant1Id,
+        ] = $this->seedWarehouseAndVariants(
+            $hqBranchId,
+            $branchBId
+        );
+
+        DB::table('stock_balances')->insert([
+            'product_variant_id' => $variant1Id,
+            'warehouse_id' => $hqWarehouseId,
+            'qty_on_hand' => 20,
+        ]);
+
+        $first = app(CreateDirectTransfer::class)->execute([
+            'from_warehouse_id' => $hqWarehouseId,
+            'to_warehouse_id' => $branchBWarehouseId,
+            'items' => [
+                ['product_variant_id' => $variant1Id, 'qty' => 5],
+            ],
+            'source_type' => 'TestReception',
+            'source_id' => 42,
+        ], $user->id);
+
+        $today = now()->format('Ymd');
+        $this->assertSame("TRF/{$today}/001", (string) $first->number);
+        $this->assertSame('TestReception', $first->source_type);
+        $this->assertSame(42, (int) $first->source_id);
+
+        $second = app(CreateDirectTransfer::class)->execute([
+            'from_warehouse_id' => $hqWarehouseId,
+            'to_warehouse_id' => $branchBWarehouseId,
+            'items' => [
+                ['product_variant_id' => $variant1Id, 'qty' => 2],
+            ],
+        ], $user->id);
+
+        $this->assertSame("TRF/{$today}/002", (string) $second->number);
+        $this->assertNull($second->source_type);
+        $this->assertNull($second->source_id);
+
+        // Serialisasi untuk UI: relasi user tidak boleh menimpa FK integer.
+        DB::table('stock_layers')->insert([
+            'product_variant_id' => $variant1Id,
+            'warehouse_id' => $hqWarehouseId,
+            'qty_remaining' => 20,
+            'unit_cost' => 10000,
+            'received_at' => now(),
+            'source_type' => 'purchase_order',
+            'source_id' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        app(ShipStockTransfer::class)->execute($first->id, $user->id);
+
+        $detail = app(GetStockTransferDetail::class)->execute($first->id)->toArray();
+
+        $this->assertSame((int) $user->id, (int) $detail['shipped_by']);
+        $this->assertSame((int) $user->id, (int) ($detail['shipped_by_user']['id'] ?? 0));
+        $this->assertNotEmpty($detail['shipped_by_user']['name'] ?? null);
+
+        tenancy()->end();
+    }
+
     public function test_branch_user_creates_transfer_as_pending_approval(): void
     {
         [$tenantId, $hqBranchId, $branchBId] =
