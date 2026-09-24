@@ -23,12 +23,42 @@ class GetPayableInvoices
      */
     public function execute(int $supplierId, array $branchIds = []): array
     {
+        return $this->project($supplierId, $branchIds);
+    }
+
+    /**
+     * Satu faktur untuk prefill form pembayaran (dipakai dari
+     * ?createdFrom={invoiceId}) beserta supplier-nya.
+     *
+     * @param  list<int>  $branchIds
+     * @return array<string, mixed>|null
+     */
+    public function find(int $invoiceId, array $branchIds = []): ?array
+    {
+        $rows = $this->project(0, $branchIds, $invoiceId);
+
+        return $rows[0] ?? null;
+    }
+
+    /**
+     * @param  list<int>  $branchIds
+     * @return list<array<string, mixed>>
+     */
+    private function project(int $supplierId, array $branchIds, ?int $onlyInvoiceId = null): array
+    {
         $query = PurchaseInvoice::query()
-            ->where('supplier_id', $supplierId)
             ->whereIn('status', [
                 PurchaseInvoiceStatus::Approved->value,
                 PurchaseInvoiceStatus::PartiallyPaid->value,
             ]);
+
+        if ($supplierId > 0) {
+            $query->where('supplier_id', $supplierId);
+        }
+
+        if ($onlyInvoiceId !== null) {
+            $query->whereKey($onlyInvoiceId);
+        }
 
         if ($branchIds !== []) {
             $query->whereIn('branch_id', $branchIds);
@@ -41,7 +71,6 @@ class GetPayableInvoices
                 $total = (float) $invoice->total;
                 $paid = (float) ($invoice->paid_amount ?? 0);
                 $returned = (float) ($invoice->returned_amount ?? 0);
-                $outstanding = max(0.0, $total - $paid - $returned);
 
                 return [
                     'id' => (int) $invoice->id,
@@ -52,7 +81,7 @@ class GetPayableInvoices
                     'total' => $total,
                     'paid_amount' => $paid,
                     'returned_amount' => $returned,
-                    'outstanding' => $outstanding,
+                    'outstanding' => max(0.0, $total - $paid - $returned),
                     'status' => (string) ($invoice->status instanceof PurchaseInvoiceStatus
                         ? $invoice->status->value
                         : $invoice->status),
