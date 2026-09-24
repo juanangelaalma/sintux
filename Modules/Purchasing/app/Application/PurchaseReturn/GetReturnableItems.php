@@ -4,6 +4,7 @@ namespace Modules\Purchasing\Application\PurchaseReturn;
 
 use Illuminate\Validation\ValidationException;
 use Modules\Product\Application\Variant\GetVariantReturnProfile;
+use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Modules\Purchasing\Models\PurchaseInvoice;
 
 class GetReturnableItems
@@ -25,6 +26,12 @@ class GetReturnableItems
         if (! $invoice) {
             throw ValidationException::withMessages([
                 'purchase_invoice_id' => 'Faktur pembelian tidak ditemukan.',
+            ]);
+        }
+
+        if (! in_array($invoice->status, [PurchaseInvoiceStatus::Approved, PurchaseInvoiceStatus::PartiallyPaid], true)) {
+            throw ValidationException::withMessages([
+                'purchase_invoice_id' => 'Hanya faktur disetujui/disicil yang dapat diretur.',
             ]);
         }
 

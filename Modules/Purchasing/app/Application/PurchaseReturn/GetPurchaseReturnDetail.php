@@ -99,6 +99,8 @@ class GetPurchaseReturnDetail
     private function transferSummary(int $transferId): ?array
     {
         try {
+            // Tanpa scope cabang di sini: retur HO + transfer HO, dan
+            // scope create sudah ditegakkan via forScope. Detail hanya baca.
             $transfer = $this->transfers->execute($transferId);
         } catch (ModelNotFoundException $e) {
             // Transfer dihapus (nullOnDelete): kembalikan penanda agar

@@ -94,7 +94,11 @@ class CreatePurchaseReturn
             }
 
             $returnDate = $this->parseReturnDate($data['return_date'] ?? null);
-            $transferId = $this->resolveTransfer($data['return_transfer_id'] ?? null, (int) $warehouse->id);
+            $transferId = $this->resolveTransfer(
+                $data['return_transfer_id'] ?? null,
+                (int) $warehouse->id,
+                $branchIds ?? [(int) $data['branch_id']]
+            );
 
             $invoiceItems = PurchaseInvoiceItem::where('purchase_invoice_id', $invoice->id)
                 ->lockForUpdate()
@@ -180,18 +184,20 @@ class CreatePurchaseReturn
     }
 
     /**
-     * Transfer retur yang di-link (opsional). Memastikan transfer ada,
-     * menuju gudang retur, dan sudah diterima HO; ketersediaan stoknya
-     * ditegakkan per baris via layer transfer itu.
+     * Transfer retur yang di-link (opsional). Memastikan transfer ada dalam
+     * scope cabang peminta, menuju gudang retur, dan sudah diterima HO;
+     * ketersediaan stoknya ditegakkan per baris via layer transfer itu.
+     *
+     * @param  list<int>  $branchIds
      */
-    private function resolveTransfer(mixed $value, int $warehouseId): ?int
+    private function resolveTransfer(mixed $value, int $warehouseId, array $branchIds): ?int
     {
         if (empty($value)) {
             return null;
         }
 
         try {
-            $transfer = $this->returnTransfers->execute((int) $value);
+            $transfer = $this->returnTransfers->forScope((int) $value, $branchIds);
         } catch (ModelNotFoundException $e) {
             throw ValidationException::withMessages([
                 'return_transfer_id' => 'Transfer retur tidak ditemukan.',
