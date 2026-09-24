@@ -1,0 +1,12 @@
+{
+    "name": "Payment",
+    "alias": "payment",
+    "description": "Purchase payments to suppliers: invoice allocation, withholding, deposits, and debit memo credits",
+    "keywords": [],
+    "priority": 0,
+    "requires": ["Company", "Contact", "Purchasing", "Accounting", "Approval"],
+    "providers": [
+        "Modules\\Payment\\Providers\\PaymentServiceProvider"
+    ],
+    "files": []
+}

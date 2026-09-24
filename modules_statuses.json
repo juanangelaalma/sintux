@@ -9,5 +9,6 @@
     "Warehouse": true,
     "Purchasing": true,
     "Approval": true,
-    "Sales": true
+    "Sales": true,
+    "Payment": true
 }
