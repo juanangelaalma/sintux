@@ -286,6 +286,54 @@ class PurchasePaymentTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_payment_rejects_invalid_cash_account(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $invoiceId = $this->createInvoice($ctx, 200000);
+
+        // Akun tidak ada.
+        try {
+            app(CreatePurchasePayment::class)->execute([
+                'branch_id' => $ctx['hqBranchId'],
+                'supplier_id' => $ctx['supplierId'],
+                'cash_account_id' => 999999,
+                'allocations' => [
+                    ['purchase_invoice_id' => $invoiceId, 'amount' => 50000],
+                ],
+            ], null, null, [$ctx['hqBranchId']]);
+            $this->fail('Expected ValidationException for unknown cash account.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('cash_account_id', $e->errors());
+        }
+
+        // Akun header tidak boleh jadi akun journals.
+        $headerAccountId = DB::table('chart_of_accounts')
+            ->where('is_header', true)
+            ->value('id');
+
+        try {
+            app(CreatePurchasePayment::class)->execute([
+                'branch_id' => $ctx['hqBranchId'],
+                'supplier_id' => $ctx['supplierId'],
+                'cash_account_id' => $headerAccountId,
+                'allocations' => [
+                    ['purchase_invoice_id' => $invoiceId, 'amount' => 50000],
+                ],
+            ], null, null, [$ctx['hqBranchId']]);
+            $this->fail('Expected ValidationException for header cash account.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('cash_account_id', $e->errors());
+        }
+
+        $this->assertSame(0, PurchasePayment::count());
+        $this->assertEquals(0, (float) DB::table('purchase_invoices')
+            ->where('id', $invoiceId)->value('paid_amount'));
+
+        tenancy()->end();
+    }
+
     public function test_duplicate_invoice_allocations_are_merged_not_double_counted(): void
     {
         $ctx = $this->seedContext();

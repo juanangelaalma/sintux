@@ -48,6 +48,17 @@ class CreatePurchasePayment
             }
 
             $supplierId = (int) ($data['supplier_id'] ?? 0);
+            $cashAccountId = (int) ($data['cash_account_id'] ?? 0);
+
+            // Validasi di sini, bukan hanya di RecordJournal: tanpa ini akun
+            // tidak ada / akun header lolos sampai Foreign Key atau jurnal dan
+            // user mendapat error 500, bukan 422 yang bisa ditampilkan form.
+            if (! $this->chartOfAccounts->isEligible($cashAccountId)) {
+                throw ValidationException::withMessages([
+                    'cash_account_id' => 'Akun kas/bank tidak valid.',
+                ]);
+            }
+
             $allocations = $this->normalizeAllocations($data['allocations'] ?? []);
 
             if ($allocations === []) {
@@ -209,7 +220,7 @@ class CreatePurchasePayment
                 'payment_date' => $data['payment_date'] ?? now()->toDateString(),
                 'due_date' => $data['due_date'] ?? null,
                 'currency_code' => $currencyCode,
-                'cash_account_id' => (int) ($data['cash_account_id'] ?? 0),
+                'cash_account_id' => $cashAccountId,
                 'gross_amount' => $gross,
                 'withholding_amount' => $withholdingTotal,
                 'deposit_applied' => $depositApplied,
