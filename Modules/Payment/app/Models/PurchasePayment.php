@@ -50,6 +50,21 @@ class PurchasePayment extends Model
         return $this->hasMany(PurchasePaymentAllocation::class, 'purchase_payment_id');
     }
 
+    public function withholdings(): HasMany
+    {
+        return $this->hasMany(PurchasePaymentWithholding::class, 'purchase_payment_id');
+    }
+
+    public function depositUses(): HasMany
+    {
+        return $this->hasMany(PurchasePaymentDepositApply::class, 'purchase_payment_id');
+    }
+
+    public function memoUses(): HasMany
+    {
+        return $this->hasMany(PurchasePaymentMemoApply::class, 'purchase_payment_id');
+    }
+
     public function paymentMethod(): BelongsTo
     {
         return $this->belongsTo(PaymentMethod::class, 'payment_method_id');

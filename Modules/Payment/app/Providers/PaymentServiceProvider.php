@@ -11,6 +11,7 @@ class PaymentServiceProvider extends ModuleServiceProvider
     protected string $nameLower = 'payment';
 
     protected array $providers = [
+        EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
 }
