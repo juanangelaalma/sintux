@@ -1,5 +1,5 @@
 import { Button, Input, Label, ListBox, Select, TextArea } from '@heroui/react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import type { SupplierOption } from '@/components/purchasing/supplier-fields';
 import { TagComboBox } from '@/components/ui/app-combobox/tags/tag-combobox';
@@ -342,11 +342,16 @@ export default function PurchaseReturnsCreate({
                                     fullWidth
                                     placeholder="Tanpa transfer — pakai stok HO"
                                     value={
-                                        selectedTransferId
-                                            ? String(selectedTransferId)
+                                        data.return_transfer_id
+                                            ? String(data.return_transfer_id)
                                             : ''
                                     }
                                     onChange={(val) => {
+                                        setData(
+                                            'return_transfer_id',
+                                            val ? String(val) : '',
+                                        );
+
                                         const params = new URLSearchParams(
                                             window.location.search,
                                         );
@@ -360,7 +365,22 @@ export default function PurchaseReturnsCreate({
                                             params.delete('returnTransfer');
                                         }
 
-                                        window.location.href = `${window.location.pathname}?${params.toString()}`;
+                                        // preserveState agar qty/gudang/pesan
+                                        // yang sudah diisi tak hilang saat
+                                        // availability terfilter dimuat ulang.
+                                        router.get(
+                                            `${window.location.pathname}?${params.toString()}`,
+                                            {},
+                                            {
+                                                preserveState: true,
+                                                preserveScroll: true,
+                                                only: [
+                                                    'availability',
+                                                    'selectedTransferId',
+                                                    'transfers',
+                                                ],
+                                            },
+                                        );
                                     }}
                                 >
                                     <Select.Trigger className="mt-1">

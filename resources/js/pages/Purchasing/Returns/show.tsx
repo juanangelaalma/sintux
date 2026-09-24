@@ -47,6 +47,8 @@ type ReturnTransfer = {
     number: string;
     status: string;
     from_warehouse_name: string;
+    from_branch_name: string;
+    to_warehouse_name: string;
 };
 
 type PurchaseReturnDetail = {
@@ -122,7 +124,24 @@ export default function PurchaseReturnsShow({
             ? [
                   {
                       label: 'Transfer retur',
-                      value: `${transfer.number} — dari ${transfer.from_warehouse_name} (${transfer.status})`,
+                      value:
+                          transfer.status === 'deleted' ? (
+                              `${transfer.number}`
+                          ) : (
+                              <Link
+                                  href={`/warehouse/stock-transfers/${transfer.id}`}
+                                  className="text-accent hover:underline"
+                              >
+                                  {transfer.number}
+                              </Link>
+                          ),
+                  } as DetailRow,
+                  {
+                      label: 'Asal transfer',
+                      value:
+                          transfer.status === 'deleted'
+                              ? '—'
+                              : `${transfer.from_warehouse_name}${transfer.from_branch_name ? ` — ${transfer.from_branch_name}` : ''} → ${transfer.to_warehouse_name} (${transfer.status})`,
                   } as DetailRow,
               ]
             : []),

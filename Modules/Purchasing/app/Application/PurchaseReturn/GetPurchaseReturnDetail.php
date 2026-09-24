@@ -94,14 +94,23 @@ class GetPurchaseReturnDetail
     }
 
     /**
-     * @return array{id: int, number: string, status: string, from_warehouse_name: string}|null
+     * @return array{id: int, number: string, status: string, from_warehouse_name: string, from_branch_name: string, to_warehouse_name: string}|null
      */
     private function transferSummary(int $transferId): ?array
     {
         try {
             $transfer = $this->transfers->execute($transferId);
         } catch (ModelNotFoundException $e) {
-            return null;
+            // Transfer dihapus (nullOnDelete): kembalikan penanda agar
+            // detail retur tetap menunjukkan retur ini pernah ber-transfer.
+            return [
+                'id' => $transferId,
+                'number' => '#'.$transferId.' (dihapus)',
+                'status' => 'deleted',
+                'from_warehouse_name' => '',
+                'from_branch_name' => '',
+                'to_warehouse_name' => '',
+            ];
         }
 
         return [
@@ -109,6 +118,8 @@ class GetPurchaseReturnDetail
             'number' => (string) ($transfer->number ?? ('#'.$transfer->id)),
             'status' => (string) $transfer->status,
             'from_warehouse_name' => (string) ($transfer->fromWarehouse?->name ?? ''),
+            'from_branch_name' => (string) ($transfer->fromWarehouse?->branch?->name ?? ''),
+            'to_warehouse_name' => (string) ($transfer->toWarehouse?->name ?? ''),
         ];
     }
 }
