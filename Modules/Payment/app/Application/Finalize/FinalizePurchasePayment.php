@@ -135,13 +135,39 @@ class FinalizePurchasePayment
             // Apply uang muka: Cr 1402 (Uang Muka Pembelian).
             if ($depositApplied > 0.005) {
                 foreach ($payment->depositUses as $use) {
-                    $source = PurchasePayment::whereKey((int) $use->source_payment_id)->lockForUpdate()->first();
+                    $sourceId = (int) $use->source_payment_id;
 
-                    if ($source) {
-                        $source->update([
-                            'deposit_remaining' => max(0.0, (float) $source->deposit_remaining - (float) $use->amount),
-                        ]);
+                    // Idempotensi per (deposit, payment): baris apply sudah ada
+                    // sejak create, jadi yang menentukan "sudah terpakai" adalah
+                    // applied_at. Tanpa ini, finalize ulang akan mengurangi sisa
+                    // deposit dua kali.
+                    $applyRow = DB::table('purchase_payment_deposit_applies')
+                        ->where('purchase_payment_id', (int) $payment->id)
+                        ->where('source_payment_id', $sourceId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $applyRow) {
+                        continue;
                     }
+
+                    if ($applyRow->applied_at !== null) {
+                        continue;
+                    }
+
+                    $source = PurchasePayment::whereKey($sourceId)->lockForUpdate()->first();
+
+                    if (! $source) {
+                        continue;
+                    }
+
+                    $source->update([
+                        'deposit_remaining' => max(0.0, (float) $source->deposit_remaining - (float) $use->amount),
+                    ]);
+
+                    DB::table('purchase_payment_deposit_applies')
+                        ->where('id', (int) $applyRow->id)
+                        ->update(['applied_at' => now(), 'updated_at' => now()]);
                 }
 
                 $depositAccount = $this->chartOfAccounts->findBySeedKey('accounting.coa.1402');

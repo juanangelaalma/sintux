@@ -32,9 +32,12 @@ return new class extends Migration
             // payment deposit sumber (mode = deposit)
             $table->foreignId('source_payment_id')->constrained('purchase_payments')->cascadeOnDelete();
             $table->decimal('amount', 15, 4);
+            // filled at finalize to mark the credit as actually consumed
+            $table->timestamp('applied_at')->nullable();
             $table->timestamps();
 
             $table->index('purchase_payment_id');
+            $table->unique(['purchase_payment_id', 'source_payment_id'], 'ppda_unique');
         });
 
         Schema::create('purchase_payment_memo_applies', function (Blueprint $table) {

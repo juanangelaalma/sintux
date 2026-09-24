@@ -335,6 +335,55 @@ class PurchasePaymentTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_deposit_remaining_is_not_reduced_twice_on_retry(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $invoiceId = $this->createInvoice($ctx, 1000000);
+        $depositId = DB::table('purchase_payments')->insertGetId([
+            'number' => 'PBL/DP/IDEM',
+            'branch_id' => $ctx['hqBranchId'],
+            'supplier_id' => $ctx['supplierId'],
+            'mode' => 'deposit',
+            'payment_date' => '2026-09-20',
+            'currency_code' => 'IDR',
+            'cash_account_id' => $ctx['cashAccountId'],
+            'cash_out' => 300000,
+            'deposit_total' => 300000,
+            'deposit_remaining' => 300000,
+            'status' => 'approved',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $payment = app(CreatePurchasePayment::class)->execute([
+            'branch_id' => $ctx['hqBranchId'],
+            'supplier_id' => $ctx['supplierId'],
+            'cash_account_id' => $ctx['cashAccountId'],
+            'allocations' => [['purchase_invoice_id' => $invoiceId, 'amount' => 500000]],
+            'deposit_uses' => [['payment_id' => $depositId, 'amount' => 200000]],
+        ], null, null, [$ctx['hqBranchId']]);
+
+        $this->assertEquals(100000, (float) DB::table('purchase_payments')
+            ->where('id', $depositId)->value('deposit_remaining'));
+
+        // Paksa status pending lalu finalize lagi: guard apply harus mencegah
+        // pengurangan sisa deposit untuk kedua kalinya.
+        DB::table('purchase_payments')->where('id', $payment->id)
+            ->update(['status' => 'pending']);
+        app(FinalizePurchasePayment::class)->execute((int) $payment->id);
+
+        $this->assertEquals(100000, (float) DB::table('purchase_payments')
+            ->where('id', $depositId)->value('deposit_remaining'));
+        $this->assertSame(1, DB::table('purchase_payment_deposit_applies')
+            ->where('purchase_payment_id', $payment->id)
+            ->where('source_payment_id', $depositId)
+            ->count());
+
+        tenancy()->end();
+    }
+
     public function test_finalize_marks_payment_failed_when_outstanding_was_taken_while_pending(): void
     {
         $ctx = $this->seedContext();
