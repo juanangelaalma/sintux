@@ -7,37 +7,29 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
- * @property int $purchase_invoice_id
- * @property int|null $purchase_order_item_id
- * @property int|null $goods_receipt_item_id
+ * @property int $purchase_return_id
+ * @property int $purchase_invoice_item_id
  * @property int $product_variant_id
  * @property string $product_name
  * @property string $sku
  * @property string|null $uom_name
- * @property string|null $color_raw
- * @property string|null $color
  * @property float $qty
- * @property float $qty_returned
  * @property float $unit_price
  * @property int|null $tax_id
  * @property float $tax_rate
  * @property array|null $tax_breakdown
  * @property float $line_total
  */
-class PurchaseInvoiceItem extends Model
+class PurchaseReturnItem extends Model
 {
     protected $fillable = [
-        'purchase_invoice_id',
-        'purchase_order_item_id',
-        'goods_receipt_item_id',
+        'purchase_return_id',
+        'purchase_invoice_item_id',
         'product_variant_id',
         'product_name',
         'sku',
         'uom_name',
-        'color_raw',
-        'color',
         'qty',
-        'qty_returned',
         'unit_price',
         'tax_id',
         'tax_rate',
@@ -49,7 +41,6 @@ class PurchaseInvoiceItem extends Model
     {
         return [
             'qty' => 'decimal:4',
-            'qty_returned' => 'decimal:4',
             'unit_price' => 'decimal:4',
             'tax_rate' => 'decimal:4',
             'tax_breakdown' => 'array',
@@ -58,18 +49,18 @@ class PurchaseInvoiceItem extends Model
     }
 
     /**
-     * @return BelongsTo<PurchaseInvoice, $this>
+     * @return BelongsTo<PurchaseReturn, $this>
      */
-    public function invoice(): BelongsTo
+    public function purchaseReturn(): BelongsTo
     {
-        return $this->belongsTo(PurchaseInvoice::class, 'purchase_invoice_id');
+        return $this->belongsTo(PurchaseReturn::class);
     }
 
     /**
-     * @return BelongsTo<PurchaseOrderItem, $this>
+     * @return BelongsTo<PurchaseInvoiceItem, $this>
      */
-    public function purchaseOrderItem(): BelongsTo
+    public function invoiceItem(): BelongsTo
     {
-        return $this->belongsTo(PurchaseOrderItem::class, 'purchase_order_item_id');
+        return $this->belongsTo(PurchaseInvoiceItem::class, 'purchase_invoice_item_id');
     }
 }

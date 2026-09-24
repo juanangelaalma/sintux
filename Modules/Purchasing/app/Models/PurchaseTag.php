@@ -24,4 +24,12 @@ class PurchaseTag extends Model
     {
         return $this->belongsToMany(PurchaseOrder::class);
     }
+
+    /**
+     * @return BelongsToMany<PurchaseReturn, $this>
+     */
+    public function purchaseReturns(): BelongsToMany
+    {
+        return $this->belongsToMany(PurchaseReturn::class, 'purchase_return_purchase_tag');
+    }
 }

@@ -230,6 +230,7 @@ class ChartOfAccountsSeeder extends Seeder
                     ['1302', 'Persediaan Bahan Baku'],
                     ['1303', 'Persediaan Barang Dalam Proses'],
                     ['1304', 'Persediaan Barang Jadi'],
+                    ['1398', 'Penyesuaian Persediaan Barang'],
                 ],
             ],
             [
@@ -347,6 +348,7 @@ class ChartOfAccountsSeeder extends Seeder
                     ['5103', 'Beban Tenaga Kerja Langsung'],
                     ['5104', 'Beban Overhead Produksi'],
                     ['5105', 'Beban Pokok Jasa'],
+                    ['5201', 'Beban Pembelian'],
                 ],
             ],
             [
