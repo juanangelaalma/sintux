@@ -2,8 +2,10 @@
 
 namespace Modules\Payment\Application\PurchasePayment;
 
+use Illuminate\Support\Facades\DB;
 use Modules\Accounting\Application\Journal\GetJournalByReference;
 use Modules\Payment\Models\PurchasePayment;
+use Modules\Purchasing\Application\PurchaseTag\GetPurchaseTags;
 
 /**
  * Proyeksi detail pembayaran untuk halaman show: header + alokasi +
@@ -15,6 +17,7 @@ class GetPaymentDetail
 {
     public function __construct(
         private readonly GetJournalByReference $journals,
+        private readonly GetPurchaseTags $purchaseTags,
     ) {}
 
     /**
@@ -76,6 +79,36 @@ class GetPaymentDetail
                 'amount' => (float) $use->amount,
             ])->all(),
             'journal' => $this->journals->execute('purchase_payment', (int) $payment->id),
+            'tags' => $this->tagLabels($payment->id),
         ];
+    }
+
+    /**
+     * Nama tag diambil dari master Purchasing (Application API), bukan dari
+     * tabel tag, supaya batas modul tetap terjaga.
+     *
+     * @return list<array{id: int, name: string}>
+     */
+    private function tagLabels(int $paymentId): array
+    {
+        $ids = DB::table('purchase_payment_purchase_tag')
+            ->where('purchase_payment_id', $paymentId)
+            ->orderBy('purchase_tag_id')
+            ->pluck('purchase_tag_id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return collect($this->purchaseTags->execute())
+            ->filter(fn (array $tag): bool => in_array((int) $tag['id'], $ids, true))
+            ->map(fn (array $tag): array => [
+                'id' => (int) $tag['id'],
+                'name' => (string) $tag['name'],
+            ])
+            ->values()
+            ->all();
     }
 }

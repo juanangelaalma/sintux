@@ -44,6 +44,7 @@ type PaymentDetail = {
     }[];
     deposit_uses: { payment_id: number; number: string; amount: number }[];
     memo_uses: { memo_id: number; amount: number }[];
+    tags: { id: number; name: string }[];
     journal: {
         id: number;
         journal_date: string;
@@ -63,6 +64,7 @@ export default function PurchasePaymentsShow({ payment, approval }: Props) {
         withholdings,
         deposit_uses,
         memo_uses,
+        tags,
         journal,
     } = payment;
 
@@ -83,6 +85,14 @@ export default function PurchasePaymentsShow({ payment, approval }: Props) {
                   {
                       label: 'Cara Pembayaran',
                       value: header.payment_method,
+                  } as DetailRow,
+              ]
+            : []),
+        ...(tags.length > 0
+            ? [
+                  {
+                      label: 'Tag',
+                      value: tags.map((tag) => tag.name).join(', '),
                   } as DetailRow,
               ]
             : []),

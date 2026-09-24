@@ -10,6 +10,7 @@ use Modules\Company\Application\CompanyAccess;
 use Modules\Payment\Application\Finalize\FinalizePurchasePayment;
 use Modules\Payment\Models\PurchasePayment;
 use Modules\Purchasing\Application\PurchaseInvoice\GetPayableInvoices;
+use Modules\Purchasing\Application\PurchaseTag\GetPurchaseTags;
 use Modules\Purchasing\Application\SupplierMemo\ListSupplierDebitMemos;
 
 /**
@@ -27,6 +28,7 @@ class CreatePurchasePayment
         private readonly GetPayableInvoices $payableInvoices,
         private readonly ListSupplierDebitMemos $debitMemos,
         private readonly ChartOfAccountQuery $chartOfAccounts,
+        private readonly GetPurchaseTags $purchaseTags,
         private readonly ApprovalEngine $approvalEngine,
         private readonly FinalizePurchasePayment $finalizePurchasePayment,
     ) {}
@@ -58,6 +60,10 @@ class CreatePurchasePayment
                     'cash_account_id' => 'Akun kas/bank tidak valid.',
                 ]);
             }
+
+            // Tag divalidasi lewat master Purchasing (Application API), lalu
+            // ditulis ke pivot milik Payment sendiri.
+            $tagIds = $this->validateTags($data['tag_ids'] ?? []);
 
             $allocations = $this->normalizeAllocations($data['allocations'] ?? []);
 
@@ -260,6 +266,16 @@ class CreatePurchasePayment
                 ]);
             }
 
+            if ($tagIds !== []) {
+                DB::table('purchase_payment_purchase_tag')->insert(array_map(
+                    fn (int $tagId): array => [
+                        'purchase_payment_id' => (int) $payment->id,
+                        'purchase_tag_id' => $tagId,
+                    ],
+                    $tagIds
+                ));
+            }
+
             $mapping = $this->approvalEngine->evaluateAndMap([
                 'transaction_type' => 'purchase_payment',
                 'transaction_id' => $payment->id,
@@ -278,6 +294,31 @@ class CreatePurchasePayment
 
             return $payment->load('allocations');
         });
+    }
+
+    /**
+     * Validasi tag lewat master Purchasing. Id yang tidak dikenal ditolak
+     * agar pivot tidak menyimpan tag yang tidak bisa ditampilkan lagi.
+     *
+     * @return list<int>
+     */
+    private function validateTags(mixed $tagIds): array
+    {
+        $ids = array_values(array_unique(array_map('intval', (array) ($tagIds ?? []))));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $known = collect($this->purchaseTags->execute())->pluck('id')->map(fn ($id): int => (int) $id)->all();
+
+        if (count(array_diff($ids, $known)) > 0) {
+            throw ValidationException::withMessages([
+                'tag_ids' => 'Tag tidak ditemukan.',
+            ]);
+        }
+
+        return $ids;
     }
 
     /**

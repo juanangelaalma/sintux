@@ -10,6 +10,7 @@ use Modules\Accounting\Models\Journal;
 use Modules\Approval\Application\CreateApprovalRule;
 use Modules\Payment\Application\Finalize\FinalizePurchasePayment;
 use Modules\Payment\Application\PurchasePayment\CreatePurchasePayment;
+use Modules\Payment\Application\PurchasePayment\GetPaymentDetail;
 use Modules\Payment\Models\PurchasePayment;
 use Tests\TestCase;
 
@@ -282,6 +283,53 @@ class PurchasePaymentTest extends TestCase
 
         $this->assertSame(1, Journal::where('reference_type', 'purchase_payment')->where('reference_id', $payment->id)->count());
         $this->assertEquals(200000, (float) DB::table('purchase_invoices')->where('id', $invoiceId)->value('paid_amount'));
+
+        tenancy()->end();
+    }
+
+    public function test_payment_persists_tags_and_rejects_unknown_tag(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $invoiceId = $this->createInvoice($ctx, 300000);
+        $tagId = (int) DB::table('purchase_tags')->orderBy('id')->value('id');
+
+        $payment = app(CreatePurchasePayment::class)->execute([
+            'branch_id' => $ctx['hqBranchId'],
+            'supplier_id' => $ctx['supplierId'],
+            'cash_account_id' => $ctx['cashAccountId'],
+            'allocations' => [
+                ['purchase_invoice_id' => $invoiceId, 'amount' => 100000],
+            ],
+            'tag_ids' => [$tagId],
+        ], null, null, [$ctx['hqBranchId']]);
+
+        $this->assertDatabaseHas('purchase_payment_purchase_tag', [
+            'purchase_payment_id' => $payment->id,
+            'purchase_tag_id' => $tagId,
+        ]);
+
+        $detail = app(GetPaymentDetail::class)
+            ->execute((int) $payment->id, [$ctx['hqBranchId']]);
+        $this->assertSame([$tagId], array_column($detail['tags'], 'id'));
+
+        // Tag tidak dikenal harus ditolak, tidak disimpan diam-diam.
+        $invoice2 = $this->createInvoice($ctx, 300000);
+        try {
+            app(CreatePurchasePayment::class)->execute([
+                'branch_id' => $ctx['hqBranchId'],
+                'supplier_id' => $ctx['supplierId'],
+                'cash_account_id' => $ctx['cashAccountId'],
+                'allocations' => [
+                    ['purchase_invoice_id' => $invoice2, 'amount' => 50000],
+                ],
+                'tag_ids' => [999999],
+            ], null, null, [$ctx['hqBranchId']]);
+            $this->fail('Expected ValidationException for unknown tag.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('tag_ids', $e->errors());
+        }
 
         tenancy()->end();
     }
