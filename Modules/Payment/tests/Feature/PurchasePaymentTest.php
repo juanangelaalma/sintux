@@ -12,6 +12,7 @@ use Modules\Payment\Application\Finalize\FinalizePurchasePayment;
 use Modules\Payment\Application\PurchasePayment\CreatePurchasePayment;
 use Modules\Payment\Application\PurchasePayment\GetPaymentDetail;
 use Modules\Payment\Models\PurchasePayment;
+use Modules\Purchasing\Application\PurchaseInvoice\ApplyInvoicePayment;
 use Tests\TestCase;
 
 class PurchasePaymentTest extends TestCase
@@ -334,6 +335,50 @@ class PurchasePaymentTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_finalize_marks_payment_failed_when_outstanding_was_taken_while_pending(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $invoiceId = $this->createInvoice($ctx, 500000);
+
+        // Rule aktif supaya payment tertahan di pending.
+        $typeId = DB::table('approval_transaction_types')->where('key', 'purchase_payment')->value('id');
+        app(CreateApprovalRule::class)->execute([
+            'transaction_type_id' => $typeId,
+            'name' => 'Payment Rule I2',
+            'min_amount' => 100000,
+            'stages' => [['approval_type' => 'any', 'approver_ids' => [999999]]],
+        ], 0);
+
+        $payment = app(CreatePurchasePayment::class)->execute([
+            'branch_id' => $ctx['hqBranchId'],
+            'supplier_id' => $ctx['supplierId'],
+            'cash_account_id' => $ctx['cashAccountId'],
+            'allocations' => [['purchase_invoice_id' => $invoiceId, 'amount' => 400000]],
+        ], null, null, [$ctx['hqBranchId']]);
+
+        $this->assertSame('pending', $payment->status);
+
+        // Selagi pending, pembayaran lain menghabiskan sisa tagihan.
+        app(ApplyInvoicePayment::class)->execute($invoiceId, 500000);
+
+        // Approve/finalize payment yang tertahan.
+        $result = app(FinalizePurchasePayment::class)->execute((int) $payment->id);
+
+        $this->assertSame('failed', $result->status);
+        $this->assertNotNull($result->failure_reason);
+        $this->assertStringContainsString('#'.$invoiceId, (string) $result->failure_reason);
+
+        // Tidak ada jurnal, tidak ada efek ke faktur.
+        $this->assertSame(0, Journal::where('reference_type', 'purchase_payment')
+            ->where('reference_id', $payment->id)->count());
+        $this->assertEquals(500000, (float) DB::table('purchase_invoices')
+            ->where('id', $invoiceId)->value('paid_amount'));
+
+        tenancy()->end();
+    }
+
     public function test_payment_rejects_invalid_cash_account(): void
     {
         $ctx = $this->seedContext();
@@ -479,8 +524,10 @@ class PurchasePaymentTest extends TestCase
 
     private function createInvoice(array $ctx, float $total): int
     {
-        return DB::table('purchase_invoices')->insertGetId([
-            'number' => 'FBL-PAY-'.uniqid(),
+        $number = 'FBL-PAY-'.uniqid();
+
+        $id = DB::table('purchase_invoices')->insertGetId([
+            'number' => $number,
             'branch_id' => $ctx['hqBranchId'],
             'supplier_id' => $ctx['supplierId'],
             'status' => 'approved',
@@ -494,6 +541,8 @@ class PurchasePaymentTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        return (int) $id;
     }
 
     /**

@@ -33,6 +33,7 @@ type PaymentDetail = {
         cash_out: number;
         deposit_total: number;
         deposit_remaining: number;
+        failure_reason: string | null;
         memo: string | null;
     };
     allocations: { purchase_invoice_id: number; amount: number }[];
@@ -293,6 +294,25 @@ export default function PurchasePaymentsShow({ payment, approval }: Props) {
                             </div>
                         </div>
                     </div>
+
+                    {header.failure_reason && (
+                        <div
+                            role="status"
+                            className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-300"
+                        >
+                            <p className="font-semibold">
+                                Pembayaran gagal difinalisasi
+                            </p>
+                            <ul className="mt-1 list-disc pl-5">
+                                {header.failure_reason
+                                    .split('\n')
+                                    .filter(Boolean)
+                                    .map((reason) => (
+                                        <li key={reason}>{reason}</li>
+                                    ))}
+                            </ul>
+                        </div>
+                    )}
 
                     {journal ? (
                         <div>

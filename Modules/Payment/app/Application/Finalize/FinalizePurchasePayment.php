@@ -8,6 +8,7 @@ use Modules\Accounting\Application\Journal\RecordJournal;
 use Modules\Accounting\Application\Journal\ResolvePayableAccount;
 use Modules\Payment\Models\PurchasePayment;
 use Modules\Purchasing\Application\PurchaseInvoice\ApplyInvoicePayment;
+use Modules\Purchasing\Application\PurchaseInvoice\GetPayableInvoices;
 use Modules\Purchasing\Application\SupplierMemo\ApplyDebitMemo;
 
 /**
@@ -22,8 +23,38 @@ class FinalizePurchasePayment
         private readonly ResolvePayableAccount $payableAccounts,
         private readonly ChartOfAccountQuery $chartOfAccounts,
         private readonly ApplyInvoicePayment $applyInvoicePayment,
+        private readonly GetPayableInvoices $payableInvoices,
         private readonly ApplyDebitMemo $applyDebitMemo,
     ) {}
+
+    /**
+     * Daftar alokasi yang sisa tagihannya sudah tidak cukup. Alokasi sudah
+     * collapsed per faktur saat create, jadi satu baris per faktur.
+     *
+     * @return list<string>
+     */
+    private function unavailableAllocations(PurchasePayment $payment): array
+    {
+        $outstandingByInvoice = collect(
+            $this->payableInvoices->execute((int) $payment->supplier_id)
+        )->keyBy('id');
+
+        $problems = [];
+
+        foreach ($payment->allocations as $allocation) {
+            $invoiceId = (int) $allocation->purchase_invoice_id;
+            $outstanding = (float) ($outstandingByInvoice->get($invoiceId)['outstanding'] ?? 0.0);
+
+            if ((float) $allocation->amount - $outstanding > 0.0001) {
+                $number = (string) ($outstandingByInvoice->get($invoiceId)['number'] ?? ('#'.$invoiceId));
+                $problems[] = 'Sisa tagihan faktur '.$number
+                    .' tinggal '.number_format($outstanding, 0, '.', ',')
+                    .', tidak cukup untuk alokasi '.number_format((float) $allocation->amount, 0, '.', ',').'.';
+            }
+        }
+
+        return $problems;
+    }
 
     public function execute(int $paymentId): PurchasePayment
     {
@@ -41,6 +72,21 @@ class FinalizePurchasePayment
 
             if ($payment->mode === 'deposit') {
                 $payment->update(['status' => 'approved']);
+
+                return $payment->fresh();
+            }
+
+            // Sisa tagihan bisa saja sudah terpakai payment lain selagi
+            // menunggu approval. Tandai payment gagal secara terlihat
+            // (bukan melempar exception di tengah listener approval) supaya
+            // tidak ada approval "disetujui" tanpa efek.
+            $unavailable = $this->unavailableAllocations($payment);
+
+            if ($unavailable !== []) {
+                $payment->update([
+                    'status' => 'failed',
+                    'failure_reason' => $unavailable,
+                ]);
 
                 return $payment->fresh();
             }

@@ -26,6 +26,7 @@ class PurchasePayment extends Model
         'deposit_total',
         'deposit_remaining',
         'status',
+        'failure_reason',
         'memo',
         'created_by',
     ];

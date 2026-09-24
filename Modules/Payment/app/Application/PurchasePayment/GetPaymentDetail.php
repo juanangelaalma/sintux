@@ -57,6 +57,7 @@ class GetPaymentDetail
                 'cash_out' => (float) $payment->cash_out,
                 'deposit_total' => (float) $payment->deposit_total,
                 'deposit_remaining' => (float) $payment->deposit_remaining,
+                'failure_reason' => $payment->failure_reason,
                 'memo' => $payment->memo,
             ],
             'allocations' => $payment->allocations->map(fn ($allocation): array => [
