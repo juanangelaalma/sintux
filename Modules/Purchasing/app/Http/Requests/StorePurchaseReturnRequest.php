@@ -47,6 +47,7 @@ class StorePurchaseReturnRequest extends FormRequest
             'supplier_id' => ['required', 'integer', Rule::in($supplierIds)],
             'purchase_invoice_id' => ['required', 'integer', 'exists:purchase_invoices,id'],
             'warehouse_id' => ['required', 'integer', 'exists:warehouses,id'],
+            'return_transfer_id' => ['nullable', 'integer', 'exists:stock_transfers,id'],
             'return_date' => ['required', 'date', 'before_or_equal:today'],
             'message' => ['nullable', 'string', 'max:1000'],
             'memo' => ['nullable', 'string', 'max:1000'],

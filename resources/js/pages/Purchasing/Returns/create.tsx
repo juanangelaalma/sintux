@@ -10,6 +10,12 @@ import { getLineTotals } from '@/lib/purchasing/calc';
 
 type WarehouseOption = { id: number; code: string; name: string };
 
+type TransferOption = {
+    id: number;
+    number: string;
+    from_warehouse_name: string;
+};
+
 type PrefillItem = {
     purchase_invoice_item_id: number;
     product_variant_id: number;
@@ -47,6 +53,8 @@ type Props = {
     } | null;
     prefillError?: string | null;
     availability?: Record<string, Record<string, number>>;
+    transfers?: TransferOption[];
+    selectedTransferId?: number | null;
 };
 
 type ReturnLine = {
@@ -62,6 +70,8 @@ export default function PurchaseReturnsCreate({
     prefillInvoice = null,
     prefillError = null,
     availability = {},
+    transfers = [],
+    selectedTransferId = null,
 }: Props) {
     const today = useMemo(() => new Date().toISOString().split('T')[0], []);
     const [createdTags, setCreatedTags] = useState<TagItem[]>([]);
@@ -83,6 +93,7 @@ export default function PurchaseReturnsCreate({
         supplier_id: number | string;
         purchase_invoice_id: number | string;
         warehouse_id: number | string;
+        return_transfer_id: number | string;
         return_date: string;
         message: string;
         memo: string;
@@ -94,6 +105,7 @@ export default function PurchaseReturnsCreate({
         supplier_id: prefillInvoice?.invoice.supplier_id ?? '',
         purchase_invoice_id: prefillInvoice?.invoice.id ?? '',
         warehouse_id: warehouses[0]?.id ?? '',
+        return_transfer_id: selectedTransferId ?? '',
         return_date: today,
         message: '',
         memo: '',
@@ -321,6 +333,64 @@ export default function PurchaseReturnsCreate({
                                         {errors.warehouse_id}
                                     </p>
                                 )}
+                            </div>
+                            <div className="md:col-span-2">
+                                <Label className="block text-xs font-semibold text-foreground">
+                                    Transfer retur dari cabang (opsional)
+                                </Label>
+                                <Select
+                                    fullWidth
+                                    placeholder="Tanpa transfer — pakai stok HO"
+                                    value={
+                                        selectedTransferId
+                                            ? String(selectedTransferId)
+                                            : ''
+                                    }
+                                    onChange={(val) => {
+                                        const params = new URLSearchParams(
+                                            window.location.search,
+                                        );
+
+                                        if (val) {
+                                            params.set(
+                                                'returnTransfer',
+                                                String(val),
+                                            );
+                                        } else {
+                                            params.delete('returnTransfer');
+                                        }
+
+                                        window.location.href = `${window.location.pathname}?${params.toString()}`;
+                                    }}
+                                >
+                                    <Select.Trigger className="mt-1">
+                                        <Select.Value />
+                                        <Select.Indicator />
+                                    </Select.Trigger>
+                                    <Select.Popover>
+                                        <ListBox>
+                                            {transfers.map((trf) => (
+                                                <ListBox.Item
+                                                    key={trf.id}
+                                                    id={String(trf.id)}
+                                                    textValue={`${trf.number} — ${trf.from_warehouse_name}`}
+                                                >
+                                                    {trf.number} —{' '}
+                                                    {trf.from_warehouse_name}
+                                                </ListBox.Item>
+                                            ))}
+                                        </ListBox>
+                                    </Select.Popover>
+                                </Select>
+                                {errors.return_transfer_id && (
+                                    <p className="mt-1 text-xs text-danger">
+                                        {errors.return_transfer_id}
+                                    </p>
+                                )}
+                                <p className="mt-1 text-xs text-muted">
+                                    Bila diisi, retur hanya memakai stok dari
+                                    transfer itu; stok HO lain diabaikan.
+                                </p>
                             </div>
                             <div>
                                 <TagComboBox

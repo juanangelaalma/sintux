@@ -73,6 +73,48 @@ class PurchaseReturnHttpTest extends TestCase
             ->where('prefillError', fn ($value) => $value !== null));
     }
 
+    public function test_new_prefills_filtered_availability_with_transfer(): void
+    {
+        [$tenantId, $hqBranchId, $user] = $this->seedContext();
+        $ids = $this->ids($tenantId);
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        tenancy()->initialize($tenantId);
+        $transferId = DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => null,
+            'from_warehouse_id' => $ids['warehouseId'],
+            'to_warehouse_id' => $ids['warehouseId'],
+            'number' => 'TRF-HTTP-001',
+            'status' => 'received',
+            'created_by' => $user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('stock_layers')->insert([
+            'product_variant_id' => $ids['variantId'],
+            'warehouse_id' => $ids['warehouseId'],
+            'qty_remaining' => 3,
+            'unit_cost' => 20000,
+            'received_at' => now(),
+            'source_type' => 'stock_transfer',
+            'source_id' => $transferId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        tenancy()->end();
+
+        $response = $this->actingAs($user)->get(route('purchasing.returns.new', [
+            'createdFrom' => $ids['invoiceId'],
+            'returnTransfer' => $transferId,
+        ]));
+
+        $response->assertOk();
+        $availability = $response->inertiaProps('availability');
+        $this->assertSame(3, (int) $availability[$ids['warehouseId']][$ids['variantId']]);
+        $transfers = $response->inertiaProps('transfers');
+        $this->assertNotEmpty($transfers);
+    }
+
     public function test_store_creates_return_with_attachment(): void
     {
         Storage::fake('local');
@@ -350,6 +392,7 @@ class PurchaseReturnHttpTest extends TestCase
         $result = [
             'invoiceId' => (int) $invoice->id,
             'itemId' => (int) $item->id,
+            'variantId' => (int) $item->product_variant_id,
             'supplierId' => (int) $invoice->supplier_id,
             'warehouseId' => (int) DB::table('warehouses')->orderByDesc('id')->value('id'),
         ];

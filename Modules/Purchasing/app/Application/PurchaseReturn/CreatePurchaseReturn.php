@@ -2,6 +2,7 @@
 
 namespace Modules\Purchasing\Application\PurchaseReturn;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Accounting\Application\TaxCalculator;
@@ -16,6 +17,7 @@ use Modules\Purchasing\Models\PurchaseInvoice;
 use Modules\Purchasing\Models\PurchaseInvoiceItem;
 use Modules\Purchasing\Models\PurchaseReturn;
 use Modules\Warehouse\Application\StockReservation\GetAvailableStock;
+use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
 use Modules\Warehouse\Application\Warehouse\GetWarehouse;
 
 class CreatePurchaseReturn
@@ -23,6 +25,8 @@ class CreatePurchaseReturn
     public function __construct(
         private readonly GetPurchaseVariants $purchaseVariants,
         private readonly GetVariantReturnProfile $returnProfiles,
+        private readonly ResolveReturnVariant $returnVariants,
+        private readonly GetStockTransferDetail $returnTransfers,
         private readonly GetWarehouse $warehouses,
         private readonly GetAvailableStock $availableStock,
         private readonly TaxQuery $taxQuery,
@@ -84,6 +88,7 @@ class CreatePurchaseReturn
             }
 
             $returnDate = $this->parseReturnDate($data['return_date'] ?? null);
+            $transferId = $this->resolveTransfer($data['return_transfer_id'] ?? null, (int) $warehouse->id);
 
             $invoiceItems = PurchaseInvoiceItem::where('purchase_invoice_id', $invoice->id)
                 ->lockForUpdate()
@@ -98,6 +103,8 @@ class CreatePurchaseReturn
                 (bool) $invoice->is_tax_inclusive,
                 (int) $warehouse->id,
                 (string) ($warehouse->name ?? ''),
+                (int) ($warehouse->branch_id ?? 0),
+                $transferId,
             );
 
             [$lines, $subtotal, $taxAmount] = $this->computeTotals($lines, (bool) $invoice->is_tax_inclusive);
@@ -113,6 +120,7 @@ class CreatePurchaseReturn
                 'supplier_id' => $data['supplier_id'],
                 'purchase_invoice_id' => $invoice->id,
                 'warehouse_id' => $warehouse->id,
+                'return_transfer_id' => $transferId,
                 'status' => PurchaseReturnStatus::Pending->value,
                 'return_date' => $returnDate,
                 'message' => $data['message'] ?? null,
@@ -128,6 +136,7 @@ class CreatePurchaseReturn
                 $purchaseReturn->items()->create([
                     'purchase_invoice_item_id' => $line['purchase_invoice_item_id'],
                     'product_variant_id' => $line['product_variant_id'],
+                    'stock_variant_id' => $line['stock_variant_id'],
                     'product_name' => $line['product_name'],
                     'sku' => $line['sku'],
                     'uom_name' => $line['uom_name'],
@@ -164,6 +173,35 @@ class CreatePurchaseReturn
         });
     }
 
+    /**
+     * Transfer retur yang di-link (opsional). Memastikan transfer ada dan
+     * menuju gudang retur; ketersediaan stoknya ditegakkan per baris
+     * (transfer yang belum di-receive otomatis memblokir karena layer-nya
+     * belum ada).
+     */
+    private function resolveTransfer(mixed $value, int $warehouseId): ?int
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        try {
+            $transfer = $this->returnTransfers->execute((int) $value);
+        } catch (ModelNotFoundException $e) {
+            throw ValidationException::withMessages([
+                'return_transfer_id' => 'Transfer retur tidak ditemukan.',
+            ]);
+        }
+
+        if ((int) $transfer->to_warehouse_id !== $warehouseId) {
+            throw ValidationException::withMessages([
+                'return_transfer_id' => 'Transfer retur tidak menuju gudang ini.',
+            ]);
+        }
+
+        return (int) $transfer->id;
+    }
+
     private function parseReturnDate(mixed $value): string
     {
         if (empty($value)) {
@@ -196,7 +234,7 @@ class CreatePurchaseReturn
      *
      * @return list<array<string, mixed>>
      */
-    private function validateLines(mixed $items, mixed $invoiceItems, mixed $variants, mixed $taxes, bool $isTaxInclusive, int $warehouseId, string $warehouseName): array
+    private function validateLines(mixed $items, mixed $invoiceItems, mixed $variants, mixed $taxes, bool $isTaxInclusive, int $warehouseId, string $warehouseName, int $warehouseBranchId, ?int $transferId): array
     {
         if (! is_array($items) || $items === []) {
             throw ValidationException::withMessages([
@@ -241,6 +279,11 @@ class CreatePurchaseReturn
             }
 
             $profile = $this->returnProfiles->execute((int) $invoiceItem->product_variant_id);
+            $stockVariantId = $this->returnVariants->execute(
+                (int) $invoiceItem->product_variant_id,
+                $warehouseBranchId,
+                $transferId
+            );
 
             if ($profile && $profile['is_tracked']) {
                 if (abs($qty - round($qty)) > 0.0001) {
@@ -249,11 +292,20 @@ class CreatePurchaseReturn
                     ]);
                 }
 
-                $available = $this->availableStock->forItem($warehouseId, (int) $invoiceItem->product_variant_id);
+                if ($stockVariantId === null) {
+                    throw ValidationException::withMessages([
+                        "items.{$index}.qty" => "Varian tidak tersedia di gudang {$warehouseName} (hasil receive transfer tak ditemukan).",
+                    ]);
+                }
+
+                $available = $transferId !== null
+                    ? $this->availableStock->forItemsFromTransfer($warehouseId, [$stockVariantId], $transferId)[$stockVariantId] ?? 0
+                    : $this->availableStock->forItem($warehouseId, (int) $invoiceItem->product_variant_id);
 
                 if ($qty - $available > 0.0001) {
+                    $scope = $transferId !== null ? " dari transfer #{$transferId}" : '';
                     throw ValidationException::withMessages([
-                        "items.{$index}.qty" => "Stok tidak mencukupi di gudang {$warehouseName} (tersedia: {$available}, diminta: ".rtrim(rtrim(number_format($qty, 4), '0'), '.').').',
+                        "items.{$index}.qty" => "Stok tidak mencukupi di gudang {$warehouseName}{$scope} (tersedia: {$available}, diminta: ".rtrim(rtrim(number_format($qty, 4), '0'), '.').').',
                     ]);
                 }
             }
@@ -264,6 +316,7 @@ class CreatePurchaseReturn
             $lines[] = [
                 'purchase_invoice_item_id' => $invoiceItem->id,
                 'product_variant_id' => (int) $invoiceItem->product_variant_id,
+                'stock_variant_id' => $profile && $profile['is_tracked'] ? $stockVariantId : null,
                 'product_name' => $variant['product_name'] ?? '',
                 'sku' => $variant['sku'] ?? '',
                 'uom_name' => $variant['uom_name'] ?? null,

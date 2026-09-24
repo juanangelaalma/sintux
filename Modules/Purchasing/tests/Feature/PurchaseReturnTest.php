@@ -261,13 +261,141 @@ class PurchaseReturnTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_create_with_unreceived_transfer_is_rejected_despite_ho_stock(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Transfer cabang→HO dibuat tapi BELUM di-receive: tak ada layer.
+        // Stok HO 10 pcs produk sama wajib diabaikan (aturan provenance).
+        $transferId = $this->createTransfer($ctx, 'shipped');
+
+        try {
+            $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
+                'return_transfer_id' => $transferId,
+            ]);
+            $this->fail('Expected ValidationException for unreceived transfer.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('items.0.qty', $e->errors());
+        }
+
+        $this->assertSame(0, PurchaseReturn::query()->count());
+
+        tenancy()->end();
+    }
+
+    public function test_create_with_received_transfer_consumes_only_transfer_layers(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Layer transfer 6 @ 52000; stok reguler HO 10 @ 50000 tetap ada.
+        $transferId = $this->createTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId);
+
+        // Tanpa rule → auto-final: 4 pcs @ DO 50000 + PPN.
+        $purchaseReturn = $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 4]], [
+            'return_transfer_id' => $transferId,
+        ]);
+
+        $this->assertSame('approved', $purchaseReturn->fresh()->status);
+        $this->assertSame($transferId, (int) $purchaseReturn->fresh()->return_transfer_id);
+
+        // Layer reguler utuh 10; layer transfer sisa 2.
+        $this->assertEquals(10, (float) DB::table('stock_layers')
+            ->where('warehouse_id', $ctx['warehouseId'])
+            ->where('product_variant_id', $ctx['trackedVariantId'])
+            ->where('source_type', 'purchase_order')
+            ->sum('qty_remaining'));
+        $this->assertEquals(2, (float) DB::table('stock_layers')
+            ->where('warehouse_id', $ctx['warehouseId'])
+            ->where('product_variant_id', $ctx['trackedVariantId'])
+            ->where('source_type', 'stock_transfer')
+            ->sum('qty_remaining'));
+
+        tenancy()->end();
+    }
+
+    public function test_create_rejects_transfer_to_other_warehouse(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $transferId = $this->createTransfer($ctx, 'received', true);
+
+        try {
+            $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 1]], [
+                'return_transfer_id' => $transferId,
+            ]);
+            $this->fail('Expected ValidationException for mismatched warehouse.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('return_transfer_id', $e->errors());
+        }
+
+        tenancy()->end();
+    }
+
+    private function createTransfer(array $ctx, string $status, bool $otherWarehouse = false): int
+    {
+        $branchBId = DB::table('branches')->insertGetId([
+            'name' => 'Branch TF',
+            'code' => 'BTF_'.uniqid(),
+            'is_headquarters' => false,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $branchWhId = DB::table('warehouses')->insertGetId([
+            'branch_id' => $branchBId,
+            'code' => 'WH-TF-'.uniqid(),
+            'name' => 'TF Warehouse',
+            'warehouse_type' => 'regular',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => null,
+            'from_warehouse_id' => $branchWhId,
+            'to_warehouse_id' => $otherWarehouse ? $branchWhId : $ctx['warehouseId'],
+            'number' => 'TRF/'.uniqid(),
+            'status' => $status,
+            'created_by' => $ctx['user']->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function addTransferLayer(int $warehouseId, int $variantId, float $qty, float $unitCost, int $transferId): void
+    {
+        DB::table('stock_layers')->insert([
+            'product_variant_id' => $variantId,
+            'warehouse_id' => $warehouseId,
+            'qty_remaining' => $qty,
+            'unit_cost' => $unitCost,
+            'received_at' => now(),
+            'source_type' => 'stock_transfer',
+            'source_id' => $transferId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('stock_balances')
+            ->where('warehouse_id', $warehouseId)
+            ->where('product_variant_id', $variantId)
+            ->increment('qty_on_hand', $qty);
+    }
+
     /**
      * @param  list<array{purchase_invoice_item_id: int, qty: float}>  $items
+     * @param  array<string, mixed>  $overrides
      */
-    private function createReturn(array $ctx, array $items): PurchaseReturn
+    private function createReturn(array $ctx, array $items, array $overrides = []): PurchaseReturn
     {
         return app(CreatePurchaseReturn::class)->execute(
-            $this->payload($ctx, $items),
+            $this->payload($ctx, $items, $overrides),
             'HQ',
             $ctx['user']->id,
             $ctx['user']->name,

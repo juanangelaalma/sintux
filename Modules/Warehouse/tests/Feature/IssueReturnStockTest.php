@@ -151,6 +151,95 @@ class IssueReturnStockTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_issue_with_source_filter_consumes_only_transfer_layers(): void
+    {
+        [$tenantId, $branchId, $warehouseId, $variantId] = $this->seedStock();
+
+        tenancy()->initialize($tenantId);
+
+        // Layer transfer 6 @ 52000 (transfer #777) di samping stok reguler 20 pcs.
+        $this->addTransferLayer($warehouseId, $variantId, 6, 52000, 777);
+
+        $result = app(IssueReturnStock::class)->execute([
+            'warehouse_id' => $warehouseId,
+            'product_variant_id' => $variantId,
+            'qty' => 4,
+            'reference_type' => 'purchase_return',
+            'reference_id' => 104,
+            'source_transfer_id' => 777,
+        ]);
+
+        $this->assertEquals(4 * 52000, $result['total_cost']);
+
+        // Layer reguler utuh; layer transfer berkurang 4.
+        $this->assertEquals(20, (int) StockLayer::query()
+            ->where('warehouse_id', $warehouseId)
+            ->where('product_variant_id', $variantId)
+            ->where('source_type', 'purchase_order')
+            ->sum('qty_remaining'));
+        $this->assertEquals(2, (int) StockLayer::query()
+            ->where('warehouse_id', $warehouseId)
+            ->where('product_variant_id', $variantId)
+            ->where('source_type', 'stock_transfer')
+            ->where('source_id', 777)
+            ->sum('qty_remaining'));
+
+        tenancy()->end();
+    }
+
+    public function test_issue_with_source_filter_insufficient_throws_without_changes(): void
+    {
+        [$tenantId, $branchId, $warehouseId, $variantId] = $this->seedStock();
+
+        tenancy()->initialize($tenantId);
+
+        $this->addTransferLayer($warehouseId, $variantId, 6, 52000, 777);
+
+        try {
+            app(IssueReturnStock::class)->execute([
+                'warehouse_id' => $warehouseId,
+                'product_variant_id' => $variantId,
+                'qty' => 10,
+                'reference_type' => 'purchase_return',
+                'reference_id' => 105,
+                'source_transfer_id' => 777,
+            ]);
+            $this->fail('Expected InsufficientStockException.');
+        } catch (InsufficientStockException $e) {
+            $this->assertStringContainsString('777', $e->getMessage());
+        }
+
+        // Semua layer utuh (reguler 20 + transfer 6).
+        $this->assertEquals(26, (int) StockLayer::query()
+            ->where('warehouse_id', $warehouseId)
+            ->where('product_variant_id', $variantId)
+            ->sum('qty_remaining'));
+        $this->assertSame(0, StockMovement::query()
+            ->where('reference_type', 'purchase_return')
+            ->where('reference_id', 105)
+            ->count());
+
+        tenancy()->end();
+    }
+
+    private function addTransferLayer(int $warehouseId, int $variantId, int $qty, float $unitCost, int $transferId): void
+    {
+        StockLayer::create([
+            'product_variant_id' => $variantId,
+            'warehouse_id' => $warehouseId,
+            'qty_remaining' => $qty,
+            'unit_cost' => $unitCost,
+            'received_at' => now(),
+            'source_type' => 'stock_transfer',
+            'source_id' => $transferId,
+        ]);
+
+        StockBalance::query()
+            ->where('warehouse_id', $warehouseId)
+            ->where('product_variant_id', $variantId)
+            ->increment('qty_on_hand', $qty);
+    }
+
     /**
      * Stok awal: layer 10 @ 50000 + layer 10 @ 52000 = 20 pcs.
      *

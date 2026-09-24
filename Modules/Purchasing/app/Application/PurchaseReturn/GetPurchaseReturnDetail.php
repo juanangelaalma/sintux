@@ -2,8 +2,10 @@
 
 namespace Modules\Purchasing\Application\PurchaseReturn;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Modules\Accounting\Application\Journal\GetJournalByReference;
 use Modules\Purchasing\Models\PurchaseReturn;
+use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
 use Modules\Warehouse\Application\Warehouse\GetWarehouse;
 
 class GetPurchaseReturnDetail
@@ -11,6 +13,7 @@ class GetPurchaseReturnDetail
     public function __construct(
         private readonly GetJournalByReference $journals,
         private readonly GetWarehouse $warehouses,
+        private readonly GetStockTransferDetail $transfers,
     ) {}
 
     /**
@@ -28,6 +31,10 @@ class GetPurchaseReturnDetail
         $warehouse = $branchIds === []
             ? null
             : $this->warehouses->execute((int) $purchaseReturn->warehouse_id, $branchIds);
+
+        $transfer = $purchaseReturn->return_transfer_id !== null
+            ? $this->transferSummary((int) $purchaseReturn->return_transfer_id)
+            : null;
 
         return [
             'return' => [
@@ -64,6 +71,7 @@ class GetPurchaseReturnDetail
                 'tax_rate' => (float) $item->tax_rate,
                 'line_total' => (float) $item->line_total,
             ])->all(),
+            'transfer' => $transfer,
             'journal' => $this->journals->execute('purchase_return', $purchaseReturn->id),
             'debitMemos' => $purchaseReturn->debitMemos->map(fn ($memo): array => [
                 'id' => (int) $memo->id,
@@ -82,6 +90,25 @@ class GetPurchaseReturnDetail
                 'mime' => $file->mime,
                 'size' => $file->size !== null ? (int) $file->size : null,
             ])->all(),
+        ];
+    }
+
+    /**
+     * @return array{id: int, number: string, status: string, from_warehouse_name: string}|null
+     */
+    private function transferSummary(int $transferId): ?array
+    {
+        try {
+            $transfer = $this->transfers->execute($transferId);
+        } catch (ModelNotFoundException $e) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $transfer->id,
+            'number' => (string) ($transfer->number ?? ('#'.$transfer->id)),
+            'status' => (string) $transfer->status,
+            'from_warehouse_name' => (string) ($transfer->fromWarehouse?->name ?? ''),
         ];
     }
 }

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $purchase_return_id
  * @property int $purchase_invoice_item_id
  * @property int $product_variant_id
+ * @property int|null $stock_variant_id
  * @property string $product_name
  * @property string $sku
  * @property string|null $uom_name
@@ -26,6 +27,7 @@ class PurchaseReturnItem extends Model
         'purchase_return_id',
         'purchase_invoice_item_id',
         'product_variant_id',
+        'stock_variant_id',
         'product_name',
         'sku',
         'uom_name',

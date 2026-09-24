@@ -112,13 +112,16 @@ class FinalizePurchaseReturn
                         ]);
                     }
 
-                    $issued = $this->issueReturnStock->execute([
+                    $stockVariantId = (int) ($item->stock_variant_id ?? $item->product_variant_id);
+
+                    $issued = $this->issueReturnStock->execute(array_filter([
                         'warehouse_id' => (int) $purchaseReturn->warehouse_id,
-                        'product_variant_id' => (int) $item->product_variant_id,
+                        'product_variant_id' => $stockVariantId,
                         'qty' => (int) round($qty),
                         'reference_type' => 'purchase_return',
                         'reference_id' => $purchaseReturn->id,
-                    ]);
+                        'source_transfer_id' => $purchaseReturn->return_transfer_id,
+                    ], fn ($value) => $value !== null));
 
                     $accountId = $profile['inventory_account_id'] ?? $this->seedAccountId('accounting.coa.1301');
                     $inventoryByAccount[$accountId] = ($inventoryByAccount[$accountId] ?? 0.0) + $issued['total_cost'];

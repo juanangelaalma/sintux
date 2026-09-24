@@ -42,6 +42,13 @@ type Attachment = {
     size?: number | null;
 };
 
+type ReturnTransfer = {
+    id: number;
+    number: string;
+    status: string;
+    from_warehouse_name: string;
+};
+
 type PurchaseReturnDetail = {
     return: {
         id: number;
@@ -59,6 +66,7 @@ type PurchaseReturnDetail = {
     };
     invoice: { id: number; number: string; status: string };
     items: ReturnItem[];
+    transfer?: ReturnTransfer | null;
     journal?: {
         id: number;
         memo?: string | null;
@@ -83,6 +91,7 @@ export default function PurchaseReturnsShow({
         return: retur,
         invoice,
         items,
+        transfer,
         journal,
         debitMemos,
         tags,
@@ -109,6 +118,14 @@ export default function PurchaseReturnsShow({
             label: 'Gudang',
             value: retur.warehouse.name || '—',
         },
+        ...(transfer
+            ? [
+                  {
+                      label: 'Transfer retur',
+                      value: `${transfer.number} — dari ${transfer.from_warehouse_name} (${transfer.status})`,
+                  } as DetailRow,
+              ]
+            : []),
         ...(tags.length > 0
             ? [
                   {

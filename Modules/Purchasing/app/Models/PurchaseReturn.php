@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $supplier_id
  * @property int $purchase_invoice_id
  * @property int $warehouse_id
+ * @property int|null $return_transfer_id
  * @property string $status
  * @property Carbon $return_date
  * @property string|null $message
@@ -33,6 +34,7 @@ class PurchaseReturn extends Model
         'supplier_id',
         'purchase_invoice_id',
         'warehouse_id',
+        'return_transfer_id',
         'status',
         'return_date',
         'message',

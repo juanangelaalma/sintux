@@ -15,10 +15,12 @@ use Modules\Contact\Application\GetContacts;
 use Modules\Purchasing\Application\PurchaseReturn\CreatePurchaseReturn;
 use Modules\Purchasing\Application\PurchaseReturn\GetPurchaseReturnDetail;
 use Modules\Purchasing\Application\PurchaseReturn\GetReturnableItems;
+use Modules\Purchasing\Application\PurchaseReturn\ResolveReturnVariant;
 use Modules\Purchasing\Application\PurchaseTag\GetPurchaseTags;
 use Modules\Purchasing\Http\Requests\StorePurchaseReturnRequest;
 use Modules\Purchasing\Models\PurchaseReturnAttachment;
 use Modules\Warehouse\Application\StockReservation\GetAvailableStock;
+use Modules\Warehouse\Application\StockTransfer\GetStockTransfers;
 use Modules\Warehouse\Application\Warehouse\GetWarehouses;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -52,6 +54,7 @@ class PurchaseReturnController extends Controller
         }
 
         $warehouses = $hqBranchId ? app(GetWarehouses::class)->optionsForReceipt($hqBranchId) : [];
+        $selectedTransferId = request()->query('returnTransfer') ? (int) request()->query('returnTransfer') : null;
 
         return Inertia::render('Purchasing/Returns/create', [
             'hqBranchId' => $hqBranchId,
@@ -60,7 +63,9 @@ class PurchaseReturnController extends Controller
             'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
             'prefillInvoice' => $prefillInvoice,
             'prefillError' => $prefillError,
-            'availability' => $this->availabilityMap($warehouses, $prefillInvoice),
+            'transfers' => $this->transferOptions($accessibleBranchIds, $warehouses),
+            'selectedTransferId' => $selectedTransferId,
+            'availability' => $this->availabilityMap($warehouses, $prefillInvoice, $hqBranchId, $selectedTransferId),
         ]);
     }
 
@@ -126,14 +131,51 @@ class PurchaseReturnController extends Controller
     }
 
     /**
+     * Opsi transfer retur: transfer received yang masuk gudang HO.
+     *
+     * @param  list<int>  $accessibleBranchIds
+     * @param  list<array{id: int}>  $warehouses
+     * @return list<array{id: int, number: string, from_warehouse_name: string}>
+     */
+    private function transferOptions(array $accessibleBranchIds, array $warehouses): array
+    {
+        $warehouseIds = collect($warehouses)->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        if ($warehouseIds === []) {
+            return [];
+        }
+
+        $options = [];
+
+        foreach ($warehouseIds as $warehouseId) {
+            $page = app(GetStockTransfers::class)->execute(
+                $accessibleBranchIds,
+                ['status' => 'received', 'to_warehouse_id' => $warehouseId],
+                50
+            );
+
+            foreach ($page->items() as $transfer) {
+                $options[] = [
+                    'id' => (int) $transfer->id,
+                    'number' => (string) ($transfer->number ?? ('#'.$transfer->id)),
+                    'from_warehouse_name' => (string) ($transfer->fromWarehouse?->name ?? ''),
+                ];
+            }
+        }
+
+        return $options;
+    }
+
+    /**
      * Stok tersedia per gudang per varian untuk baris prefill, agar form
      * bisa membatasi qty sebelum submit (validasi final tetap di backend).
+     * Bila transfer dipilih, angka dibatasi layer transfer itu (provenance).
      *
      * @param  list<array{id: int}>  $warehouses
      * @param  array{items: list<array{product_variant_id: int}>}|null  $prefillInvoice
      * @return array<int, array<int, int>>
      */
-    private function availabilityMap(array $warehouses, ?array $prefillInvoice): array
+    private function availabilityMap(array $warehouses, ?array $prefillInvoice, ?int $hqBranchId, ?int $transferId): array
     {
         if ($prefillInvoice === null) {
             return [];
@@ -152,7 +194,32 @@ class PurchaseReturnController extends Controller
         $map = [];
 
         foreach ($warehouses as $warehouse) {
-            $map[(int) $warehouse['id']] = app(GetAvailableStock::class)->forItems((int) $warehouse['id'], $variantIds);
+            $warehouseId = (int) $warehouse['id'];
+
+            if ($transferId !== null && $hqBranchId !== null) {
+                $resolved = [];
+
+                foreach ($variantIds as $variantId) {
+                    $hit = app(ResolveReturnVariant::class)->execute($variantId, $hqBranchId, $transferId);
+                    $resolved[$variantId] = $hit ?? -1;
+                }
+
+                $filtered = app(GetAvailableStock::class)->forItemsFromTransfer(
+                    $warehouseId,
+                    array_values(array_filter($resolved, fn ($id) => $id > 0)),
+                    $transferId
+                );
+
+                $row = [];
+
+                foreach ($resolved as $variantId => $stockVariantId) {
+                    $row[$variantId] = $stockVariantId > 0 ? ($filtered[$stockVariantId] ?? 0) : 0;
+                }
+
+                $map[$warehouseId] = $row;
+            } else {
+                $map[$warehouseId] = app(GetAvailableStock::class)->forItems($warehouseId, $variantIds);
+            }
         }
 
         return $map;

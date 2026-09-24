@@ -26,7 +26,11 @@ class IssueReturnStock
      * reference_type + reference_id + variant + warehouse yang sama
      * mengembalikan biaya sebelumnya tanpa consume ganda.
      *
-     * @param  array{warehouse_id: int, product_variant_id: int, qty: int, reference_type: string, reference_id: int}  $data
+     * Bila source_transfer_id diisi (provenance retur cabang → HO), hanya
+     * layer dari transfer itu yang boleh di-consume; stok lain di gudang
+     * yang sama diabaikan.
+     *
+     * @param  array{warehouse_id: int, product_variant_id: int, qty: int, reference_type: string, reference_id: int, source_transfer_id?: int|null}  $data
      * @return array{qty: int, total_cost: float, layers: list<array{stock_layer_id: int, qty_taken: float, unit_cost: float}>}
      *
      * @throws InsufficientStockException
@@ -38,12 +42,13 @@ class IssueReturnStock
         $qty = (int) $data['qty'];
         $referenceType = (string) $data['reference_type'];
         $referenceId = (int) $data['reference_id'];
+        $sourceTransferId = isset($data['source_transfer_id']) ? (int) $data['source_transfer_id'] : null;
 
         if ($qty <= 0) {
             throw new InsufficientStockException('Qty retur harus lebih dari 0.');
         }
 
-        return DB::transaction(function () use ($warehouseId, $variantId, $qty, $referenceType, $referenceId): array {
+        return DB::transaction(function () use ($warehouseId, $variantId, $qty, $referenceType, $referenceId, $sourceTransferId): array {
             $existing = StockMovement::query()
                 ->where('warehouse_id', $warehouseId)
                 ->where('product_variant_id', $variantId)
@@ -72,21 +77,38 @@ class IssueReturnStock
                 ];
             }
 
-            $available = $this->availableStock->forItem($warehouseId, $variantId);
+            if ($sourceTransferId !== null) {
+                $available = $this->availableStock->forItemsFromTransfer($warehouseId, [$variantId], $sourceTransferId)[$variantId] ?? 0;
 
-            if ($available < $qty) {
-                throw new InsufficientStockException(
-                    sprintf(
-                        'Stok product variant %d tidak mencukupi di gudang %d (tersedia: %d, diminta: %d).',
-                        $variantId,
-                        $warehouseId,
-                        $available,
-                        $qty
-                    )
-                );
+                if ($available < $qty) {
+                    throw new InsufficientStockException(
+                        sprintf(
+                            'Stok transfer #%d untuk product variant %d tidak mencukupi di gudang %d (tersedia: %d, diminta: %d).',
+                            $sourceTransferId,
+                            $variantId,
+                            $warehouseId,
+                            $available,
+                            $qty
+                        )
+                    );
+                }
+            } else {
+                $available = $this->availableStock->forItem($warehouseId, $variantId);
+
+                if ($available < $qty) {
+                    throw new InsufficientStockException(
+                        sprintf(
+                            'Stok product variant %d tidak mencukupi di gudang %d (tersedia: %d, diminta: %d).',
+                            $variantId,
+                            $warehouseId,
+                            $available,
+                            $qty
+                        )
+                    );
+                }
             }
 
-            $breakdown = $this->fifoCostingService->consume($variantId, $warehouseId, (float) $qty);
+            $breakdown = $this->fifoCostingService->consume($variantId, $warehouseId, (float) $qty, $sourceTransferId);
 
             $updatedRows = StockBalance::query()
                 ->where('warehouse_id', $warehouseId)
