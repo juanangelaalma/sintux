@@ -205,6 +205,85 @@ class FinalizeReturnTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_finalize_full_return_without_payment_closes_invoice_by_return(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Retur penuh kedua baris = total faktur 655000 → ClosedByReturn.
+        $returnId = $this->createReturn($ctx, 'RBL-TEST-07', [
+            ['key' => 'tracked', 'qty' => 10],
+            ['key' => 'untracked', 'qty' => 5],
+        ]);
+
+        app(FinalizePurchaseReturn::class)->execute($returnId);
+
+        $inv = DB::table('purchase_invoices')->where('id', $ctx['invoiceId'])->first();
+        $this->assertSame(PurchaseInvoiceStatus::ClosedByReturn->value, $inv->status);
+        $this->assertEquals(655000, (float) $inv->returned_amount);
+
+        // Campuran tracked+untracked: 2101 / 1301 + 5201 / 1404.
+        $this->assertJournalLegs($returnId, [
+            'accounting.coa.2101' => [655000, 0],
+            'accounting.coa.1301' => [0, 500000],
+            'accounting.coa.5201' => [0, 100000],
+            'accounting.coa.1404' => [0, 55000],
+        ]);
+
+        tenancy()->end();
+    }
+
+    public function test_finalize_inclusive_tax_uses_stored_breakdown(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Faktur inklusif: gross 111000 = net 100000 + pajak 11000.
+        DB::table('purchase_invoices')->where('id', $ctx['invoiceId'])->update(['is_tax_inclusive' => true]);
+        $returnId = DB::table('purchase_returns')->insertGetId([
+            'number' => 'RBL-TEST-08',
+            'branch_id' => $ctx['hqBranchId'],
+            'supplier_id' => $ctx['supplierId'],
+            'purchase_invoice_id' => $ctx['invoiceId'],
+            'warehouse_id' => $ctx['warehouseId'],
+            'status' => 'pending',
+            'return_date' => '2026-09-23',
+            'currency_code' => 'IDR',
+            'is_tax_inclusive' => true,
+            'subtotal' => 100000,
+            'tax_amount' => 11000,
+            'total' => 111000,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('purchase_return_items')->insert([
+            'purchase_return_id' => $returnId,
+            'purchase_invoice_item_id' => $ctx['trackedItemId'],
+            'product_variant_id' => $ctx['trackedVariantId'],
+            'product_name' => 'Widget Tracked',
+            'sku' => 'SKU-TRK',
+            'qty' => 2,
+            'unit_price' => 55500,
+            'tax_id' => $ctx['ppnId'],
+            'tax_rate' => 12,
+            'tax_breakdown' => json_encode([['tax_id' => $ctx['ppnId'], 'rate' => 12.0, 'amount' => 11000.0]]),
+            'line_total' => 111000,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        app(FinalizePurchaseReturn::class)->execute($returnId);
+
+        // Hutang gross 111000; persediaan FIFO 2×50000=100000; PPN 11000.
+        $this->assertJournalLegs($returnId, [
+            'accounting.coa.2101' => [111000, 0],
+            'accounting.coa.1301' => [0, 100000],
+            'accounting.coa.1404' => [0, 11000],
+        ]);
+
+        tenancy()->end();
+    }
+
     public function test_finalize_uses_stored_tax_snapshot_when_master_rate_changes(): void
     {
         $ctx = $this->seedContext();

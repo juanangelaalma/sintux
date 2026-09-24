@@ -316,6 +316,78 @@ class PurchaseReturnTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_create_with_transfer_caps_qty_at_received_amount(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Transfer received tapi baru 3 pcs yang masuk (partial receive).
+        $transferId = $this->createTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 3, 52000, $transferId);
+
+        try {
+            $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 5]], [
+                'return_transfer_id' => $transferId,
+            ]);
+            $this->fail('Expected ValidationException for qty above received amount.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('items.0.qty', $e->errors());
+        }
+
+        // Batas pas 3 pcs lolos.
+        $purchaseReturn = $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 3]], [
+            'return_transfer_id' => $transferId,
+        ]);
+        $this->assertSame('approved', $purchaseReturn->fresh()->status);
+
+        tenancy()->end();
+    }
+
+    public function test_create_with_transfer_ignores_filter_for_untracked_lines(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $transferId = $this->createTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId);
+
+        // Baris untracked tanpa stok: lolos meski transfer tak memuatnya.
+        $purchaseReturn = $this->createReturn($ctx, [
+            ['purchase_invoice_item_id' => $ctx['untrackedItemId'], 'qty' => 5],
+        ], [
+            'return_transfer_id' => $transferId,
+        ]);
+
+        $this->assertSame('approved', $purchaseReturn->fresh()->status);
+        $this->assertSame($transferId, (int) $purchaseReturn->fresh()->return_transfer_id);
+
+        tenancy()->end();
+    }
+
+    public function test_create_with_transfer_rejects_unresolvable_variant(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Transfer received tapi layer-nya untuk varian lain: varian faktur
+        // tak punya padanan stok dari transfer ini → ditolak jelas.
+        $transferId = $this->createTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['untrackedVariantId'], 4, 20000, $transferId);
+
+        try {
+            $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
+                'return_transfer_id' => $transferId,
+            ]);
+            $this->fail('Expected ValidationException for unresolvable variant.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('items.0.qty', $e->errors());
+        }
+
+        $this->assertSame(0, PurchaseReturn::query()->count());
+
+        tenancy()->end();
+    }
+
     public function test_create_rejects_transfer_to_other_warehouse(): void
     {
         $ctx = $this->seedContext();
