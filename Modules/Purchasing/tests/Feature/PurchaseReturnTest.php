@@ -266,8 +266,8 @@ class PurchaseReturnTest extends TestCase
         $ctx = $this->seedContext();
         tenancy()->initialize($ctx['tenantId']);
 
-        // Transfer cabang→HO dibuat tapi BELUM di-receive: tak ada layer.
-        // Stok HO 10 pcs produk sama wajib diabaikan (aturan provenance).
+        // Transfer cabang→HO dibuat tapi BELUM di-receive: ditolak eksplisit
+        // di return_transfer_id meski HO punya 10 pcs produk sama.
         $transferId = $this->createTransfer($ctx, 'shipped');
 
         try {
@@ -276,7 +276,7 @@ class PurchaseReturnTest extends TestCase
             ]);
             $this->fail('Expected ValidationException for unreceived transfer.');
         } catch (ValidationException $e) {
-            $this->assertArrayHasKey('items.0.qty', $e->errors());
+            $this->assertArrayHasKey('return_transfer_id', $e->errors());
         }
 
         $this->assertSame(0, PurchaseReturn::query()->count());
@@ -330,6 +330,48 @@ class PurchaseReturnTest extends TestCase
             $this->fail('Expected ValidationException for mismatched warehouse.');
         } catch (ValidationException $e) {
             $this->assertArrayHasKey('return_transfer_id', $e->errors());
+        }
+
+        tenancy()->end();
+    }
+
+    public function test_create_rejects_non_hq_warehouse(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $branchBId = DB::table('branches')->insertGetId([
+            'name' => 'Branch WH',
+            'code' => 'BWH_'.uniqid(),
+            'is_headquarters' => false,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $branchWarehouseId = DB::table('warehouses')->insertGetId([
+            'branch_id' => $branchBId,
+            'code' => 'WH-BWH-'.uniqid(),
+            'name' => 'Branch Warehouse',
+            'warehouse_type' => 'regular',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        try {
+            app(CreatePurchaseReturn::class)->execute(
+                $this->payload($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 1]], [
+                    'warehouse_id' => $branchWarehouseId,
+                ]),
+                'HQ',
+                $ctx['user']->id,
+                $ctx['user']->name,
+                [$ctx['hqBranchId'], $branchBId]
+            );
+            $this->fail('Expected ValidationException for non-HQ warehouse.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('warehouse_id', $e->errors());
         }
 
         tenancy()->end();

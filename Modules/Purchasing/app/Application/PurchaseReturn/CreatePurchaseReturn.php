@@ -87,6 +87,12 @@ class CreatePurchaseReturn
                 ]);
             }
 
+            if ($hqBranchId !== null && (int) $warehouse->branch_id !== $hqBranchId) {
+                throw ValidationException::withMessages([
+                    'warehouse_id' => 'Gudang retur harus milik Head Office.',
+                ]);
+            }
+
             $returnDate = $this->parseReturnDate($data['return_date'] ?? null);
             $transferId = $this->resolveTransfer($data['return_transfer_id'] ?? null, (int) $warehouse->id);
 
@@ -174,10 +180,9 @@ class CreatePurchaseReturn
     }
 
     /**
-     * Transfer retur yang di-link (opsional). Memastikan transfer ada dan
-     * menuju gudang retur; ketersediaan stoknya ditegakkan per baris
-     * (transfer yang belum di-receive otomatis memblokir karena layer-nya
-     * belum ada).
+     * Transfer retur yang di-link (opsional). Memastikan transfer ada,
+     * menuju gudang retur, dan sudah diterima HO; ketersediaan stoknya
+     * ditegakkan per baris via layer transfer itu.
      */
     private function resolveTransfer(mixed $value, int $warehouseId): ?int
     {
@@ -196,6 +201,12 @@ class CreatePurchaseReturn
         if ((int) $transfer->to_warehouse_id !== $warehouseId) {
             throw ValidationException::withMessages([
                 'return_transfer_id' => 'Transfer retur tidak menuju gudang ini.',
+            ]);
+        }
+
+        if ((string) $transfer->status !== 'received') {
+            throw ValidationException::withMessages([
+                'return_transfer_id' => 'Transfer retur belum diterima HO sehingga belum bisa diretur.',
             ]);
         }
 
