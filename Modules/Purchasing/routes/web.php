@@ -8,6 +8,7 @@ use Modules\Purchasing\Http\Controllers\PurchaseInvoiceController;
 use Modules\Purchasing\Http\Controllers\PurchaseOrderController;
 use Modules\Purchasing\Http\Controllers\PurchaseQuoteController;
 use Modules\Purchasing\Http\Controllers\PurchaseRequestController;
+use Modules\Purchasing\Http\Controllers\PurchaseReturnController;
 use Modules\Purchasing\Http\Controllers\PurchaseTagController;
 use Modules\Purchasing\Http\Middleware\EnsureHeadquarters;
 
@@ -60,6 +61,16 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
             Route::resource('invoices', PurchaseInvoiceController::class)
                 ->only(['index', 'create', 'store', 'show'])
                 ->parameters(['invoices' => 'invoice']);
+
+            // Purchase Returns (tanpa index di v1, masuk via detail faktur)
+            Route::get('returns/new', [PurchaseReturnController::class, 'new'])
+                ->name('returns.new');
+            Route::post('returns', [PurchaseReturnController::class, 'store'])
+                ->name('returns.store');
+            Route::get('returns/{return}', [PurchaseReturnController::class, 'show'])
+                ->name('returns.show');
+            Route::get('returns/{return}/attachments/{attachment}', [PurchaseReturnController::class, 'downloadAttachment'])
+                ->name('returns.attachments.download');
 
             // Join Purchase Invoices
             Route::resource('joins', JoinPurchaseInvoiceController::class)

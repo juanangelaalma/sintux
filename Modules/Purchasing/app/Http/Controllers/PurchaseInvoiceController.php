@@ -19,6 +19,8 @@ use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseInvoiceDetail;
 use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseInvoices;
 use Modules\Purchasing\Application\PurchaseInvoice\GetPurchaseSummary;
 use Modules\Purchasing\Application\PurchaseOrder\GetPurchaseOrderOptions;
+use Modules\Purchasing\Application\PurchaseReturn\GetInvoiceReturns;
+use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Modules\Purchasing\Http\Requests\StorePurchaseInvoiceRequest;
 
 class PurchaseInvoiceController extends Controller
@@ -101,10 +103,22 @@ class PurchaseInvoiceController extends Controller
     {
         $purchaseInvoice = $this->getPurchaseInvoiceDetail->execute($id);
         $approval = $this->getTransactionApprovalStatus->execute('purchase_invoice', $id, request()->user()?->id);
+        $returns = app(GetInvoiceReturns::class)->execute($id);
+
+        $returnableQty = $purchaseInvoice->items->sum(
+            fn ($item) => max(0.0, (float) $item->qty - (float) ($item->qty_returned ?? 0))
+        );
 
         return Inertia::render('Purchasing/Invoices/show', [
             'purchaseInvoice' => $purchaseInvoice,
             'approval' => $approval,
+            'returnContext' => [
+                'canReturn' => in_array($purchaseInvoice->status, [
+                    PurchaseInvoiceStatus::Approved,
+                    PurchaseInvoiceStatus::PartiallyPaid,
+                ], true) && $returnableQty > 0.0001,
+                'returns' => $returns,
+            ],
         ]);
     }
 

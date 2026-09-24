@@ -1,10 +1,12 @@
-import { Button } from '@heroui/react';
-import { Head, Link } from '@inertiajs/react';
+import { Button, Dropdown, Label } from '@heroui/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { ChevronDown } from 'lucide-react';
 import ApprovalHeaderControls from '@/components/approval/approval-header-controls';
 import type { ApprovalStatusProps } from '@/components/approval/approval-header-controls';
 import PurchaseDocumentDetail from '@/components/purchasing/purchase-document-detail';
 import type { DetailRow } from '@/components/purchasing/purchase-document-detail';
 import PurchaseDocumentHeader from '@/components/purchasing/purchase-document-header';
+import PurchasingStatusBadge from '@/components/purchasing/purchasing-status-badge';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { formatCurrency, formatDate, formatQty } from '@/lib/format';
 
@@ -15,8 +17,18 @@ type Item = {
     uom_name?: string;
     color_raw?: string | null;
     qty: number;
+    qty_returned?: number;
     unit_price: number;
     line_total: number;
+};
+
+type InvoiceReturn = {
+    id: number;
+    number: string;
+    status: string;
+    return_date: string;
+    total: number;
+    memo?: string | null;
 };
 
 type PurchaseInvoice = {
@@ -41,12 +53,19 @@ type PurchaseInvoice = {
 type Props = {
     purchaseInvoice: PurchaseInvoice;
     approval?: ApprovalStatusProps | null;
+    returnContext?: {
+        canReturn: boolean;
+        returns: InvoiceReturn[];
+    };
 };
 
 export default function PurchaseInvoicesShow({
     purchaseInvoice,
     approval,
+    returnContext,
 }: Props) {
+    const canReturn = returnContext?.canReturn ?? false;
+    const returns = returnContext?.returns ?? [];
     const rows: DetailRow[] = [
         {
             label: 'Tanggal faktur',
@@ -95,6 +114,47 @@ export default function PurchaseInvoicesShow({
                                     Kembali
                                 </Button>
                             </Link>
+                            {canReturn ? (
+                                <Dropdown>
+                                    <Button
+                                        type="button"
+                                        variant="primary"
+                                        className="gap-2 font-semibold"
+                                    >
+                                        Tindakan
+                                        <ChevronDown className="size-4" />
+                                    </Button>
+                                    <Dropdown.Popover>
+                                        <Dropdown.Menu
+                                            onAction={(key) =>
+                                                router.get(
+                                                    String(key),
+                                                    {},
+                                                    { preserveState: true },
+                                                )
+                                            }
+                                        >
+                                            <Dropdown.Item
+                                                key={`/purchasing/returns/new?createdFrom=${purchaseInvoice.id}`}
+                                                id={`/purchasing/returns/new?createdFrom=${purchaseInvoice.id}`}
+                                                textValue="Retur Pembelian"
+                                            >
+                                                <Label>Retur Pembelian</Label>
+                                            </Dropdown.Item>
+                                        </Dropdown.Menu>
+                                    </Dropdown.Popover>
+                                </Dropdown>
+                            ) : (
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    className="gap-2 font-semibold"
+                                    isDisabled
+                                >
+                                    Tindakan
+                                    <ChevronDown className="size-4" />
+                                </Button>
+                            )}
                             <ApprovalHeaderControls
                                 approval={approval}
                                 documentTitle={purchaseInvoice.number}
@@ -188,6 +248,78 @@ export default function PurchaseInvoicesShow({
                                 </span>
                             </div>
                         </div>
+                    </div>
+
+                    <div>
+                        <h3 className="mb-3 text-sm font-bold text-foreground">
+                            Riwayat Retur
+                        </h3>
+                        {returns.length === 0 ? (
+                            <div
+                                role="status"
+                                className="rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted"
+                            >
+                                Belum ada retur untuk faktur ini.
+                            </div>
+                        ) : (
+                            <div className="overflow-hidden rounded-lg border border-border">
+                                <table className="w-full text-left text-sm text-foreground">
+                                    <thead className="border-b border-border bg-cyan-500/10 text-xs font-bold text-cyan-950 uppercase dark:bg-cyan-950/40 dark:text-cyan-200">
+                                        <tr>
+                                            <th className="px-4 py-3">
+                                                Nomor Retur
+                                            </th>
+                                            <th className="px-4 py-3">
+                                                Tanggal
+                                            </th>
+                                            <th className="px-4 py-3">
+                                                Status
+                                            </th>
+                                            <th className="px-4 py-3 text-right">
+                                                Nilai Retur
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/60">
+                                        {returns.map((retur) => (
+                                            <tr
+                                                key={retur.id}
+                                                className="hover:bg-surface-secondary/60"
+                                            >
+                                                <td className="px-4 py-3">
+                                                    <Link
+                                                        href={`/purchasing/returns/${retur.id}`}
+                                                        className="font-semibold text-accent hover:underline"
+                                                    >
+                                                        {retur.number}
+                                                    </Link>
+                                                    {retur.memo && (
+                                                        <p className="mt-0.5 text-xs text-muted">
+                                                            {retur.memo}
+                                                        </p>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {formatDate(
+                                                        retur.return_date,
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <PurchasingStatusBadge
+                                                        status={retur.status}
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-bold">
+                                                    {formatCurrency(
+                                                        retur.total,
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </PurchaseDocumentDetail>
             </div>
