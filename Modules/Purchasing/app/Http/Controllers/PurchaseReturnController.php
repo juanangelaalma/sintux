@@ -5,6 +5,7 @@ namespace Modules\Purchasing\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -18,6 +19,7 @@ use Modules\Purchasing\Application\PurchaseReturn\GetReturnableItems;
 use Modules\Purchasing\Application\PurchaseReturn\ResolveReturnVariant;
 use Modules\Purchasing\Application\PurchaseTag\GetPurchaseTags;
 use Modules\Purchasing\Http\Requests\StorePurchaseReturnRequest;
+use Modules\Purchasing\Models\PurchaseReturn;
 use Modules\Purchasing\Models\PurchaseReturnAttachment;
 use Modules\Warehouse\Application\StockReservation\GetAvailableStock;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransfers;
@@ -80,25 +82,34 @@ class PurchaseReturnController extends Controller
             ->firstWhere('id', $validated['branch_id'])
             ->code ?? '';
 
-        $purchaseReturn = $this->createPurchaseReturn->execute(
-            $validated,
-            (string) $branchCode,
-            $user->id,
-            $user->name,
-            $accessibleBranchIds
-        );
+        $purchaseReturn = null;
 
-        foreach ($request->file('attachments', []) as $file) {
-            $path = $file->store('purchase-returns/'.$purchaseReturn->id, 'local');
+        DB::transaction(function () use (
+            $validated, $branchCode, $user, $accessibleBranchIds, $request, &$purchaseReturn
+        ): void {
+            $purchaseReturn = $this->createPurchaseReturn->execute(
+                $validated,
+                (string) $branchCode,
+                $user->id,
+                $user->name,
+                $accessibleBranchIds
+            );
 
-            PurchaseReturnAttachment::create([
-                'purchase_return_id' => $purchaseReturn->id,
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-                'mime' => $file->getClientMimeType(),
-                'size' => $file->getSize(),
-            ]);
-        }
+            // Lampiran disimpan dalam transaksi yang sama dengan dokumen
+            // retur: gagal upload = seluruh retur rollback, bukan retur
+            // finalized tanpa lampiran.
+            foreach ($request->file('attachments', []) as $file) {
+                $path = $file->store('purchase-returns/'.$purchaseReturn->id, 'local');
+
+                PurchaseReturnAttachment::create([
+                    'purchase_return_id' => $purchaseReturn->id,
+                    'path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
+                    'mime' => $file->getClientMimeType(),
+                    'size' => $file->getSize(),
+                ]);
+            }
+        });
 
         return redirect()->route('purchasing.returns.show', $purchaseReturn->id)
             ->with('success', 'Retur pembelian berhasil dibuat.');
@@ -121,6 +132,16 @@ class PurchaseReturnController extends Controller
 
     public function downloadAttachment(int $returnId, int $attachmentId): StreamedResponse
     {
+        $user = request()->user();
+        $tenantId = (string) session('active_tenant_id');
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
+
+        $purchaseReturn = PurchaseReturn::findOrFail($returnId);
+
+        if (! in_array((int) $purchaseReturn->branch_id, $accessibleBranchIds, true)) {
+            abort(404);
+        }
+
         $attachment = PurchaseReturnAttachment::where('purchase_return_id', $returnId)
             ->findOrFail($attachmentId);
 

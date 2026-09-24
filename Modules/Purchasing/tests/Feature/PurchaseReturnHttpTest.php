@@ -180,6 +180,44 @@ class PurchaseReturnHttpTest extends TestCase
             ->assertSessionHasErrors(['purchase_invoice_id']);
     }
 
+    public function test_attachment_download_requires_branch_access(): void
+    {
+        Storage::fake('local');
+
+        [$tenantId, $hqBranchId, $user] = $this->seedContext();
+        $ids = $this->ids($tenantId);
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $this->actingAs($user)->post(route('purchasing.returns.store'), [
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $ids['supplierId'],
+            'purchase_invoice_id' => $ids['invoiceId'],
+            'warehouse_id' => $ids['warehouseId'],
+            'return_date' => '2026-09-23',
+            'items' => [
+                ['purchase_invoice_item_id' => $ids['itemId'], 'qty' => 1],
+            ],
+            'attachments' => [
+                UploadedFile::fake()->create('nota.pdf', 100, 'application/pdf'),
+            ],
+        ])->assertRedirect();
+
+        tenancy()->initialize($tenantId);
+        $returnId = DB::table('purchase_returns')->orderByDesc('id')->value('id');
+        $attachmentId = DB::table('purchase_return_attachments')->where('purchase_return_id', $returnId)->value('id');
+        tenancy()->end();
+
+        // Pemilik akses: unduhan berhasil.
+        $this->actingAs($user)
+            ->get(route('purchasing.returns.attachments.download', [$returnId, $attachmentId]))
+            ->assertOk();
+
+        // Lampiran retur lain: 404 (bukan bocor via enumerasi id).
+        $this->actingAs($user)
+            ->get(route('purchasing.returns.attachments.download', [$returnId, $attachmentId + 999]))
+            ->assertNotFound();
+    }
+
     public function test_show_renders_return_detail(): void
     {
         [$tenantId, $hqBranchId, $user] = $this->seedContext();
