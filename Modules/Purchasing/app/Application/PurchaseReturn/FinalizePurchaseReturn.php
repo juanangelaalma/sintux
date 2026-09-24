@@ -8,13 +8,13 @@ use Modules\Accounting\Application\ChartOfAccountQuery;
 use Modules\Accounting\Application\Journal\RecordJournal;
 use Modules\Accounting\Application\Journal\ResolvePayableAccount;
 use Modules\Accounting\Application\TaxCalculator;
-use Modules\Accounting\Application\TaxQuery;
 use Modules\Product\Application\Variant\GetVariantReturnProfile;
 use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Modules\Purchasing\Enums\PurchaseReturnStatus;
 use Modules\Purchasing\Models\PurchaseInvoice;
 use Modules\Purchasing\Models\PurchaseInvoiceItem;
 use Modules\Purchasing\Models\PurchaseReturn;
+use Modules\Purchasing\Models\PurchaseReturnItem;
 use Modules\Purchasing\Models\SupplierDebitMemo;
 use Modules\Warehouse\Application\StockIssue\IssueReturnStock;
 
@@ -23,7 +23,6 @@ class FinalizePurchaseReturn
     public function __construct(
         private readonly GetVariantReturnProfile $returnProfiles,
         private readonly IssueReturnStock $issueReturnStock,
-        private readonly TaxQuery $taxQuery,
         private readonly TaxCalculator $taxCalculator,
         private readonly ChartOfAccountQuery $chartOfAccounts,
         private readonly ResolvePayableAccount $payableAccounts,
@@ -62,7 +61,6 @@ class FinalizePurchaseReturn
                 ->get()
                 ->keyBy('id');
 
-            $taxes = collect($this->taxQuery->listForPurchase())->keyBy('id');
             $isInclusive = (bool) $purchaseReturn->is_tax_inclusive;
 
             $trackedNet = 0.0;
@@ -96,14 +94,13 @@ class FinalizePurchaseReturn
                     ]);
                 }
 
+                // Angka pajak memakai snapshot tersimpan (tax_rate + tax_breakdown
+                // saat create), bukan master pajak terkini, agar retur yang
+                // menunggu approval tak berubah nilainya bila tarif diubah.
                 $gross = $qty * (float) $item->unit_price;
-                $calc = $this->taxCalculator->calculate(
-                    $gross,
-                    $this->taxDefFor($item->tax_id, (float) $item->tax_rate, $taxes),
-                    $isInclusive
-                );
-                $net = $isInclusive ? $gross - $calc['total'] : $gross;
-                $taxTotal += $calc['total'];
+                $lineTax = $this->snapshotTaxTotal($item, $gross, $isInclusive);
+                $taxTotal += $lineTax;
+                $net = $isInclusive ? $gross - $lineTax : $gross;
 
                 if ($profile['is_tracked']) {
                     if (abs($qty - round($qty)) > 0.0001) {
@@ -279,20 +276,24 @@ class FinalizePurchaseReturn
     }
 
     /**
-     * @return array<string, mixed>|null
+     * Total pajak satu baris dari snapshot create: jumlah amount di
+     * tax_breakdown bila ada, fallback hitung dari stored tax_rate agar
+     * data lama tanpa breakdown tetap benar.
      */
-    private function taxDefFor(?int $taxId, float $storedRate, mixed $taxes): ?array
+    private function snapshotTaxTotal(PurchaseReturnItem $item, float $gross, bool $isInclusive): float
     {
-        if ($taxId === null) {
-            return null;
+        $breakdown = $item->tax_breakdown;
+
+        if (is_array($breakdown) && $breakdown !== []) {
+            return (float) collect($breakdown)->sum(fn ($row) => (float) ($row['amount'] ?? 0));
         }
 
-        $def = $taxes->get($taxId);
+        $calc = $this->taxCalculator->calculate(
+            $gross,
+            $item->tax_id !== null ? ['id' => (int) $item->tax_id, 'rate' => (float) $item->tax_rate] : null,
+            $isInclusive
+        );
 
-        if ($def) {
-            return $def;
-        }
-
-        return ['id' => $taxId, 'rate' => $storedRate];
+        return (float) $calc['total'];
     }
 }

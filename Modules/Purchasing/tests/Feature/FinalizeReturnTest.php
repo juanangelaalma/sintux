@@ -205,6 +205,31 @@ class FinalizeReturnTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_finalize_uses_stored_tax_snapshot_when_master_rate_changes(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Retur tracked 10 @ 50000 + PPN 55000 dibuat saat tarif 12%.
+        $returnId = $this->createReturn($ctx, 'RBL-TEST-06', [
+            ['key' => 'tracked', 'qty' => 10],
+        ]);
+
+        // Tarif master diubah menjadi 20% sebelum approval/finalize.
+        DB::table('taxes')->where('id', $ctx['ppnId'])->update(['rate' => 20]);
+
+        app(FinalizePurchaseReturn::class)->execute($returnId);
+
+        // Jurnal tetap pakai snapshot 55000, bukan tarif baru.
+        $this->assertJournalLegs($returnId, [
+            'accounting.coa.2101' => [555000, 0],
+            'accounting.coa.1301' => [0, 500000],
+            'accounting.coa.1404' => [0, 55000],
+        ]);
+
+        tenancy()->end();
+    }
+
     /**
      * @param  list<array{debit: float, credit: float}>  $expected  seed_key => [debit, credit]
      */
@@ -444,6 +469,9 @@ class FinalizeReturnTest extends TestCase
                 'unit_price' => $unitPrice,
                 'tax_id' => $isTracked ? $ctx['ppnId'] : null,
                 'tax_rate' => $isTracked ? 12 : 0,
+                'tax_breakdown' => $isTracked
+                    ? json_encode([['tax_id' => $ctx['ppnId'], 'rate' => 12.0, 'amount' => $tax]])
+                    : null,
                 'line_total' => $gross + $tax,
                 'created_at' => now(),
                 'updated_at' => now(),
