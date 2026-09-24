@@ -8,6 +8,13 @@ import PurchaseDocumentHeader from '@/components/purchasing/purchase-document-he
 import CompanyLayout from '@/layouts/company/company-layout';
 import { formatCurrency, formatDate } from '@/lib/format';
 
+type ReturnLineageStep = {
+    label: string;
+    source_type: string | null;
+    source_id: number | null;
+    layer_id: number;
+};
+
 type ReturnItem = {
     id: number;
     product_name: string;
@@ -17,6 +24,7 @@ type ReturnItem = {
     unit_price: number;
     tax_rate: number;
     line_total: number;
+    lineage?: ReturnLineageStep[];
 };
 
 type JournalLine = {
@@ -236,6 +244,56 @@ export default function PurchaseReturnsShow({
                             </table>
                         </div>
                     </div>
+
+                    {items.some((item) => (item.lineage ?? []).length > 0) && (
+                        <div>
+                            <h3 className="mb-3 text-sm font-bold text-foreground">
+                                Rantai Asal Stok
+                            </h3>
+                            <div className="space-y-3">
+                                {items
+                                    .filter(
+                                        (item) =>
+                                            (item.lineage ?? []).length > 0,
+                                    )
+                                    .map((item) => (
+                                        <div
+                                            key={`lineage-${item.id}`}
+                                            className="rounded-lg border border-border p-3 text-sm"
+                                        >
+                                            <p className="mb-2 font-semibold text-foreground">
+                                                {item.product_name}
+                                                <span className="ml-2 font-mono text-xs text-muted">
+                                                    {item.sku}
+                                                </span>
+                                            </p>
+                                            <ol className="flex flex-wrap items-center gap-2">
+                                                {(item.lineage ?? []).map(
+                                                    (step, stepIndex) => (
+                                                        <li
+                                                            key={`${step.layer_id}-${stepIndex}`}
+                                                            className="flex items-center gap-2"
+                                                        >
+                                                            {stepIndex > 0 && (
+                                                                <span
+                                                                    aria-hidden
+                                                                    className="text-muted"
+                                                                >
+                                                                    →
+                                                                </span>
+                                                            )}
+                                                            <span className="rounded bg-surface-secondary px-2 py-1 font-mono text-xs text-foreground">
+                                                                {step.label}
+                                                            </span>
+                                                        </li>
+                                                    ),
+                                                )}
+                                            </ol>
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="flex justify-end border-t border-border/60 pt-4">
                         <div className="w-72 space-y-2 text-sm">

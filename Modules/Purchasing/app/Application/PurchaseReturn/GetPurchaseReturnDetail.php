@@ -14,6 +14,7 @@ class GetPurchaseReturnDetail
         private readonly GetJournalByReference $journals,
         private readonly GetWarehouse $warehouses,
         private readonly GetStockTransferDetail $transfers,
+        private readonly GetReturnLineage $returnLineage,
     ) {}
 
     /**
@@ -35,6 +36,8 @@ class GetPurchaseReturnDetail
         $transfer = $purchaseReturn->return_transfer_id !== null
             ? $this->transferSummary((int) $purchaseReturn->return_transfer_id)
             : null;
+
+        $lineage = $this->returnLineage->execute((int) $purchaseReturn->id);
 
         return [
             'return' => [
@@ -70,6 +73,7 @@ class GetPurchaseReturnDetail
                 'unit_price' => (float) $item->unit_price,
                 'tax_rate' => (float) $item->tax_rate,
                 'line_total' => (float) $item->line_total,
+                'lineage' => $this->lineageLabels($lineage[(int) $item->id] ?? []),
             ])->all(),
             'transfer' => $transfer,
             'journal' => $this->journals->execute('purchase_return', $purchaseReturn->id),
@@ -91,6 +95,62 @@ class GetPurchaseReturnDetail
                 'size' => $file->size !== null ? (int) $file->size : null,
             ])->all(),
         ];
+    }
+
+    /**
+     * Rantai asal diubah jadi label ringkas untuk UI: setiap layer jadi
+     * satu langkah (sumber → tipe dokumen + id), tanpa detail internal.
+     *
+     * @param  list<array<string, mixed>>  $chain
+     * @return list<array{label: string, source_type: string|null, source_id: int|null, layer_id: int}>
+     */
+    private function lineageLabels(array $chain): array
+    {
+        return array_values(array_filter(array_map(fn (array $row): array => [
+            'label' => $this->sourceLabel($row),
+            'source_type' => $row['source_type'] ?? null,
+            'source_id' => $row['source_id'] ?? null,
+            'layer_id' => (int) $row['layer_id'],
+        ], $chain), fn (array $row): bool => $row['label'] !== ''));
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function sourceLabel(array $row): string
+    {
+        $direct = $this->documentLabel($row['source_type'] ?? null, $row['source_id'] ?? null);
+
+        if ($direct === '') {
+            return '';
+        }
+
+        // Layer turunan: tampilkan asal transfer + akar PO-nya, karena
+        // faktur retur terikat PO, bukan transfer.
+        if (($row['root_source_type'] ?? null) === 'purchase_order'
+            && ($row['root_source_type'] ?? null) !== ($row['source_type'] ?? null)) {
+            $root = $this->documentLabel($row['root_source_type'] ?? null, $row['root_source_id'] ?? null);
+
+            if ($root !== '') {
+                return $direct.' ← '.$root;
+            }
+        }
+
+        return $direct;
+    }
+
+    private function documentLabel(?string $type, mixed $id): string
+    {
+        if ($id === null) {
+            return '';
+        }
+
+        return match ($type) {
+            'purchase_order' => "PO #{$id}",
+            'stock_transfer' => "Transfer #{$id}",
+            'adjustment' => "Penyesuaian #{$id}",
+            default => (string) $type.' #'.$id,
+        };
     }
 
     /**
