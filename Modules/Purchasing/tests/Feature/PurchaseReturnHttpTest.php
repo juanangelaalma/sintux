@@ -4,11 +4,13 @@ namespace Modules\Purchasing\Tests\Feature;
 
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Modules\Accounting\Database\Seeders\ChartOfAccountsSeeder;
 use Modules\Company\Models\CompanyUser;
+use Modules\Purchasing\Application\PurchaseReturn\GetPurchaseReturnDetail;
 use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Tests\TestCase;
 
@@ -216,6 +218,69 @@ class PurchaseReturnHttpTest extends TestCase
         $this->actingAs($user)
             ->get(route('purchasing.returns.attachments.download', [$returnId, $attachmentId + 999]))
             ->assertNotFound();
+    }
+
+    public function test_show_rejects_return_outside_branch_scope(): void
+    {
+        [$tenantId, $hqBranchId, $user] = $this->seedContext();
+        $ids = $this->ids($tenantId);
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $this->actingAs($user)->post(route('purchasing.returns.store'), [
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $ids['supplierId'],
+            'purchase_invoice_id' => $ids['invoiceId'],
+            'warehouse_id' => $ids['warehouseId'],
+            'return_date' => '2026-09-23',
+            'items' => [
+                ['purchase_invoice_item_id' => $ids['itemId'], 'qty' => 1],
+            ],
+        ])->assertRedirect();
+
+        tenancy()->initialize($tenantId);
+        $returnId = DB::table('purchase_returns')->orderByDesc('id')->value('id');
+
+        $otherBranchId = DB::table('branches')->insertGetId([
+            'name' => 'Branch X',
+            'code' => 'BX-'.uniqid(),
+            'is_headquarters' => false,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $otherUser = User::factory()->create([
+            'email' => 'other_'.uniqid().'@acme.test',
+            'role' => 'user',
+        ]);
+
+        $companyUser = CompanyUser::create([
+            'user_id' => $otherUser->id,
+            'tenant_id' => $tenantId,
+            'branch_id' => $otherBranchId,
+            'role' => 'member',
+            'is_default' => true,
+        ]);
+
+        tenancy()->end();
+
+        DB::table('company_user_branches')->insert([
+            'company_user_id' => $companyUser->id,
+            'branch_id' => $otherBranchId,
+        ]);
+
+        // Route retur adalah HQ-only, jadi user non-HQ tertahan middleware (403).
+        $this->actingAs($otherUser)
+            ->get(route('purchasing.returns.show', $returnId))
+            ->assertForbidden();
+
+        // Defence-in-depth di layer Application:meskipun branch lolos
+        // middleware, detail tetap menolak retur yang cabangnya di luar scope.
+        tenancy()->initialize($tenantId);
+
+        $this->expectException(ModelNotFoundException::class);
+        app(GetPurchaseReturnDetail::class)
+            ->execute((int) $returnId, [(int) $otherBranchId]);
     }
 
     public function test_show_renders_return_detail(): void

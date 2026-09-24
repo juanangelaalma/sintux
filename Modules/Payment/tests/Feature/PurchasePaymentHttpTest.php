@@ -182,6 +182,80 @@ class PurchasePaymentHttpTest extends TestCase
             );
     }
 
+    public function test_show_rejects_payment_outside_branch_scope(): void
+    {
+        $ctx = $this->seedContext();
+        $invoiceId = $this->createInvoice($ctx, 500000);
+
+        $this->withSession($this->tenantSession($ctx))
+            ->actingAs($ctx['user'])
+            ->post(route('purchase-payments.store'), [
+                'branch_id' => $ctx['hqBranchId'],
+                'supplier_id' => $ctx['supplierId'],
+                'cash_account_id' => $ctx['cashAccountId'],
+                'mode' => 'invoice',
+                'payment_date' => '2026-09-24',
+                'allocations' => [
+                    ['purchase_invoice_id' => $invoiceId, 'amount' => 100000],
+                ],
+            ])
+            ->assertRedirect();
+
+        tenancy()->initialize($ctx['tenantId']);
+        $paymentId = (int) DB::table('purchase_payments')->orderByDesc('id')->value('id');
+        tenancy()->end();
+
+        // User branch lain (bukan HQ) tidak boleh melihat payment HQ.
+        $otherUser = $this->createBranchScopedUser($ctx, 'Branch B');
+
+        $this->withSession([
+            'active_tenant_id' => $ctx['tenantId'],
+            'active_branch_id' => $otherUser['branchId'],
+        ])->actingAs($otherUser['user'])
+            ->get(route('purchase-payments.show', $paymentId))
+            ->assertNotFound();
+    }
+
+    /**
+     * @param  array<string, mixed>  $ctx
+     * @return array{user: User, branchId: int}
+     */
+    private function createBranchScopedUser(array $ctx, string $branchLabel): array
+    {
+        tenancy()->initialize($ctx['tenantId']);
+
+        $branchId = DB::table('branches')->insertGetId([
+            'name' => $branchLabel,
+            'code' => 'B'.uniqid(),
+            'is_headquarters' => false,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        tenancy()->end();
+
+        $user = User::factory()->create([
+            'email' => 'other_'.uniqid().'@acme.test',
+            'role' => 'user',
+        ]);
+
+        $companyUser = CompanyUser::create([
+            'user_id' => $user->id,
+            'tenant_id' => $ctx['tenantId'],
+            'branch_id' => $branchId,
+            'role' => 'member',
+            'is_default' => true,
+        ]);
+
+        DB::table('company_user_branches')->insert([
+            'company_user_id' => $companyUser->id,
+            'branch_id' => $branchId,
+        ]);
+
+        return ['user' => $user, 'branchId' => (int) $branchId];
+    }
+
     /**
      * @param  array<string, mixed>  $ctx
      * @return array<string, mixed>

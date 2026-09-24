@@ -21,12 +21,13 @@ class GetPurchaseReturnDetail
      * Proyeksi halaman detail retur: header + baris + faktur sumber +
      * jurnal + debit memo + tag + lampiran.
      *
-     * @param  list<int>  $branchIds  Scope cabang untuk nama gudang.
+     * @param  list<int>  $branchIds  Scope cabang peminta (wajib, otorisasi).
      * @return array<string, mixed>
      */
     public function execute(int $id, array $branchIds = []): array
     {
         $purchaseReturn = PurchaseReturn::with(['items', 'invoice', 'debitMemos', 'tags', 'attachments'])
+            ->whereIn('branch_id', $branchIds)
             ->findOrFail($id);
 
         $warehouse = $branchIds === []

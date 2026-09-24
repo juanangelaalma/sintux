@@ -116,7 +116,7 @@ class PurchasePaymentController extends Controller
         $user = request()->user();
         $tenantId = (string) session('active_tenant_id');
         $accessibleBranchIds = CompanyAccess::accessibleBranchIds($user, $tenantId);
-        $detail = $this->getDetail->execute($id);
+        $detail = $this->getDetail->execute($id, $accessibleBranchIds);
 
         return Inertia::render('Payment/Purchase/show', [
             'payment' => $detail,

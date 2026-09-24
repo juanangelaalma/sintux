@@ -17,7 +17,14 @@ class GetPaymentDetail
         private readonly GetJournalByReference $journals,
     ) {}
 
-    public function execute(int $paymentId): array
+    /**
+     * Proyeksi detail pembayaran untuk halaman show: header + alokasi +
+     * withholding + kredit (deposit/memo) + jurnal.
+     *
+     * @param  list<int>  $branchIds  Scope cabang peminta (wajib, otorisasi).
+     * @return array<string, mixed>
+     */
+    public function execute(int $paymentId, array $branchIds = []): array
     {
         $payment = PurchasePayment::with([
             'allocations',
@@ -25,7 +32,9 @@ class GetPaymentDetail
             'depositUses.sourcePayment',
             'memoUses',
             'paymentMethod',
-        ])->findOrFail($paymentId);
+        ])
+            ->whereIn('branch_id', $branchIds)
+            ->findOrFail($paymentId);
 
         return [
             'payment' => [
