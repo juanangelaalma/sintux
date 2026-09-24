@@ -270,13 +270,22 @@ class CreatePurchasePayment
     }
 
     /**
+     * Normalkan alokasi: satu faktur hanya boleh punya satu baris.
+     *
+     * Baris duplikat digabung (sum per faktur), bukan ditolak, agar form
+     * yang mengirim faktur sama lebih dari sekali tetap aman. Gabungan ini
+     * juga menjaga kunci idempotensi ApplyInvoicePayment tetap unik per
+     * (faktur, payment) sehingga finalize tidak melewati apply kedua.
+     *
      * @return list<array{purchase_invoice_id: int, amount: float}>
      */
     private function normalizeAllocations(mixed $allocations): array
     {
-        $out = [];
+        /** @var array<int, float> $byInvoice */
+        $byInvoice = [];
 
         foreach ((array) $allocations as $allocation) {
+            $invoiceId = (int) ($allocation['purchase_invoice_id'] ?? 0);
             $amount = (float) ($allocation['amount'] ?? 0);
 
             if ($amount <= 0) {
@@ -285,8 +294,14 @@ class CreatePurchasePayment
                 ]);
             }
 
+            $byInvoice[$invoiceId] = ($byInvoice[$invoiceId] ?? 0.0) + $amount;
+        }
+
+        $out = [];
+
+        foreach ($byInvoice as $invoiceId => $amount) {
             $out[] = [
-                'purchase_invoice_id' => (int) ($allocation['purchase_invoice_id'] ?? 0),
+                'purchase_invoice_id' => $invoiceId,
                 'amount' => round($amount, 4),
             ];
         }

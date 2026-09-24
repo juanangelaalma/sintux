@@ -10,6 +10,7 @@ use Modules\Accounting\Models\Journal;
 use Modules\Approval\Application\CreateApprovalRule;
 use Modules\Payment\Application\Finalize\FinalizePurchasePayment;
 use Modules\Payment\Application\PurchasePayment\CreatePurchasePayment;
+use Modules\Payment\Models\PurchasePayment;
 use Tests\TestCase;
 
 class PurchasePaymentTest extends TestCase
@@ -281,6 +282,77 @@ class PurchasePaymentTest extends TestCase
 
         $this->assertSame(1, Journal::where('reference_type', 'purchase_payment')->where('reference_id', $payment->id)->count());
         $this->assertEquals(200000, (float) DB::table('purchase_invoices')->where('id', $invoiceId)->value('paid_amount'));
+
+        tenancy()->end();
+    }
+
+    public function test_duplicate_invoice_allocations_are_merged_not_double_counted(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $invoiceId = $this->createInvoice($ctx, 100000);
+
+        // Dua baris untuk faktur yang sama: 60k + 40k = 100k (tepat outstanding).
+        // pra-bug: setiap baris dicek terpisah terhadap snapshot outstanding yang
+        // sama, lalu kunci idempotensi bentrok sehingga hanya baris pertama
+        // yang terpakai sementara jurnal tetap memakai total semua baris.
+        $payment = app(CreatePurchasePayment::class)->execute([
+            'branch_id' => $ctx['hqBranchId'],
+            'supplier_id' => $ctx['supplierId'],
+            'cash_account_id' => $ctx['cashAccountId'],
+            'allocations' => [
+                ['purchase_invoice_id' => $invoiceId, 'amount' => 60000],
+                ['purchase_invoice_id' => $invoiceId, 'amount' => 40000],
+            ],
+        ], null, null, [$ctx['hqBranchId']]);
+
+        // Alokasi harus merged menjadi satu baris 100k.
+        $this->assertCount(1, $payment->allocations);
+        $this->assertEquals(100000, (float) $payment->gross_amount);
+        $this->assertEquals(100000, (float) $payment->cash_out);
+
+        // Faktur harus benar-benar berkurang 100k (bukan 60k).
+        $this->assertEquals(100000, (float) DB::table('purchase_invoices')
+            ->where('id', $invoiceId)->value('paid_amount'));
+        $this->assertSame('paid', DB::table('purchase_invoices')
+            ->where('id', $invoiceId)->value('status'));
+
+        // Jurnal harus cocok dengan yang benar-benar terpakai.
+        $this->assertJournal($payment->id, [
+            'accounting.coa.2101' => [100000, 0],
+            'accounting.coa.1101' => [0, 100000],
+        ]);
+
+        tenancy()->end();
+    }
+
+    public function test_duplicate_invoice_allocations_over_outstanding_are_rejected(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $invoiceId = $this->createInvoice($ctx, 100000);
+
+        // 60k + 60k = 120k > outstanding 100k, harus ditolak.
+        try {
+            app(CreatePurchasePayment::class)->execute([
+                'branch_id' => $ctx['hqBranchId'],
+                'supplier_id' => $ctx['supplierId'],
+                'cash_account_id' => $ctx['cashAccountId'],
+                'allocations' => [
+                    ['purchase_invoice_id' => $invoiceId, 'amount' => 60000],
+                    ['purchase_invoice_id' => $invoiceId, 'amount' => 60000],
+                ],
+            ], null, null, [$ctx['hqBranchId']]);
+            $this->fail('Expected ValidationException for merged allocation above outstanding.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('allocations', $e->errors());
+        }
+
+        $this->assertSame(0, PurchasePayment::count());
+        $this->assertEquals(0, (float) DB::table('purchase_invoices')
+            ->where('id', $invoiceId)->value('paid_amount'));
 
         tenancy()->end();
     }
