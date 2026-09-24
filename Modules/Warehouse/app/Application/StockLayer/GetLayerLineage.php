@@ -15,6 +15,51 @@ class GetLayerLineage
     private const MAX_DEPTH = 10;
 
     /**
+     * Root PO pada layer-layer dari satu transfer (untuk validasi
+     * provenance retur): set id PO akar, atau null bila ada layer yang
+     * root-nya belum diketahui (data lama).
+     *
+     * @param  list<int>  $variantIds
+     */
+    public function rootPurchaseOrderIdForTransfer(int $warehouseId, int $transferId, array $variantIds): ?int
+    {
+        if ($variantIds === []) {
+            return null;
+        }
+
+        $layers = StockLayer::query()
+            ->where('warehouse_id', $warehouseId)
+            ->whereIn('product_variant_id', $variantIds)
+            ->where('source_type', 'stock_transfer')
+            ->where('source_id', $transferId)
+            ->get(['root_source_type', 'root_source_id']);
+
+        if ($layers->isEmpty()) {
+            return null;
+        }
+
+        $rootIds = [];
+        $hasUnknown = false;
+
+        foreach ($layers as $layer) {
+            if ($layer->root_source_type === 'purchase_order' && $layer->root_source_id !== null) {
+                $rootIds[(int) $layer->root_source_id] = true;
+            } else {
+                $hasUnknown = true;
+            }
+        }
+
+        // Ada layer tanpa root yang diketahui → tak bisa dibuktikan, null.
+        if ($hasUnknown) {
+            return null;
+        }
+
+        $ids = array_keys($rootIds);
+
+        return count($ids) === 1 ? (int) $ids[0] : null;
+    }
+
+    /**
      * @return list<array{
      *     layer_id: int,
      *     warehouse_id: int,

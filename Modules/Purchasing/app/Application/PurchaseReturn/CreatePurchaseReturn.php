@@ -16,6 +16,7 @@ use Modules\Purchasing\Enums\PurchaseReturnStatus;
 use Modules\Purchasing\Models\PurchaseInvoice;
 use Modules\Purchasing\Models\PurchaseInvoiceItem;
 use Modules\Purchasing\Models\PurchaseReturn;
+use Modules\Warehouse\Application\StockLayer\GetLayerLineage;
 use Modules\Warehouse\Application\StockReservation\GetAvailableStock;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
 use Modules\Warehouse\Application\Warehouse\GetWarehouse;
@@ -29,6 +30,7 @@ class CreatePurchaseReturn
         private readonly GetStockTransferDetail $returnTransfers,
         private readonly GetWarehouse $warehouses,
         private readonly GetAvailableStock $availableStock,
+        private readonly GetLayerLineage $layerLineage,
         private readonly TaxQuery $taxQuery,
         private readonly TaxCalculator $taxCalculator,
         private readonly ApprovalEngine $approvalEngine,
@@ -122,6 +124,10 @@ class CreatePurchaseReturn
 
             $this->validateTags($data['tag_ids'] ?? []);
 
+            if ($transferId !== null) {
+                $this->validateTransferMatchesInvoicePurchaseOrder($invoice, $lines, (int) $warehouse->id, $transferId);
+            }
+
             $number = $this->nextNumber($invoice);
 
             $purchaseReturn = PurchaseReturn::create([
@@ -181,6 +187,51 @@ class CreatePurchaseReturn
 
             return $purchaseReturn->load('items');
         });
+    }
+
+    /**
+     * Provenance lunak: bila faktur punya PO dan layer transfer punya root
+     * PO yang terbukti berbeda, tolak retur. Bila root tak diketahui (data
+     * lama) atau faktur tanpa PO, lewati — jangan blokir data lama.
+     *
+     * @param  list<array<string, mixed>>  $lines
+     */
+    private function validateTransferMatchesInvoicePurchaseOrder(
+        PurchaseInvoice $invoice,
+        array $lines,
+        int $warehouseId,
+        int $transferId
+    ): void {
+        $invoicePoId = $invoice->purchase_order_id !== null
+            ? (int) $invoice->purchase_order_id
+            : null;
+
+        if ($invoicePoId === null) {
+            return;
+        }
+
+        $stockVariantIds = array_values(array_unique(array_filter(array_map(
+            fn (array $line): ?int => isset($line['stock_variant_id']) && $line['stock_variant_id'] !== null
+                ? (int) $line['stock_variant_id']
+                : null,
+            $lines
+        ))));
+
+        if ($stockVariantIds === []) {
+            return;
+        }
+
+        $transferPoId = $this->layerLineage->rootPurchaseOrderIdForTransfer(
+            $warehouseId,
+            $transferId,
+            $stockVariantIds
+        );
+
+        if ($transferPoId !== null && $transferPoId !== $invoicePoId) {
+            throw ValidationException::withMessages([
+                'return_transfer_id' => 'Transfer retur berasal dari PO berbeda dengan PO faktur sumber.',
+            ]);
+        }
     }
 
     /**

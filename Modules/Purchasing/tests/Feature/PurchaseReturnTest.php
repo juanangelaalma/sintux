@@ -388,6 +388,109 @@ class PurchaseReturnTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_create_with_transfer_rejects_different_purchase_order(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Faktur terikat PO; layer transfer berakar PO lain.
+        $poId = $this->createPurchaseOrder($ctx, 'PO-V-001');
+        DB::table('purchase_invoices')->where('id', $ctx['invoiceId'])->update(['purchase_order_id' => $poId]);
+        $transferId = $this->createTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $poId + 1);
+
+        try {
+            $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
+                'return_transfer_id' => $transferId,
+            ]);
+            $this->fail('Expected ValidationException for different PO.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('return_transfer_id', $e->errors());
+        }
+
+        $this->assertSame(0, PurchaseReturn::query()->count());
+
+        tenancy()->end();
+    }
+
+    public function test_create_with_transfer_accepts_same_purchase_order(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $poId = $this->createPurchaseOrder($ctx, 'PO-V-002');
+        DB::table('purchase_invoices')->where('id', $ctx['invoiceId'])->update(['purchase_order_id' => $poId]);
+        $transferId = $this->createTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $poId);
+
+        $purchaseReturn = $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
+            'return_transfer_id' => $transferId,
+        ]);
+
+        $this->assertSame('approved', $purchaseReturn->fresh()->status);
+
+        tenancy()->end();
+    }
+
+    public function test_create_with_transfer_skips_po_validation_when_lineage_legacy(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Layer lama tanpa root (lineage kosong) → mode lunak: lolos.
+        $poId = $this->createPurchaseOrder($ctx, 'PO-V-003');
+        DB::table('purchase_invoices')->where('id', $ctx['invoiceId'])->update(['purchase_order_id' => $poId]);
+        $transferId = $this->createTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId);
+
+        $purchaseReturn = $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
+            'return_transfer_id' => $transferId,
+        ]);
+
+        $this->assertSame('approved', $purchaseReturn->fresh()->status);
+
+        tenancy()->end();
+    }
+
+    public function test_create_with_transfer_skips_po_validation_when_invoice_has_no_po(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Faktur tanpa PO → tak bisa dibuktikan, lewati validasi.
+        $transferId = $this->createTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, 999);
+        $purchaseReturn = $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
+            'return_transfer_id' => $transferId,
+        ]);
+
+        $this->assertSame('approved', $purchaseReturn->fresh()->status);
+
+        tenancy()->end();
+    }
+
+    public function test_create_with_transfer_ignores_po_mismatch_for_untracked_lines(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Baris untracked tak punya lineage; PO beda tak boleh memblokir.
+        $poId = $this->createPurchaseOrder($ctx, 'PO-V-005');
+        DB::table('purchase_invoices')->where('id', $ctx['invoiceId'])->update(['purchase_order_id' => $poId]);
+        $transferId = $this->createTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $poId + 1);
+
+        $purchaseReturn = $this->createReturn($ctx, [
+            ['purchase_invoice_item_id' => $ctx['untrackedItemId'], 'qty' => 5],
+        ], [
+            'return_transfer_id' => $transferId,
+        ]);
+
+        $this->assertSame('approved', $purchaseReturn->fresh()->status);
+
+        tenancy()->end();
+    }
+
     public function test_create_rejects_transfer_to_other_warehouse(): void
     {
         $ctx = $this->seedContext();
@@ -482,7 +585,24 @@ class PurchaseReturnTest extends TestCase
         ]);
     }
 
-    private function addTransferLayer(int $warehouseId, int $variantId, float $qty, float $unitCost, int $transferId): void
+    private function createPurchaseOrder(array $ctx, string $number): int
+    {
+        return DB::table('purchase_orders')->insertGetId([
+            'number' => $number,
+            'branch_id' => $ctx['hqBranchId'],
+            'supplier_id' => $ctx['supplierId'],
+            'status' => 'received',
+            'order_date' => '2026-09-01',
+            'currency_code' => 'IDR',
+            'subtotal' => 0,
+            'tax_amount' => 0,
+            'total' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function addTransferLayer(int $warehouseId, int $variantId, float $qty, float $unitCost, int $transferId, ?int $rootPurchaseOrderId = null): void
     {
         DB::table('stock_layers')->insert([
             'product_variant_id' => $variantId,
@@ -492,6 +612,8 @@ class PurchaseReturnTest extends TestCase
             'received_at' => now(),
             'source_type' => 'stock_transfer',
             'source_id' => $transferId,
+            'root_source_type' => $rootPurchaseOrderId !== null ? 'purchase_order' : null,
+            'root_source_id' => $rootPurchaseOrderId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
