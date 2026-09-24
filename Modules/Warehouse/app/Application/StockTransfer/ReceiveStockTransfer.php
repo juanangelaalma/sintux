@@ -139,8 +139,11 @@ class ReceiveStockTransfer
             }
 
             /*
-             * Create StockLayer di warehouse tujuan.
+             * Create StockLayer di warehouse tujuan. Lineage diwarisi dari
+             * layer asal agar rantai ke PO tetap terlacak melewati transfer.
              */
+            $sourceLayer = $breakdownLayer->stockLayer;
+
             $newLayer = StockLayer::create([
                 'product_variant_id' => $productVariantId,
                 'warehouse_id' => $toWarehouseId,
@@ -149,6 +152,9 @@ class ReceiveStockTransfer
                 'received_at' => now(),
                 'source_type' => 'stock_transfer',
                 'source_id' => $stockTransfer->id,
+                'root_source_type' => $sourceLayer?->root_source_type ?? $sourceLayer?->source_type,
+                'root_source_id' => $sourceLayer?->root_source_id ?? $sourceLayer?->source_id,
+                'parent_layer_id' => $sourceLayer?->id,
             ]);
 
             /*

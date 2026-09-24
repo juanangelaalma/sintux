@@ -23,7 +23,10 @@ class ReceivePurchaseStock
      *     received_at: \DateTimeInterface|string,
      *     source_type: string,
      *     source_id: int,
-     *     reference_type?: string|null
+     *     reference_type?: string|null,
+     *     root_source_type?: string|null,
+     *     root_source_id?: int|null,
+     *     parent_layer_id?: int|null
      * }  $data
      */
     public function execute(array $data): void
@@ -44,7 +47,9 @@ class ReceivePurchaseStock
             $sourceId,
             $data
         ): void {
-            // 1. Create Stock Layer
+            // 1. Create Stock Layer. Root default = sumber sendiri; pemanggil
+            // yang memindah barang dari layer lain (transfer) boleh menimpa
+            // agar rantai ke PO asal tetap terlacak.
             $layer = StockLayer::create([
                 'product_variant_id' => $productVariantId,
                 'warehouse_id' => $warehouseId,
@@ -53,6 +58,9 @@ class ReceivePurchaseStock
                 'received_at' => $data['received_at'],
                 'source_type' => $sourceType,
                 'source_id' => $sourceId,
+                'root_source_type' => $data['root_source_type'] ?? $sourceType,
+                'root_source_id' => $data['root_source_id'] ?? $sourceId,
+                'parent_layer_id' => $data['parent_layer_id'] ?? null,
             ]);
 
             // 2. Upsert Stock Balance
