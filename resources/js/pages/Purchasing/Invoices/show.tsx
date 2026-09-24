@@ -57,14 +57,20 @@ type Props = {
         canReturn: boolean;
         returns: InvoiceReturn[];
     };
+    paymentContext?: {
+        canPay: boolean;
+        outstanding: number;
+    };
 };
 
 export default function PurchaseInvoicesShow({
     purchaseInvoice,
     approval,
     returnContext,
+    paymentContext,
 }: Props) {
     const canReturn = returnContext?.canReturn ?? false;
+    const canPay = paymentContext?.canPay ?? false;
     const returns = returnContext?.returns ?? [];
     const rows: DetailRow[] = [
         {
@@ -134,13 +140,28 @@ export default function PurchaseInvoicesShow({
                                                 )
                                             }
                                         >
-                                            <Dropdown.Item
-                                                key={`/purchasing/returns/new?createdFrom=${purchaseInvoice.id}`}
-                                                id={`/purchasing/returns/new?createdFrom=${purchaseInvoice.id}`}
-                                                textValue="Retur Pembelian"
-                                            >
-                                                <Label>Retur Pembelian</Label>
-                                            </Dropdown.Item>
+                                            {canPay ? (
+                                                <Dropdown.Item
+                                                    key={`/purchase-payments/new?createdFrom=${purchaseInvoice.id}`}
+                                                    id={`/purchase-payments/new?createdFrom=${purchaseInvoice.id}`}
+                                                    textValue="Kirim Pembayaran"
+                                                >
+                                                    <Label>
+                                                        Kirim Pembayaran
+                                                    </Label>
+                                                </Dropdown.Item>
+                                            ) : null}
+                                            {canPay || canReturn ? (
+                                                <Dropdown.Item
+                                                    key={`/purchasing/returns/new?createdFrom=${purchaseInvoice.id}`}
+                                                    id={`/purchasing/returns/new?createdFrom=${purchaseInvoice.id}`}
+                                                    textValue="Retur Pembelian"
+                                                >
+                                                    <Label>
+                                                        Retur Pembelian
+                                                    </Label>
+                                                </Dropdown.Item>
+                                            ) : null}
                                         </Dropdown.Menu>
                                     </Dropdown.Popover>
                                 </Dropdown>

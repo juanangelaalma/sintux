@@ -109,9 +109,25 @@ class PurchaseInvoiceController extends Controller
             fn ($item) => max(0.0, (float) $item->qty - (float) ($item->qty_returned ?? 0))
         );
 
+        $invoiceOutstanding = max(
+            0.0,
+            (float) $purchaseInvoice->total
+                - (float) ($purchaseInvoice->paid_amount ?? 0)
+                - (float) ($purchaseInvoice->returned_amount ?? 0)
+        );
+
+        $canPay = in_array($purchaseInvoice->status, [
+            PurchaseInvoiceStatus::Approved,
+            PurchaseInvoiceStatus::PartiallyPaid,
+        ], true) && $invoiceOutstanding > 0.0001;
+
         return Inertia::render('Purchasing/Invoices/show', [
             'purchaseInvoice' => $purchaseInvoice,
             'approval' => $approval,
+            'paymentContext' => [
+                'canPay' => $canPay,
+                'outstanding' => $invoiceOutstanding,
+            ],
             'returnContext' => [
                 'canReturn' => in_array($purchaseInvoice->status, [
                     PurchaseInvoiceStatus::Approved,
