@@ -54,6 +54,7 @@ type Props = {
     prefillError?: string | null;
     availability?: Record<string, Record<string, number>>;
     transfers?: TransferOption[];
+    transfersTruncated?: boolean;
     selectedTransferId?: number | null;
 };
 
@@ -71,6 +72,7 @@ export default function PurchaseReturnsCreate({
     prefillError = null,
     availability = {},
     transfers = [],
+    transfersTruncated = false,
     selectedTransferId = null,
 }: Props) {
     const today = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -411,6 +413,13 @@ export default function PurchaseReturnsCreate({
                                     Bila diisi, retur hanya memakai stok dari
                                     transfer itu; stok HO lain diabaikan.
                                 </p>
+                                {transfersTruncated && (
+                                    <p className="mt-1 text-xs text-danger">
+                                        Terlalu banyak transfer untuk
+                                        ditampilkan. Cari transfer lewat menu
+                                        Stock Transfer lalu ambil nomornya.
+                                    </p>
+                                )}
                             </div>
                             <div>
                                 <TagComboBox

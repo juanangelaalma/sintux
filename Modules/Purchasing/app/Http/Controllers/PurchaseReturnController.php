@@ -57,6 +57,7 @@ class PurchaseReturnController extends Controller
 
         $warehouses = $hqBranchId ? app(GetWarehouses::class)->optionsForReceipt($hqBranchId) : [];
         $selectedTransferId = request()->query('returnTransfer') ? (int) request()->query('returnTransfer') : null;
+        $transferOptions = $this->transferOptions($accessibleBranchIds, $warehouses);
 
         return Inertia::render('Purchasing/Returns/create', [
             'hqBranchId' => $hqBranchId,
@@ -65,7 +66,8 @@ class PurchaseReturnController extends Controller
             'suppliers' => app(GetContacts::class)->execute('supplier', $accessibleBranchIds),
             'prefillInvoice' => $prefillInvoice,
             'prefillError' => $prefillError,
-            'transfers' => $this->transferOptions($accessibleBranchIds, $warehouses),
+            'transfers' => $transferOptions['options'],
+            'transfersTruncated' => $transferOptions['truncated'],
             'selectedTransferId' => $selectedTransferId,
             'availability' => $this->availabilityMap($warehouses, $prefillInvoice, $hqBranchId, $selectedTransferId),
         ]);
@@ -154,37 +156,38 @@ class PurchaseReturnController extends Controller
     /**
      * Opsi transfer retur: transfer received yang masuk gudang HO.
      *
+     * Satu query untuk semua gudang HO (bukan satu per gudang), dan batas
+     * eksplisit supaya dropdown tidak diam-diam memotong.
+     *
      * @param  list<int>  $accessibleBranchIds
      * @param  list<array{id: int}>  $warehouses
-     * @return list<array{id: int, number: string, from_warehouse_name: string}>
+     * @return array{options: list<array{id: int, number: string, from_warehouse_name: string}>, truncated: bool}
      */
     private function transferOptions(array $accessibleBranchIds, array $warehouses): array
     {
         $warehouseIds = collect($warehouses)->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         if ($warehouseIds === []) {
-            return [];
+            return ['options' => [], 'truncated' => false];
         }
 
-        $options = [];
+        $limit = 200;
+        $page = app(GetStockTransfers::class)->execute(
+            $accessibleBranchIds,
+            ['status' => 'received', 'to_warehouse_ids' => $warehouseIds],
+            $limit
+        );
 
-        foreach ($warehouseIds as $warehouseId) {
-            $page = app(GetStockTransfers::class)->execute(
-                $accessibleBranchIds,
-                ['status' => 'received', 'to_warehouse_id' => $warehouseId],
-                50
-            );
+        $options = collect($page->items())->map(fn ($transfer): array => [
+            'id' => (int) $transfer->id,
+            'number' => (string) ($transfer->number ?? ('#'.$transfer->id)),
+            'from_warehouse_name' => (string) ($transfer->fromWarehouse?->name ?? ''),
+        ])->all();
 
-            foreach ($page->items() as $transfer) {
-                $options[] = [
-                    'id' => (int) $transfer->id,
-                    'number' => (string) ($transfer->number ?? ('#'.$transfer->id)),
-                    'from_warehouse_name' => (string) ($transfer->fromWarehouse?->name ?? ''),
-                ];
-            }
-        }
-
-        return $options;
+        return [
+            'options' => $options,
+            'truncated' => $page->total() > $limit,
+        ];
     }
 
     /**
@@ -225,11 +228,15 @@ class PurchaseReturnController extends Controller
                     $resolved[$variantId] = $hit ?? -1;
                 }
 
-                $filtered = app(GetAvailableStock::class)->forItemsFromTransfer(
-                    $warehouseId,
-                    array_values(array_filter($resolved, fn ($id) => $id > 0)),
-                    $transferId
-                );
+                // Satu panggilan untuk semua varian, bukan satu per varian.
+                $stockVariantIds = array_values(array_filter($resolved, fn ($id) => $id > 0));
+                $filtered = $stockVariantIds === []
+                    ? []
+                    : app(GetAvailableStock::class)->forItemsFromTransfer(
+                        $warehouseId,
+                        $stockVariantIds,
+                        $transferId
+                    );
 
                 $row = [];
 
