@@ -28,7 +28,7 @@ fix-perms: ## Fix file permissions (Docker ↔ local)
 # ── Help ──────────────────────────────────────
 .PHONY: help
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
 
 # ── Setup ─────────────────────────────────────
@@ -188,6 +188,32 @@ npm-format-check: ## Check Prettier formatting
 .PHONY: npm-types
 npm-types: ## TypeScript type check
 	npm run types:check
+
+# ── E2E / Playwright ──────────────────────────
+.PHONY: e2e-install
+e2e-install: ## Install Playwright Chromium browser
+	pnpm exec playwright install chromium
+
+.PHONY: e2e
+e2e: ## Build assets and run Playwright E2E (Chromium)
+	pnpm run build
+	pnpm run test:e2e
+
+.PHONY: e2e-only
+e2e-only: ## Run Playwright E2E without rebuilding assets
+	pnpm run test:e2e
+
+.PHONY: e2e-ui
+e2e-ui: ## Run Playwright E2E in UI mode
+	pnpm run test:e2e:ui
+
+.PHONY: e2e-headed
+e2e-headed: ## Run Playwright E2E headed
+	pnpm run test:e2e:headed
+
+.PHONY: e2e-report
+e2e-report: ## Show Playwright HTML report
+	pnpm exec playwright show-report
 
 # ── PHP Quality ───────────────────────────────
 .PHONY: lint
