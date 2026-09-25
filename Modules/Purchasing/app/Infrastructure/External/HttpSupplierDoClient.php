@@ -29,6 +29,10 @@ class HttpSupplierDoClient implements SupplierDoClient
         $request = Http::withHeaders(['Accept' => 'application/json'])
             ->timeout((int) ($config['timeout'] ?? 15));
 
+        if (! ($config['verify_ssl'] ?? true)) {
+            $request->withoutVerifying();
+        }
+
         if (($config['username'] ?? '') !== '') {
             $request->withDigestAuth((string) $config['username'], (string) ($config['password'] ?? ''));
         }
