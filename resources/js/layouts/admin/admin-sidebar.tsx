@@ -1,7 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
+import { Building2, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { useCallback } from 'react';
 import { useSidebar } from '@/context/SidebarContext';
-import { GridIcon, UserCircleIcon, GroupIcon } from '@/icons';
 import SidebarShell from '@/layouts/shared/sidebar-shell';
 import { isActivePrefix } from '@/lib/navigation';
 import adminRoute from '@/routes/admin';
@@ -11,17 +11,17 @@ import type { SidebarEntry } from '@/types/navigation';
 
 const adminNavItems: SidebarEntry[] = [
     {
-        icon: <GridIcon />,
+        icon: <LayoutDashboard />,
         name: 'Platform Overview',
         path: adminRoute.dashboard.url(),
     },
     {
-        icon: <UserCircleIcon />,
+        icon: <Building2 />,
         name: 'Tenants / Companies',
         path: companiesRoute.index.url(),
     },
     {
-        icon: <GroupIcon />,
+        icon: <ShieldCheck />,
         name: 'Role Permissions',
         path: rolesRoute.index.url(),
     },
