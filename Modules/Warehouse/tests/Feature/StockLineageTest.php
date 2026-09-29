@@ -171,6 +171,123 @@ class StockLineageTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_repair_migration_restores_lineage_for_legacy_transfer_layers(): void
+    {
+        [$tenantId, $warehouseId, $variantId] = $this->seedStock();
+
+        tenancy()->initialize($tenantId);
+
+        // Simulasi data sebelum migrasi repair: layer asal sudah root PO,
+        // tapi layer hasil receive transfer punya root menunjuk transfer
+        // sendiri dan parent kosong — persis kondisi di tenant aii.
+        $originLayer = StockLayer::create([
+            'product_variant_id' => $variantId,
+            'warehouse_id' => $warehouseId,
+            'qty_remaining' => 0,
+            'unit_cost' => 47500,
+            'received_at' => now()->subDay(),
+            'source_type' => 'purchase_order',
+            'source_id' => 7,
+            'root_source_type' => 'purchase_order',
+            'root_source_id' => 7,
+        ]);
+
+        $transferId = DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => null,
+            'from_warehouse_id' => $warehouseId,
+            'to_warehouse_id' => $warehouseId,
+            'number' => 'TRF-'.substr(uniqid(), -10),
+            'status' => 'received',
+            'created_by' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $itemId = DB::table('stock_transfer_items')->insertGetId([
+            'stock_transfer_id' => $transferId,
+            'product_variant_id' => $variantId,
+            'qty' => 5,
+            'qty_shipped' => 5,
+            'qty_received' => 5,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('stock_transfer_item_layers')->insert([
+            'stock_transfer_item_id' => $itemId,
+            'stock_layer_id' => $originLayer->id,
+            'qty_taken' => 5,
+            'unit_cost' => 47500,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $brokenLayer = StockLayer::create([
+            'product_variant_id' => $variantId,
+            'warehouse_id' => $warehouseId,
+            'qty_remaining' => 5,
+            'unit_cost' => 47500,
+            'received_at' => now(),
+            'source_type' => 'stock_transfer',
+            'source_id' => $transferId,
+            'root_source_type' => 'stock_transfer',
+            'root_source_id' => $transferId,
+        ]);
+
+        $this->runLineageRepair();
+
+        $repaired = StockLayer::find($brokenLayer->id);
+        $this->assertSame('purchase_order', $repaired->root_source_type);
+        $this->assertSame(7, (int) $repaired->root_source_id);
+        $this->assertSame((int) $originLayer->id, (int) $repaired->parent_layer_id);
+
+        // Idempoten: jalan kedua tidak mengubah apa pun.
+        $this->runLineageRepair();
+        $secondPass = StockLayer::find($brokenLayer->id);
+        $this->assertSame('purchase_order', $secondPass->root_source_type);
+        $this->assertSame(7, (int) $secondPass->root_source_id);
+        $this->assertSame((int) $originLayer->id, (int) $secondPass->parent_layer_id);
+
+        tenancy()->end();
+    }
+
+    public function test_repair_migration_leaves_correct_layers_untouched(): void
+    {
+        [$tenantId, $warehouseId, $variantId] = $this->seedStock();
+
+        tenancy()->initialize($tenantId);
+
+        // Layer PO yang root-nya sudah benar harus tetap utuh.
+        $intact = StockLayer::create([
+            'product_variant_id' => $variantId,
+            'warehouse_id' => $warehouseId,
+            'qty_remaining' => 4,
+            'unit_cost' => 50000,
+            'received_at' => now(),
+            'source_type' => 'purchase_order',
+            'source_id' => 11,
+            'root_source_type' => 'purchase_order',
+            'root_source_id' => 11,
+        ]);
+
+        $this->runLineageRepair();
+
+        $unchanged = StockLayer::find($intact->id);
+        $this->assertSame('purchase_order', $unchanged->root_source_type);
+        $this->assertSame(11, (int) $unchanged->root_source_id);
+        $this->assertNull($unchanged->parent_layer_id);
+
+        tenancy()->end();
+    }
+
+    private function runLineageRepair(): void
+    {
+        $migration = require __DIR__
+            .'/../../database/migrations/tenant/2026_09_29_000100_repair_stock_layer_lineage.php';
+
+        $migration->up();
+    }
+
     /**
      * @return array{0: string, 1: int, 2: int}
      */
