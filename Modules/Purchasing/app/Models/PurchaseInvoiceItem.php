@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $color_raw
  * @property string|null $color
  * @property float $qty
+ * @property float $qty_returned
  * @property float $unit_price
  * @property int|null $tax_id
  * @property float $tax_rate
@@ -36,6 +37,7 @@ class PurchaseInvoiceItem extends Model
         'color_raw',
         'color',
         'qty',
+        'qty_returned',
         'unit_price',
         'tax_id',
         'tax_rate',
@@ -47,6 +49,7 @@ class PurchaseInvoiceItem extends Model
     {
         return [
             'qty' => 'decimal:4',
+            'qty_returned' => 'decimal:4',
             'unit_price' => 'decimal:4',
             'tax_rate' => 'decimal:4',
             'tax_breakdown' => 'array',

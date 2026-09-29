@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(for:*)",
+      "Shell(do:*)",
+      "Shell(then:*)",
+      "Shell(else:*)",
+      "Shell(fi:*)",
+      "Shell(done:*)",
+      "Shell(npx prettier --check resources/js/layouts/company/company-sidebar.tsx resources/js/layouts/admin/admin-sidebar.tsx)",
+      "Shell(npx eslint resources/js/layouts/company/company-sidebar.tsx resources/js/layouts/admin/admin-sidebar.tsx)",
+      "Shell(npx tsc --noEmit)",
+      "Shell(npm:*)",
+      "Shell(echo:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

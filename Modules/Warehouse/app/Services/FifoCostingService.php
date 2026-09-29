@@ -9,6 +9,8 @@ class FifoCostingService
     /**
      * Consume stock using FIFO (First In, First Out) logic.
      *
+     * Bila $sourceTransferId diisi, hanya layer dari transfer itu yang
+     * boleh di-consume (provenance retur cabang → HO).
      *
      * @return array<int, array{
      *     stock_layer_id: int,
@@ -21,7 +23,8 @@ class FifoCostingService
     public function consume(
         int $productVariantId,
         int $warehouseId,
-        float $qty
+        float $qty,
+        ?int $sourceTransferId = null
     ): array {
         if ($qty <= 0) {
             return [];
@@ -37,6 +40,9 @@ class FifoCostingService
             ->where('product_variant_id', $productVariantId)
             ->where('warehouse_id', $warehouseId)
             ->where('qty_remaining', '>', 0)
+            ->when($sourceTransferId !== null, fn ($query) => $query
+                ->where('source_type', 'stock_transfer')
+                ->where('source_id', $sourceTransferId))
             ->orderBy('received_at')
             ->orderBy('id')
             ->lockForUpdate()

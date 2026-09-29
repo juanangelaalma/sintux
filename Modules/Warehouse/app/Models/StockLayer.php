@@ -15,6 +15,9 @@ class StockLayer extends Model
         'received_at',
         'source_type',
         'source_id',
+        'root_source_type',
+        'root_source_id',
+        'parent_layer_id',
     ];
 
     protected function casts(): array
@@ -26,6 +29,8 @@ class StockLayer extends Model
             'unit_cost' => 'decimal:4',
             'received_at' => 'datetime',
             'source_id' => 'integer',
+            'root_source_id' => 'integer',
+            'parent_layer_id' => 'integer',
         ];
     }
 
@@ -37,5 +42,13 @@ class StockLayer extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    /**
+     * @return BelongsTo<StockLayer, $this>
+     */
+    public function parentLayer(): BelongsTo
+    {
+        return $this->belongsTo(StockLayer::class, 'parent_layer_id');
     }
 }

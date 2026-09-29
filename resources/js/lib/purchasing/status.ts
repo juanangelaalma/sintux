@@ -90,7 +90,9 @@ export const PurchaseInvoiceStatus = {
     Draft: 'draft',
     Pending: 'pending',
     Approved: 'approved',
+    PartiallyPaid: 'partially_paid',
     Paid: 'paid',
+    ClosedByReturn: 'closed_by_return',
     Cancelled: 'cancelled',
 } as const;
 
@@ -104,8 +106,28 @@ export const PURCHASE_INVOICE_STATUS_LABEL: Record<
     [PurchaseInvoiceStatus.Draft]: 'Draft',
     [PurchaseInvoiceStatus.Pending]: 'Menunggu',
     [PurchaseInvoiceStatus.Approved]: 'Disetujui',
+    [PurchaseInvoiceStatus.PartiallyPaid]: 'Disicil',
     [PurchaseInvoiceStatus.Paid]: 'Lunas',
+    [PurchaseInvoiceStatus.ClosedByReturn]: 'Ditutup karena Retur',
     [PurchaseInvoiceStatus.Cancelled]: 'Dibatalkan',
+};
+
+export const PurchaseReturnStatus = {
+    Pending: 'pending',
+    Approved: 'approved',
+    Rejected: 'rejected',
+} as const;
+
+export type PurchaseReturnStatusType =
+    (typeof PurchaseReturnStatus)[keyof typeof PurchaseReturnStatus];
+
+export const PURCHASE_RETURN_STATUS_LABEL: Record<
+    PurchaseReturnStatusType,
+    string
+> = {
+    [PurchaseReturnStatus.Pending]: 'Menunggu',
+    [PurchaseReturnStatus.Approved]: 'Disetujui',
+    [PurchaseReturnStatus.Rejected]: 'Ditolak',
 };
 
 export const JoinPurchaseInvoiceStatus = {
@@ -130,5 +152,6 @@ export const PURCHASING_STATUS_LABEL: Record<string, string> = {
     ...PURCHASE_ORDER_STATUS_LABEL,
     ...GOODS_RECEIPT_STATUS_LABEL,
     ...PURCHASE_INVOICE_STATUS_LABEL,
+    ...PURCHASE_RETURN_STATUS_LABEL,
     ...JOIN_PURCHASE_INVOICE_STATUS_LABEL,
 };

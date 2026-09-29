@@ -9,5 +9,6 @@ return [
         'username' => env('SUPPLIER_DO_USERNAME', ''),
         'password' => env('SUPPLIER_DO_PASSWORD', ''),
         'timeout' => env('SUPPLIER_DO_TIMEOUT', 15),
+        'verify_ssl' => env('SUPPLIER_DO_VERIFY_SSL', true),
     ],
 ];

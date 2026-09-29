@@ -32,4 +32,28 @@ class ChartOfAccountQuery
             ->where('is_header', false)
             ->exists();
     }
+
+    /**
+     * Cari akun non-header yang hidup via seed_key (identitas stabil
+     * antar tenant, mis. accounting.coa.1301). Proyeksi saja.
+     *
+     * @return array{id: int, code: string, name: string}|null
+     */
+    public function findBySeedKey(string $seedKey): ?array
+    {
+        $account = ChartOfAccount::query()
+            ->where('seed_key', $seedKey)
+            ->where('is_header', false)
+            ->first();
+
+        if (! $account) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $account->id,
+            'code' => (string) $account->code,
+            'name' => (string) $account->name,
+        ];
+    }
 }

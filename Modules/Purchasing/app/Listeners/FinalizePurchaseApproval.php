@@ -6,12 +6,15 @@ use Modules\Approval\Events\TransactionApprovalFinalized;
 use Modules\Purchasing\Application\PurchaseInvoice\IncrementInvoicedQuantities;
 use Modules\Purchasing\Application\PurchaseInvoice\ValidateInvoiceQuantities;
 use Modules\Purchasing\Application\PurchaseOrder\MarkPurchaseOrderClosed;
+use Modules\Purchasing\Application\PurchaseReturn\FinalizePurchaseReturn;
 use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Modules\Purchasing\Enums\PurchaseOrderStatus;
 use Modules\Purchasing\Enums\PurchaseRequestStatus;
+use Modules\Purchasing\Enums\PurchaseReturnStatus;
 use Modules\Purchasing\Models\PurchaseInvoice;
 use Modules\Purchasing\Models\PurchaseOrder;
 use Modules\Purchasing\Models\PurchaseRequest;
+use Modules\Purchasing\Models\PurchaseReturn;
 
 class FinalizePurchaseApproval
 {
@@ -59,6 +62,19 @@ class FinalizePurchaseApproval
                     }
                     $mapped = $status === 'rejected' ? PurchaseInvoiceStatus::Cancelled : PurchaseInvoiceStatus::from($status);
                     $inv->update(['status' => $mapped]);
+                }
+                break;
+
+            case 'purchase_return':
+                $ret = PurchaseReturn::with('items')->find($id);
+                if ($ret) {
+                    if ($status === 'approved') {
+                        // Stok + jurnal + faktur + memo; gagal = approval rollback
+                        // (pola yang sama seperti purchase_invoice di atas).
+                        app(FinalizePurchaseReturn::class)->execute($ret->id);
+                    } else {
+                        $ret->update(['status' => PurchaseReturnStatus::Rejected->value]);
+                    }
                 }
                 break;
         }

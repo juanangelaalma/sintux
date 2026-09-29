@@ -18,6 +18,8 @@ const STATUS_COLOR: Record<string, StatusStyle['color']> = {
     ready: 'success',
     accepted: 'success',
     paid: 'success',
+    closed_by_return: 'success',
+    partially_paid: 'warning',
     cancelled: 'danger',
     rejected: 'danger',
 };

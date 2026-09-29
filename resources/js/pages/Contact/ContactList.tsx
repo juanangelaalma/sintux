@@ -115,6 +115,14 @@ export default function ContactList({ contacts, type }: Props) {
             cellClassName: 'font-medium',
             render: (contact: Contact) => (
                 <div className="space-x-3">
+                    {type === 'suppliers' && (
+                        <Link
+                            href={`/purchase-payments/new?mode=deposit&supplier_id=${contact.id}`}
+                            className="text-brand-500 hover:text-brand-600"
+                        >
+                            Catat Uang Muka
+                        </Link>
+                    )}
                     <Link
                         href={`/company/contacts/${type}/${contact.id}/edit`}
                         className="text-brand-500 hover:text-brand-600"

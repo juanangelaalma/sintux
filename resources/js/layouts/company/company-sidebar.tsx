@@ -1,18 +1,18 @@
 import { Link, usePage } from '@inertiajs/react';
+import {
+    ArrowLeftRight,
+    Inbox,
+    LayoutDashboard,
+    ClipboardList,
+    Package,
+    PackageCheck,
+    ReceiptText,
+    Settings,
+    ShoppingCart,
+    Users,
+} from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useSidebar } from '@/context/SidebarContext';
-import {
-    ArrowRightIcon,
-    BoxCubeIcon,
-    BoxIcon,
-    DocsIcon,
-    DollarLineIcon,
-    FolderIcon,
-    GridIcon,
-    GroupIcon,
-    TableIcon,
-    TaskIcon,
-} from '@/icons';
 import SidebarShell from '@/layouts/shared/sidebar-shell';
 import { isActivePrefix } from '@/lib/navigation';
 import { dashboard as dashboardRoute } from '@/routes';
@@ -33,12 +33,12 @@ import type {
 
 const COMPANY_NAV_ITEMS: SidebarEntry[] = [
     {
-        icon: <GridIcon />,
+        icon: <LayoutDashboard />,
         name: 'Dashboard',
         path: dashboardRoute.url(),
     },
     {
-        icon: <GroupIcon />,
+        icon: <Users />,
         name: 'Kontak',
         subItems: [
             { name: 'Customer', path: contactsRoute.index.url('customers') },
@@ -47,47 +47,47 @@ const COMPANY_NAV_ITEMS: SidebarEntry[] = [
         ],
     },
     {
-        icon: <TableIcon />,
-        name: 'Bagan Akun',
+        icon: <ClipboardList />,
+        name: 'Daftar Akun',
         path: chartOfAccountsRoute.index.url(),
         permission: 'accounting.account.view',
     },
     {
-        icon: <BoxCubeIcon />,
+        icon: <Package />,
         name: 'Produk',
         path: productRoute.hub.url(),
         permission: 'product.view',
     },
     {
-        icon: <DocsIcon />,
+        icon: <ShoppingCart />,
         name: 'Pembelian',
         path: purchaseInvoicesRoute.index.url(),
         hqOnly: true,
     },
     {
-        icon: <DollarLineIcon />,
+        icon: <ReceiptText />,
         name: 'Penjualan',
         path: salesInvoicesRoute.index.url(),
     },
     {
-        icon: <BoxIcon />,
+        icon: <PackageCheck />,
         name: 'GRN',
         path: grnsRoute.index.url(),
         nonHqOnly: true,
     },
     {
-        icon: <ArrowRightIcon />,
+        icon: <ArrowLeftRight />,
         name: 'Transfer Stok',
         path: stockTransfersRoute.index.url(),
         nonHqOnly: true,
     },
     {
-        icon: <TaskIcon />,
+        icon: <Inbox />,
         name: 'Persetujuan',
         path: inboxRoute.index.url(),
     },
     {
-        icon: <FolderIcon />,
+        icon: <Settings />,
         name: 'Pengaturan',
         path: branchesRoute.index.url(),
         togglesSecondary: true,

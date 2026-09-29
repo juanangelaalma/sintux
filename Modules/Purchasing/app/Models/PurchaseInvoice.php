@@ -27,6 +27,8 @@ use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
  * @property float $subtotal
  * @property float $tax_amount
  * @property float $total
+ * @property float $returned_amount
+ * @property float $paid_amount
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property-read Collection<int, PurchaseInvoiceItem> $items
@@ -50,6 +52,8 @@ class PurchaseInvoice extends Model
         'subtotal',
         'tax_amount',
         'total',
+        'returned_amount',
+        'paid_amount',
     ];
 
     protected function casts(): array
@@ -60,6 +64,8 @@ class PurchaseInvoice extends Model
             'subtotal' => 'decimal:4',
             'tax_amount' => 'decimal:4',
             'total' => 'decimal:4',
+            'returned_amount' => 'decimal:4',
+            'paid_amount' => 'decimal:4',
             'invoice_date' => 'date',
             'due_date' => 'date',
         ];
