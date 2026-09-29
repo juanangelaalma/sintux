@@ -251,6 +251,77 @@ class StockLineageTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_lineage_correction_matches_breakdowns_within_each_transfer(): void
+    {
+        [$tenantId, $warehouseId, $variantId] = $this->seedStock();
+
+        tenancy()->initialize($tenantId);
+
+        $originLayer = StockLayer::create([
+            'product_variant_id' => $variantId,
+            'warehouse_id' => $warehouseId,
+            'qty_remaining' => 0,
+            'unit_cost' => 47500,
+            'received_at' => now()->subDay(),
+            'source_type' => 'purchase_order',
+            'source_id' => 21,
+            'root_source_type' => 'purchase_order',
+            'root_source_id' => 21,
+        ]);
+
+        $transferId = DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => null,
+            'from_warehouse_id' => $warehouseId,
+            'to_warehouse_id' => $warehouseId,
+            'number' => 'TRF-'.substr(uniqid(), -10),
+            'status' => 'received',
+            'created_by' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // ID item global tidak boleh dipakai sebagai ordinal transfer.
+        DB::table('stock_transfer_items')->insert([
+            'id' => 77,
+            'stock_transfer_id' => $transferId,
+            'product_variant_id' => $variantId,
+            'qty' => 5,
+            'qty_shipped' => 5,
+            'qty_received' => 5,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('stock_transfer_item_layers')->insert([
+            'stock_transfer_item_id' => 77,
+            'stock_layer_id' => $originLayer->id,
+            'qty_taken' => 5,
+            'unit_cost' => 47500,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $brokenLayer = StockLayer::create([
+            'product_variant_id' => $variantId,
+            'warehouse_id' => $warehouseId,
+            'qty_remaining' => 5,
+            'unit_cost' => 47500,
+            'received_at' => now(),
+            'source_type' => 'stock_transfer',
+            'source_id' => $transferId,
+            'root_source_type' => 'stock_transfer',
+            'root_source_id' => $transferId,
+        ]);
+
+        $this->runLineageCorrection();
+
+        $repaired = StockLayer::find($brokenLayer->id);
+        $this->assertSame('purchase_order', $repaired->root_source_type);
+        $this->assertSame(21, (int) $repaired->root_source_id);
+        $this->assertSame((int) $originLayer->id, (int) $repaired->parent_layer_id);
+
+        tenancy()->end();
+    }
+
     public function test_repair_migration_leaves_correct_layers_untouched(): void
     {
         [$tenantId, $warehouseId, $variantId] = $this->seedStock();
@@ -284,6 +355,14 @@ class StockLineageTest extends TestCase
     {
         $migration = require __DIR__
             .'/../../database/migrations/tenant/2026_09_29_000100_repair_stock_layer_lineage.php';
+
+        $migration->up();
+    }
+
+    private function runLineageCorrection(): void
+    {
+        $migration = require __DIR__
+            .'/../../database/migrations/tenant/2026_09_29_000200_fix_stock_layer_repair_matching.php';
 
         $migration->up();
     }
