@@ -96,6 +96,32 @@ export type ReturnOption = {
     returnable_qty: number;
 };
 
+/**
+ * Rincian transfer retur (RTRF) yang lahir dari transfer ini, sesuai
+ * relasi `returnTransfers` (origin_transfer_id = id transfer asal).
+ */
+export type ReturnTransfer = {
+    id: number;
+    origin_transfer_id: number;
+    number?: string | null;
+    status: string;
+    from_warehouse_id: number;
+    to_warehouse_id: number;
+    created_at?: string | null;
+    received_at?: string | null;
+    from_warehouse?: Warehouse;
+    to_warehouse?: Warehouse;
+    items?: Pick<StockTransferItem, 'id' | 'qty'>[];
+};
+
+export type TransferPointer = {
+    id: number;
+    number?: string | null;
+    status: string;
+    from_warehouse_id: number;
+    to_warehouse_id: number;
+};
+
 export type StockTransfer = {
     id: number;
     number?: string | null;
@@ -122,6 +148,8 @@ export type StockTransfer = {
     shipped_by_user?: { id: number; name: string };
     received_by_user?: { id: number; name: string };
     items?: StockTransferItem[];
+    origin_transfer?: TransferPointer | null;
+    return_transfers?: ReturnTransfer[];
 };
 
 export type PaginatedData<T> = {

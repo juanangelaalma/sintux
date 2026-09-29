@@ -50,7 +50,14 @@ class GetStockTransferDetail
             'items.layers.stockLayer.warehouse',
             'items.discrepancies',
             'originTransfer:id,number,status,from_warehouse_id,to_warehouse_id',
-            'returnTransfers:id,origin_transfer_id,number,status,from_warehouse_id,to_warehouse_id',
+            // RTRF turunan: gudang asalnya dipakai untuk membaca arah
+            // gerak barang di tab Retur, dan items dipakai untuk total
+            // qty. created_at/received_at dipakai sebagai tanggal dibuat
+            // dan tanggal barang benar-benar sampai di gudang HO.
+            'returnTransfers:id,origin_transfer_id,number,status,from_warehouse_id,to_warehouse_id,created_at,received_at',
+            'returnTransfers.fromWarehouse.branch',
+            'returnTransfers.toWarehouse.branch',
+            'returnTransfers.items:id,stock_transfer_id,qty',
         ]);
     }
 

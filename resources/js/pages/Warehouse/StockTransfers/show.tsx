@@ -1,18 +1,17 @@
+import type { RequestPayload } from '@inertiajs/core';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import React, { useState } from 'react';
-import ApprovalPanel from '@/components/approval/approval-panel';
-import type { ApprovalStatus as TransferApprovalStatus } from '@/components/approval/approval-panel';
-import InputError from '@/components/input-error';
-import Button from '@/components/ui/button';
-import Modal from '@/components/ui/modal';
-import PageHeader from '@/components/ui/page-header';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
+import ApprovalHeaderControls from '@/components/approval/approval-header-controls';
+import type { ApprovalStatusProps } from '@/components/approval/approval-header-controls';
 import CompanyLayout from '@/layouts/company/company-layout';
-import type {
-    PurchaseLineage,
-    ReturnOption,
-    StockTransfer,
-    StockTransferItem,
-} from './types';
+import { formatDate } from '@/lib/format';
+import { ConfirmDialog, ReceiveDialog, ReturnDialog } from './action-dialogs';
+import type { TransferErrors } from './action-dialogs';
+import { NEXT_STEP_HINT, TRANSFER_STEPS } from './helpers';
+import StockTransferStatusBadge from './status-badge';
+import TransferTabs from './transfer-tabs';
+import type { PurchaseLineage, ReturnOption, StockTransfer } from './types';
 
 type Props = {
     stockTransfer: StockTransfer;
@@ -20,18 +19,72 @@ type Props = {
     canReturn?: boolean;
     returnOptions?: ReturnOption[];
     purchaseLineage?: PurchaseLineage | null;
-    approval?: TransferApprovalStatus | null;
+    approval?: ApprovalStatusProps | null;
 };
 
-type ReceiveItem = {
-    stock_transfer_item_id: number;
-    qty_received: number;
-};
+type Busy = 'ship' | 'approve' | null;
 
-type ReturnLine = {
-    stock_transfer_item_id: number;
-    qty: number;
-};
+function Stepper({ status }: { status: string }) {
+    const current = TRANSFER_STEPS.findIndex((step) => step.key === status);
+
+    if (current === -1) {
+        return null;
+    }
+
+    return (
+        <ol
+            aria-label="Progres transfer"
+            className="flex flex-wrap items-center gap-2 text-xs font-semibold"
+        >
+            {TRANSFER_STEPS.map((step, index) => (
+                <li key={step.key} className="flex items-center gap-2">
+                    <span
+                        aria-current={index === current ? 'step' : undefined}
+                        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
+                            index < current
+                                ? 'bg-success-soft text-success'
+                                : index === current
+                                  ? 'bg-accent text-accent-foreground'
+                                  : 'bg-surface-secondary text-muted'
+                        }`}
+                    >
+                        {index < current ? '✓' : index + 1} {step.label}
+                    </span>
+                    {index < TRANSFER_STEPS.length - 1 && (
+                        <span aria-hidden className="h-px w-6 bg-border" />
+                    )}
+                </li>
+            ))}
+        </ol>
+    );
+}
+
+function SummaryField({
+    label,
+    children,
+}: {
+    label: string;
+    children: ReactNode;
+}) {
+    return (
+        <div>
+            <p className="text-xs font-semibold text-muted">{label}</p>
+            <div className="mt-1 font-semibold text-foreground">{children}</div>
+        </div>
+    );
+}
+
+function Sub({ children }: { children: ReactNode }) {
+    return <p className="text-xs font-normal text-muted">{children}</p>;
+}
+
+function TextLink({ href, children }: { href: string; children: ReactNode }) {
+    return (
+        <Link href={href} className="text-accent hover:underline">
+            {children}
+        </Link>
+    );
+}
 
 export default function StockTransferShow({
     stockTransfer,
@@ -41,860 +94,221 @@ export default function StockTransferShow({
     purchaseLineage = null,
     approval = null,
 }: Props) {
-    const { errors } = usePage().props;
-    const [isShipping, setIsShipping] = useState(false);
-    const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [isReceiving, setIsReceiving] = useState(false);
-    const [showReceiveModal, setShowReceiveModal] = useState(false);
-    const [showReturnModal, setShowReturnModal] = useState(false);
-    const [isReturning, setIsReturning] = useState(false);
-    const [returnLines, setReturnLines] = useState<ReturnLine[]>([]);
-    const [submittedReturnLines, setSubmittedReturnLines] = useState<
-        ReturnLine[]
-    >([]);
-    const [isApproving, setIsApproving] = useState(false);
-    const [pendingDecision, setPendingDecision] = useState<
-        'approve' | 'reject' | null
-    >(null);
-    const [receiveItems, setReceiveItems] = useState<ReceiveItem[]>(
-        stockTransfer.items?.map((item) => ({
-            stock_transfer_item_id: item.id,
-            qty_received:
-                (item.qty_shipped ?? item.qty) - (item.qty_received ?? 0),
-        })) ?? [],
-    );
+    const errors = usePage().props.errors as TransferErrors;
+    const [busy, setBusy] = useState<Busy>(null);
 
-    const handleShip = () => {
-        setIsShipping(true);
-        router.post(
-            `/warehouse/stock-transfers/${stockTransfer.id}/ship`,
-            {},
-            {
-                onFinish: () => {
-                    setIsShipping(false);
-                    setShowConfirmModal(false);
-                },
-            },
-        );
-    };
+    const documentLabel = stockTransfer.number ?? `#${stockTransfer.id}`;
+    const basePath = `/warehouse/stock-transfers/${stockTransfer.id}`;
+    const canDecide =
+        !approval && canApprove && stockTransfer.status === 'pending_approval';
+    const hint = NEXT_STEP_HINT[stockTransfer.status];
 
-    const handleReceive = () => {
-        setIsReceiving(true);
-        router.post(
-            `/warehouse/stock-transfers/${stockTransfer.id}/receive`,
-            {
-                received_items: receiveItems,
-            },
-            {
-                onFinish: () => {
-                    setIsReceiving(false);
-                    setShowReceiveModal(false);
-                },
-            },
-        );
-    };
-
-    const handleApprove = () => {
-        if (!pendingDecision) {
-            return;
-        }
-
-        setIsApproving(true);
-        router.post(
-            `/warehouse/stock-transfers/${stockTransfer.id}/approve`,
-            {
-                decision: pendingDecision,
-            },
-            {
-                onFinish: () => {
-                    setIsApproving(false);
-                    setPendingDecision(null);
-                },
-            },
-        );
-    };
-
-    const openReturnModal = () => {
-        setReturnLines(
-            returnOptions.map((option) => ({
-                stock_transfer_item_id: option.stock_transfer_item_id,
-                qty: 0,
-            })),
-        );
-        setShowReturnModal(true);
-    };
-
-    const updateReturnQty = (itemId: number, qty: number) => {
-        setReturnLines((prev) =>
-            prev.map((line) =>
-                line.stock_transfer_item_id === itemId
-                    ? { ...line, qty }
-                    : line,
-            ),
-        );
-    };
-
-    const selectedReturnLines = returnLines.filter((line) => line.qty > 0);
-
-    const returnQtyError = (itemId: number) => {
-        const submittedIndex = submittedReturnLines.findIndex(
-            (line) => line.stock_transfer_item_id === itemId,
-        );
-
-        if (submittedIndex === -1) {
-            return undefined;
-        }
-
-        return errors[`items.${submittedIndex}.qty`] as string | undefined;
-    };
-
-    const handleReturn = () => {
-        if (selectedReturnLines.length === 0) {
-            return;
-        }
-
-        setIsReturning(true);
-        setSubmittedReturnLines(selectedReturnLines);
-        router.post(
-            `/warehouse/stock-transfers/${stockTransfer.id}/return`,
-            {
-                origin_transfer_id: stockTransfer.id,
-                items: selectedReturnLines,
-            },
-            {
-                onSuccess: () => {
-                    setIsReturning(false);
-                    setShowReturnModal(false);
-                },
-                onError: () => {
-                    setIsReturning(false);
-                },
-            },
-        );
-    };
-
-    const updateReceiveQty = (itemId: number, qty: number) => {
-        setReceiveItems((prev) =>
-            prev.map((item) =>
-                item.stock_transfer_item_id === itemId
-                    ? { ...item, qty_received: qty }
-                    : item,
-            ),
-        );
-    };
-
-    const getRemainingQty = (item: StockTransferItem) => {
-        const shipped = item.qty_shipped ?? item.qty;
-        const received = item.qty_received ?? 0;
-
-        return shipped - received;
-    };
-
-    const statusBadges: Record<string, { label: string; className: string }> = {
-        draft: {
-            label: 'DRAFT',
-            className: 'bg-slate-100 text-slate-700 ring-slate-600/20',
-        },
-        pending_approval: {
-            label: 'MENUNGGU PERSETUJUAN HO',
-            className: 'bg-amber-50 text-amber-700 ring-amber-600/20',
-        },
-        rejected: {
-            label: 'DITOLAK HO',
-            className: 'bg-rose-50 text-rose-700 ring-rose-600/20',
-        },
-        shipped: {
-            label: 'SHIPPED (DALAM PERJALANAN)',
-            className: 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
-        },
-        received: {
-            label: 'RECEIVED (SELESAI)',
-            className: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-        },
-        cancelled: {
-            label: 'DIBATALKAN',
-            className: 'bg-rose-50 text-rose-700 ring-rose-600/20',
-        },
+    const post = (
+        action: 'ship' | 'approve',
+        kind: Exclude<Busy, null>,
+        data: RequestPayload = {},
+    ) => {
+        setBusy(kind);
+        router.post(`${basePath}/${action}`, data, {
+            onFinish: () => setBusy(null),
+        });
     };
 
     return (
         <CompanyLayout>
-            <Head
-                title={`Detail Transfer ${stockTransfer.number ?? `#${stockTransfer.id}`}`}
-            />
+            <Head title={`Detail Transfer ${documentLabel}`} />
 
-            <div className="space-y-6">
-                <PageHeader
-                    title={`Transfer Stok ${stockTransfer.number ?? `#${stockTransfer.id}`}`}
-                    description="Detail barang dan status pengiriman stok antar gudang."
-                    actions={
-                        <div className="flex items-center gap-3">
-                            <Link href="/product?tab=gudang&sub=requests">
-                                <Button variant="secondary">Kembali</Button>
-                            </Link>
-                            {stockTransfer.status === 'draft' && (
-                                <Button
-                                    variant="primary"
-                                    onClick={() => setShowConfirmModal(true)}
-                                >
-                                    Kirim Stock Transfer
-                                </Button>
-                            )}
-                            {!approval &&
-                                canApprove &&
-                                stockTransfer.status === 'pending_approval' && (
-                                    <>
-                                        <Button
-                                            variant="secondary"
-                                            onClick={() =>
-                                                setPendingDecision('reject')
-                                            }
-                                        >
-                                            Tolak
-                                        </Button>
-                                        <Button
-                                            variant="primary"
-                                            onClick={() =>
-                                                setPendingDecision('approve')
-                                            }
-                                        >
-                                            Setujui
-                                        </Button>
-                                    </>
-                                )}
-                            {stockTransfer.status === 'shipped' && (
-                                <Button
-                                    variant="primary"
-                                    onClick={() => setShowReceiveModal(true)}
-                                >
-                                    Terima Stock Transfer
-                                </Button>
-                            )}
-                            {canReturn && (
-                                <Button
-                                    variant="secondary"
-                                    onClick={openReturnModal}
-                                >
-                                    Retur ke HO
-                                </Button>
+            <div className="w-full space-y-6">
+                <div className="space-y-4 border-b border-border pb-4">
+                    <Link
+                        href="/warehouse/stock-transfers"
+                        className="text-xs font-semibold text-accent hover:underline"
+                    >
+                        ← Gudang / Transfer Stok
+                    </Link>
+
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <h1 className="text-2xl font-bold text-foreground">
+                                    Transfer Stok {documentLabel}
+                                </h1>
+                                <StockTransferStatusBadge
+                                    status={stockTransfer.status}
+                                />
+                            </div>
+                            <Stepper status={stockTransfer.status} />
+                            {hint && (
+                                <p className="text-sm text-muted">{hint}</p>
                             )}
                         </div>
-                    }
-                />
 
-                {errors.stock_transfer && (
-                    <div className="rounded-lg bg-rose-50 p-4 ring-1 ring-rose-300">
-                        <InputError message={errors.stock_transfer as string} />
+                        <div className="flex flex-wrap items-center gap-2">
+                            <ApprovalHeaderControls
+                                approval={approval}
+                                documentTitle={documentLabel}
+                            />
+
+                            {canReturn && (
+                                <ReturnDialog
+                                    transfer={stockTransfer}
+                                    options={returnOptions}
+                                    errors={errors}
+                                />
+                            )}
+
+                            {canDecide && (
+                                <>
+                                    <ConfirmDialog
+                                        triggerLabel="Tolak"
+                                        triggerVariant="danger-soft"
+                                        status="danger"
+                                        title="Tolak Transfer Stok"
+                                        description="Transfer akan berstatus ditolak dan tidak dapat dikirim."
+                                        confirmLabel="Ya, Tolak"
+                                        confirmVariant="danger"
+                                        isPending={busy === 'approve'}
+                                        onConfirm={() =>
+                                            post('approve', 'approve', {
+                                                decision: 'reject',
+                                            })
+                                        }
+                                    />
+                                    <ConfirmDialog
+                                        triggerLabel="Setujui"
+                                        title="Setujui Transfer Stok"
+                                        description="Transfer akan berstatus draft dan siap dikirim. Kecukupan stok gudang asal dicek saat persetujuan."
+                                        confirmLabel="Ya, Setujui"
+                                        isPending={busy === 'approve'}
+                                        onConfirm={() =>
+                                            post('approve', 'approve', {
+                                                decision: 'approve',
+                                            })
+                                        }
+                                    />
+                                </>
+                            )}
+
+                            {stockTransfer.status === 'draft' && (
+                                <ConfirmDialog
+                                    triggerLabel="Kirim Transfer"
+                                    title="Konfirmasi Pengiriman Stok"
+                                    description="Stok di gudang asal langsung berkurang memakai FIFO costing. Tindakan ini tidak bisa dibatalkan."
+                                    confirmLabel="Ya, Kirim Sekarang"
+                                    isPending={busy === 'ship'}
+                                    onConfirm={() => post('ship', 'ship')}
+                                />
+                            )}
+
+                            {stockTransfer.status === 'shipped' && (
+                                <ReceiveDialog
+                                    transfer={stockTransfer}
+                                    errors={errors}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {typeof errors.stock_transfer === 'string' && (
+                    <div
+                        role="alert"
+                        className="rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger"
+                    >
+                        {errors.stock_transfer}
                     </div>
                 )}
 
-                {errors.approval && (
-                    <div className="rounded-lg bg-amber-50 p-4 ring-1 ring-amber-300">
-                        <InputError message={errors.approval as string} />
-                        <p className="mt-1 text-xs text-amber-700">
+                {typeof errors.approval === 'string' && (
+                    <div
+                        role="alert"
+                        className="rounded-lg border border-warning/30 bg-warning-soft p-4 text-sm text-warning"
+                    >
+                        {errors.approval}
+                        <p className="mt-1 text-xs">
                             Transfer ini diatur oleh Aturan Approval. Lakukan
                             persetujuan via Inbox Approval.
                         </p>
                     </div>
                 )}
 
-                {approval && <ApprovalPanel approval={approval} />}
-
-                {/* Header Information */}
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="text-xs font-medium text-slate-500 uppercase">
-                            Informasi Transfer
-                        </div>
-                        <div className="text-sm font-semibold text-slate-900">
-                            Status:{' '}
-                            <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${
-                                    statusBadges[stockTransfer.status]
-                                        ?.className
-                                }`}
-                            >
-                                {statusBadges[stockTransfer.status]?.label}
-                            </span>
-                        </div>
-                        {stockTransfer.stock_request_id && (
-                            <div className="text-xs text-slate-600">
-                                Berdasarkan Stock Request: #
-                                {stockTransfer.stock_request_id}
-                            </div>
-                        )}
-                        {stockTransfer.source_type?.endsWith('GoodsReceipt') &&
-                            stockTransfer.source_id != null && (
-                                <div className="text-xs text-slate-600">
-                                    Dari GRN:{' '}
-                                    <Link
-                                        href={`/purchasing/grn-inbox/${stockTransfer.source_id}`}
-                                        className="font-semibold text-indigo-600 hover:underline"
-                                    >
-                                        Lihat approval HO
-                                    </Link>
-                                </div>
-                            )}
-                    </div>
-
-                    <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="text-xs font-medium text-slate-500 uppercase">
-                            Gudang Asal (Pengirim)
-                        </div>
-                        <div className="text-sm font-bold text-slate-900">
-                            {stockTransfer.from_warehouse?.name ?? '-'}
-                        </div>
-                        <div className="text-xs text-slate-500">
+                <div className="grid grid-cols-1 gap-4 rounded-xl border border-border bg-surface p-6 text-sm md:grid-cols-3">
+                    <SummaryField label="Gudang Asal (Pengirim)">
+                        {stockTransfer.from_warehouse?.name ?? '-'}
+                        <Sub>
                             Cabang:{' '}
                             {stockTransfer.from_warehouse?.branch?.name ?? '-'}
-                        </div>
-                    </div>
+                        </Sub>
+                    </SummaryField>
 
-                    <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="text-xs font-medium text-slate-500 uppercase">
-                            Gudang Tujuan (Penerima)
-                        </div>
-                        <div className="text-sm font-bold text-slate-900">
-                            {stockTransfer.to_warehouse?.name ?? '-'}
-                        </div>
-                        <div className="text-xs text-slate-500">
+                    <SummaryField label="Gudang Tujuan (Penerima)">
+                        {stockTransfer.to_warehouse?.name ?? '-'}
+                        <Sub>
                             Cabang:{' '}
                             {stockTransfer.to_warehouse?.branch?.name ?? '-'}
-                        </div>
-                    </div>
-                </div>
+                        </Sub>
+                    </SummaryField>
 
-                {/* Tracking Log */}
-                {stockTransfer.shipped_at && (
-                    <div className="flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs text-indigo-900">
-                        <div>
-                            <span className="font-semibold">Dikirim oleh:</span>{' '}
-                            {stockTransfer.shipped_by_user?.name ??
-                                `User #${stockTransfer.shipped_by}`}
-                        </div>
-                        <div>
-                            <span className="font-semibold">
-                                Tanggal Kirim:
-                            </span>{' '}
-                            {new Date(stockTransfer.shipped_at).toLocaleString(
-                                'id-ID',
-                            )}
-                        </div>
-                    </div>
-                )}
+                    <SummaryField label="Tanggal Dibuat">
+                        {formatDate(stockTransfer.created_at)}
+                    </SummaryField>
 
-                {stockTransfer.received_at && (
-                    <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 text-xs text-emerald-900">
-                        <div>
-                            <span className="font-semibold">
-                                Diterima oleh:
-                            </span>{' '}
-                            {stockTransfer.received_by_user?.name ??
-                                `User #${stockTransfer.received_by}`}
-                        </div>
-                        <div>
-                            <span className="font-semibold">
-                                Tanggal Terima:
-                            </span>{' '}
-                            {new Date(stockTransfer.received_at).toLocaleString(
-                                'id-ID',
-                            )}
-                        </div>
-                    </div>
-                )}
+                    {stockTransfer.shipped_at && (
+                        <SummaryField label="Dikirim">
+                            {formatDate(stockTransfer.shipped_at)}
+                            <Sub>
+                                oleh{' '}
+                                {stockTransfer.shipped_by_user?.name ??
+                                    `User #${stockTransfer.shipped_by}`}
+                            </Sub>
+                        </SummaryField>
+                    )}
 
-                {/* Item List & FIFO Breakdown */}
-                <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <h3 className="text-base font-bold text-slate-900">
-                        Item Barang Dikirim
-                    </h3>
+                    {stockTransfer.received_at && (
+                        <SummaryField label="Diterima">
+                            {formatDate(stockTransfer.received_at)}
+                            <Sub>
+                                oleh{' '}
+                                {stockTransfer.received_by_user?.name ??
+                                    `User #${stockTransfer.received_by}`}
+                            </Sub>
+                        </SummaryField>
+                    )}
 
-                    <div className="divide-y divide-slate-100 border-t border-b border-slate-200">
-                        {stockTransfer.items?.map((item) => (
-                            <div key={item.id} className="space-y-3 py-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <div className="font-bold text-slate-900">
-                                            {
-                                                item.product_variant?.product
-                                                    ?.name
-                                            }{' '}
-                                            -{' '}
-                                            {item.product_variant?.variant_name}
-                                        </div>
-                                        <div className="text-xs text-slate-500">
-                                            SKU: {item.product_variant?.sku}
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        {item.qty_shipped !== null &&
-                                        item.qty_shipped !== undefined ? (
-                                            <>
-                                                <div className="text-xs text-slate-500">
-                                                    Dikirim / Diterima / Sisa
-                                                </div>
-                                                <div className="text-lg font-bold text-indigo-600">
-                                                    {item.qty_shipped} /{' '}
-                                                    {item.qty_received ?? 0} /{' '}
-                                                    {getRemainingQty(item)}
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="text-xs text-slate-500">
-                                                    Jumlah Qty
-                                                </div>
-                                                <div className="text-lg font-bold text-indigo-600">
-                                                    {item.qty}
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
+                    {stockTransfer.stock_request_id && (
+                        <SummaryField label="Stock Request">
+                            #{stockTransfer.stock_request_id}
+                        </SummaryField>
+                    )}
 
-                                {/* FIFO Layers breakdown if shipped */}
-                                {item.layers && item.layers.length > 0 && (
-                                    <div className="mt-2 space-y-1.5 rounded-lg border border-slate-200/80 bg-slate-50 p-3 text-xs">
-                                        <div className="font-semibold text-slate-700">
-                                            Rincian FIFO Costing Layer (Stok
-                                            Dikonsumsi):
-                                        </div>
-                                        <div className="space-y-1">
-                                            {item.layers.map((l) => (
-                                                <div
-                                                    key={l.id}
-                                                    className="flex items-center justify-between rounded border border-slate-100 bg-white px-2.5 py-1 text-slate-600"
-                                                >
-                                                    <span>
-                                                        Layer #
-                                                        {l.stock_layer_id}{' '}
-                                                        (Cost: Rp{' '}
-                                                        {Number(
-                                                            l.unit_cost,
-                                                        ).toLocaleString(
-                                                            'id-ID',
-                                                        )}
-                                                        )
-                                                    </span>
-                                                    <span className="font-medium text-slate-900">
-                                                        Qty Taken: {l.qty_taken}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Discrepancy display */}
-                                {item.discrepancies &&
-                                    item.discrepancies.length > 0 && (
-                                        <div className="mt-2 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs">
-                                            <div className="font-semibold text-amber-700">
-                                                Discrepancy:
-                                            </div>
-                                            {item.discrepancies.map((d) => (
-                                                <div
-                                                    key={d.id}
-                                                    className="rounded border border-amber-200 bg-white px-2.5 py-1 text-amber-800"
-                                                >
-                                                    <span>
-                                                        Dikirim: {d.shipped_qty}{' '}
-                                                        / Diterima:{' '}
-                                                        {d.received_qty} /
-                                                        Selisih:{' '}
-                                                        {d.difference_qty}
-                                                    </span>
-                                                    <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium uppercase">
-                                                        {d.status}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Asal Pembelian (Lineage) */}
-                {purchaseLineage && (
-                    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <h3 className="text-base font-bold text-slate-900">
-                            Asal Pembelian
-                        </h3>
-                        {purchaseLineage.invoice ? (
-                            <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-sm">
-                                <div>
-                                    <span className="font-semibold text-emerald-900">
-                                        {purchaseLineage.invoice.number}
-                                    </span>{' '}
-                                    <span className="text-xs text-emerald-700">
-                                        ({purchaseLineage.invoice.status})
-                                    </span>
-                                </div>
-                                <Link
-                                    href={`/purchasing/invoices/${purchaseLineage.invoice.id}`}
-                                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                    {stockTransfer.source_type?.endsWith('GoodsReceipt') &&
+                        stockTransfer.source_id != null && (
+                            <SummaryField label="Sumber">
+                                <TextLink
+                                    href={`/purchasing/grn-inbox/${stockTransfer.source_id}`}
                                 >
-                                    Lihat faktur
-                                </Link>
-                            </div>
-                        ) : (
-                            <p className="text-xs text-slate-500">
-                                Transfer ini tidak membawa referensi penerimaan
-                                barang, sehingga faktur asal tidak bisa
-                                ditentukan.
-                            </p>
+                                    Lihat approval GRN
+                                </TextLink>
+                            </SummaryField>
                         )}
-                        <div className="space-y-3">
-                            {purchaseLineage.items.map((lineageItem) => {
-                                const item = stockTransfer.items?.find(
-                                    (transferItem) =>
-                                        transferItem.id ===
-                                        lineageItem.stock_transfer_item_id,
-                                );
 
-                                return (
-                                    <div
-                                        key={lineageItem.stock_transfer_item_id}
-                                        className="rounded-lg border border-slate-200 p-3"
-                                    >
-                                        <div className="text-sm font-semibold text-slate-900">
-                                            {item?.product_variant?.product
-                                                ?.name ?? 'Barang'}{' '}
-                                            -{' '}
-                                            {item?.product_variant
-                                                ?.variant_name ?? ''}
-                                        </div>
-                                        {lineageItem.origins.length === 0 ? (
-                                            <p className="mt-1 text-xs text-slate-500">
-                                                Belum ada layer asal (transfer
-                                                belum dikirim).
-                                            </p>
-                                        ) : (
-                                            <div className="mt-2 space-y-1">
-                                                {lineageItem.origins.map(
-                                                    (origin) => (
-                                                        <div
-                                                            key={
-                                                                origin.layer_id
-                                                            }
-                                                            className="flex items-center justify-between rounded border border-slate-100 bg-slate-50 px-2.5 py-1 text-xs text-slate-600"
-                                                        >
-                                                            <span>
-                                                                Layer #
-                                                                {
-                                                                    origin.layer_id
-                                                                }{' '}
-                                                                ·{' '}
-                                                                {
-                                                                    origin.warehouse_name
-                                                                }{' '}
-                                                                · akar:{' '}
-                                                                {
-                                                                    origin.root_source_type
-                                                                }
-                                                                #
-                                                                {origin.root_source_id ??
-                                                                    '-'}
-                                                            </span>
-                                                            <span className="font-medium text-slate-900">
-                                                                Qty:{' '}
-                                                                {
-                                                                    origin.qty_taken
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    ),
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
+                    {stockTransfer.origin_transfer && (
+                        <SummaryField label="Retur Dari Transfer">
+                            <TextLink
+                                href={`/warehouse/stock-transfers/${stockTransfer.origin_transfer.id}`}
+                            >
+                                {stockTransfer.origin_transfer.number ??
+                                    `#${stockTransfer.origin_transfer.id}`}
+                            </TextLink>
+                        </SummaryField>
+                    )}
+                </div>
+
+                <TransferTabs
+                    transfer={stockTransfer}
+                    lineage={purchaseLineage}
+                />
             </div>
-
-            {/* Approval Modal */}
-            {pendingDecision && (
-                <Modal
-                    title={
-                        pendingDecision === 'approve'
-                            ? 'Setujui Transfer Stok'
-                            : 'Tolak Transfer Stok'
-                    }
-                    onClose={() => setPendingDecision(null)}
-                >
-                    <div className="space-y-4">
-                        <p className="text-sm text-slate-600">
-                            {pendingDecision === 'approve'
-                                ? 'Transfer akan berstatus draft dan siap dikirim. Stok gudang asal dicek kecukupannya saat persetujuan.'
-                                : 'Transfer akan berstatus ditolak dan tidak dapat dikirim.'}
-                        </p>
-
-                        <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
-                            <Button
-                                variant="secondary"
-                                onClick={() => setPendingDecision(null)}
-                                disabled={isApproving}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                variant="primary"
-                                onClick={handleApprove}
-                                disabled={isApproving}
-                            >
-                                {isApproving
-                                    ? 'Memproses...'
-                                    : pendingDecision === 'approve'
-                                      ? 'Ya, Setujui'
-                                      : 'Ya, Tolak'}
-                            </Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
-
-            {/* Return Stock Modal */}
-            {showReturnModal && (
-                <Modal
-                    title="Retur Stok ke Head Office"
-                    onClose={() => setShowReturnModal(false)}
-                >
-                    <div className="space-y-4">
-                        <p className="text-sm text-slate-600">
-                            Barang yang diretur kembali ke{' '}
-                            <span className="font-semibold text-slate-900">
-                                {stockTransfer.from_warehouse?.name ?? 'HQ'}
-                            </span>{' '}
-                            mengikuti transfer ini, sehingga Head Office bisa
-                            membuat retur pembelian dengan asal barang yang
-                            tetap terlacak.
-                        </p>
-
-                        {errors.origin_transfer_id && (
-                            <InputError
-                                message={errors.origin_transfer_id as string}
-                            />
-                        )}
-
-                        {errors.items && (
-                            <InputError message={errors.items as string} />
-                        )}
-
-                        <div className="space-y-3">
-                            {returnOptions.map((option) => (
-                                <div
-                                    key={option.stock_transfer_item_id}
-                                    className="rounded-lg border border-slate-200 p-3"
-                                >
-                                    <div className="text-sm font-semibold text-slate-900">
-                                        {option.product_name || option.sku}
-                                    </div>
-                                    <div className="text-xs text-slate-500">
-                                        {option.sku} · masuk {option.qty} · bisa
-                                        diretur {option.returnable_qty}
-                                    </div>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        max={option.returnable_qty}
-                                        value={
-                                            returnLines.find(
-                                                (line) =>
-                                                    line.stock_transfer_item_id ===
-                                                    option.stock_transfer_item_id,
-                                            )?.qty ?? 0
-                                        }
-                                        onChange={(event) =>
-                                            updateReturnQty(
-                                                option.stock_transfer_item_id,
-                                                Math.max(
-                                                    0,
-                                                    Math.min(
-                                                        option.returnable_qty,
-                                                        Number(
-                                                            event.target
-                                                                .value || 0,
-                                                        ),
-                                                    ),
-                                                ),
-                                            )
-                                        }
-                                        disabled={option.returnable_qty === 0}
-                                        className="mt-2 w-28 rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
-                                    />
-                                    {returnQtyError(
-                                        option.stock_transfer_item_id,
-                                    ) && (
-                                        <p className="mt-1 text-xs text-rose-600">
-                                            {returnQtyError(
-                                                option.stock_transfer_item_id,
-                                            )}
-                                        </p>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
-                            <Button
-                                variant="secondary"
-                                onClick={() => setShowReturnModal(false)}
-                                disabled={isReturning}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                variant="primary"
-                                onClick={handleReturn}
-                                disabled={
-                                    isReturning ||
-                                    selectedReturnLines.length === 0
-                                }
-                            >
-                                {isReturning
-                                    ? 'Memproses...'
-                                    : 'Buat Retur Transfer'}
-                            </Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
-
-            {/* Confirmation Modal */}
-            {showConfirmModal && (
-                <Modal
-                    title="Konfirmasi Pengiriman Stok"
-                    onClose={() => setShowConfirmModal(false)}
-                >
-                    <div className="space-y-4">
-                        <p className="text-sm text-slate-600">
-                            Apakah Anda yakin ingin memproses pengiriman stock
-                            transfer ini? Stok di gudang asal akan langsung
-                            berkurang menggunakan perhitungan FIFO Costing.
-                        </p>
-
-                        <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
-                            <Button
-                                variant="secondary"
-                                onClick={() => setShowConfirmModal(false)}
-                                disabled={isShipping}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                variant="primary"
-                                onClick={handleShip}
-                                disabled={isShipping}
-                            >
-                                {isShipping
-                                    ? 'Memproses...'
-                                    : 'Ya, Kirim Sekarang'}
-                            </Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
-
-            {/* Receive Modal */}
-            {showReceiveModal && (
-                <Modal
-                    title="Terima Stock Transfer"
-                    onClose={() => setShowReceiveModal(false)}
-                >
-                    <div className="space-y-4">
-                        <p className="text-sm text-slate-600">
-                            Masukkan jumlah yang diterima untuk setiap item.
-                            Jika ada selisih, sistem akan mencatat sebagai
-                            discrepancy.
-                        </p>
-
-                        <div className="space-y-3">
-                            {stockTransfer.items?.map((item) => {
-                                const remaining = getRemainingQty(item);
-                                const receiveItem = receiveItems.find(
-                                    (r) => r.stock_transfer_item_id === item.id,
-                                );
-
-                                return (
-                                    <div
-                                        key={item.id}
-                                        className="rounded-lg border border-slate-200 p-3"
-                                    >
-                                        <div className="mb-2 text-sm font-medium text-slate-900">
-                                            {
-                                                item.product_variant?.product
-                                                    ?.name
-                                            }{' '}
-                                            -{' '}
-                                            {item.product_variant?.variant_name}
-                                        </div>
-                                        <div className="text-xs text-slate-500">
-                                            Dikirim:{' '}
-                                            {item.qty_shipped ?? item.qty} |
-                                            Sisa: {remaining}
-                                        </div>
-                                        <div className="mt-2">
-                                            <label className="block text-xs font-medium text-slate-700">
-                                                Qty Diterima
-                                            </label>
-                                            <input
-                                                type="number"
-                                                step="1"
-                                                min="0"
-                                                max={remaining}
-                                                value={
-                                                    receiveItem?.qty_received ??
-                                                    remaining
-                                                }
-                                                onChange={(e) =>
-                                                    updateReceiveQty(
-                                                        item.id,
-                                                        parseInt(
-                                                            e.target.value,
-                                                            10,
-                                                        ) || 0,
-                                                    )
-                                                }
-                                                className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                                            />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        {errors.qty_received && (
-                            <InputError
-                                message={errors.qty_received as string}
-                            />
-                        )}
-
-                        <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
-                            <Button
-                                variant="secondary"
-                                onClick={() => setShowReceiveModal(false)}
-                                disabled={isReceiving}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                variant="primary"
-                                onClick={handleReceive}
-                                disabled={isReceiving}
-                            >
-                                {isReceiving
-                                    ? 'Memproses...'
-                                    : 'Ya, Terima Sekarang'}
-                            </Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
         </CompanyLayout>
     );
 }
