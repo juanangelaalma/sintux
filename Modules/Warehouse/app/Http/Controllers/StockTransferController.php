@@ -2,14 +2,18 @@
 
 namespace Modules\Warehouse\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Modules\Approval\Application\GetTransactionApprovalStatus;
 use Modules\Company\Application\CompanyAccess;
+use Modules\Product\Application\Variant\GetVariantForBranch;
 use Modules\Product\Models\ProductVariant;
+use Modules\Warehouse\Application\StockReservation\GetAvailableStock;
 use Modules\Warehouse\Application\StockTransfer\ApproveDirectTransfer;
 use Modules\Warehouse\Application\StockTransfer\CreateDirectTransfer;
+use Modules\Warehouse\Application\StockTransfer\CreateReturnStockTransfer;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransfers;
 use Modules\Warehouse\Application\StockTransfer\ReceiveStockTransfer;
@@ -17,6 +21,9 @@ use Modules\Warehouse\Application\StockTransfer\ShipStockTransfer;
 use Modules\Warehouse\Enums\StockTransferStatus;
 use Modules\Warehouse\Http\Requests\ApproveDirectTransferRequest;
 use Modules\Warehouse\Http\Requests\StoreDirectTransferRequest;
+use Modules\Warehouse\Http\Requests\StoreReturnStockTransferRequest;
+use Modules\Warehouse\Models\StockTransfer;
+use Modules\Warehouse\Models\StockTransferItem;
 use Modules\Warehouse\Models\Warehouse;
 use Modules\Warehouse\Services\InsufficientStockException;
 
@@ -29,6 +36,7 @@ class StockTransferController extends Controller
         private readonly ApproveDirectTransfer $approveDirectTransfer,
         private readonly ShipStockTransfer $shipStockTransfer,
         private readonly ReceiveStockTransfer $receiveStockTransfer,
+        private readonly CreateReturnStockTransfer $createReturnStockTransfer,
         private readonly GetTransactionApprovalStatus $approvalStatus,
     ) {}
 
@@ -89,11 +97,95 @@ class StockTransferController extends Controller
             && $user->can('warehouse.stock.transfer')
             && CompanyAccess::isActiveBranchHq($user, $tenantId);
 
+        /*
+         * Retur transfer hanya mungkin dari transfer yang sudah diterima
+         * dan hanya oleh user dengan akses ke cabang pengirim.
+         */
+        $canReturn = $stockTransfer->status === StockTransferStatus::Received->value
+            && (bool) $stockTransfer->fromWarehouse?->branch?->is_headquarters
+            && ! (bool) $stockTransfer->toWarehouse?->branch?->is_headquarters
+            && $user
+            && $user->can('warehouse.stock.transfer')
+            && $this->returnIsWithinBranchScope($user, $tenantId, (int) $stockTransfer->to_warehouse_id);
+
         return Inertia::render('Warehouse/StockTransfers/show', [
             'stockTransfer' => $stockTransfer,
             'canApprove' => $canApprove,
+            'canReturn' => $canReturn,
+            'returnOptions' => $canReturn
+                ? $this->returnOptions($stockTransfer)['options']
+                : [],
             'approval' => $approval,
         ]);
+    }
+
+    /**
+     * @return array{options: list<array{stock_transfer_item_id: int, product_variant_id: int, product_name: string, sku: string, qty: int, returnable_qty: int}>, truncated: bool}
+     */
+    private function returnOptions(StockTransfer $origin): array
+    {
+        $variantIds = $origin->items->pluck('product_variant_id')->unique()->all();
+
+        if ($variantIds === []) {
+            return ['options' => [], 'truncated' => false];
+        }
+
+        $branchVariants = app(GetVariantForBranch::class);
+        $branchVariantIds = collect($variantIds)->mapWithKeys(
+            function (int $variantId) use ($branchVariants, $origin): array {
+                $resolved = $branchVariants->execute(
+                    $variantId,
+                    (int) $origin->toWarehouse->branch_id,
+                );
+
+                return [$variantId => $resolved['variant_id'] ?? null];
+            }
+        );
+
+        $branchVariantIdList = array_values(array_filter(
+            $branchVariantIds->all(),
+            fn ($variantId): bool => $variantId !== null,
+        ));
+
+        $remaining = $branchVariantIdList === []
+            ? []
+            : app(GetAvailableStock::class)->forItemsFromTransfer(
+                (int) $origin->to_warehouse_id,
+                $branchVariantIdList,
+                (int) $origin->id,
+            );
+
+        $options = $origin->items->map(function (StockTransferItem $item) use ($branchVariantIds, $remaining): array {
+            $branchVariantId = $branchVariantIds->get($item->product_variant_id);
+
+            return [
+                'stock_transfer_item_id' => (int) $item->id,
+                'product_variant_id' => (int) $item->product_variant_id,
+                'product_name' => (string) ($item->productVariant?->product?->name ?? ''),
+                'sku' => (string) ($item->productVariant?->sku ?? ''),
+                'qty' => (int) $item->qty,
+                'returnable_qty' => $branchVariantId === null
+                    ? 0
+                    : (int) ($remaining[$branchVariantId] ?? 0),
+            ];
+        })->all();
+
+        return ['options' => $options, 'truncated' => false];
+    }
+
+    private function returnIsWithinBranchScope(User $user, string $tenantId, int $warehouseId): bool
+    {
+        $branchIds = CompanyAccess::contextBranchIds($user, $tenantId)
+            ?? CompanyAccess::accessibleBranchIds($user, $tenantId);
+
+        if (! $branchIds) {
+            return false;
+        }
+
+        $warehouse = Warehouse::find($warehouseId);
+
+        return $warehouse !== null
+            && in_array((int) $warehouse->branch_id, $branchIds, true);
     }
 
     public function create()
@@ -153,6 +245,47 @@ class StockTransferController extends Controller
         return redirect()
             ->route('warehouse.stock-transfers.index')
             ->with('success', $message);
+    }
+
+    /**
+     * Buat retur transfer stok: cabang mengirim barang kembali ke HO
+     * mengikuti transfer outbound yang sudah diterima.
+     */
+    public function returnStock(StoreReturnStockTransferRequest $request, int $id)
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user && $user->can('warehouse.stock.transfer'),
+            403
+        );
+
+        $validated = $request->validated();
+
+        // Id di URL harus sama dengan transfer asal di body, supaya
+        // tidak bisa membuat RTRF dari transfer yang tidak dirender.
+        if ((int) $validated['origin_transfer_id'] !== $id) {
+            return back()->withErrors([
+                'origin_transfer_id' => 'Transfer asal tidak cocok dengan halaman ini.',
+            ]);
+        }
+
+        try {
+            $transfer = $this->createReturnStockTransfer->execute(
+                $validated,
+                (int) $user->id,
+                $user->name,
+            );
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        return redirect()
+            ->route('warehouse.stock-transfers.show', $transfer->id)
+            ->with(
+                'success',
+                'Retur transfer stok dibuat dan menunggu persetujuan HO.'
+            );
     }
 
     public function approve(int $id, ApproveDirectTransferRequest $request)

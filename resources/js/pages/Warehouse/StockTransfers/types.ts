@@ -64,6 +64,15 @@ export type StockTransferDiscrepancy = {
     updated_at: string;
 };
 
+export type ReturnOption = {
+    stock_transfer_item_id: number;
+    product_variant_id: number;
+    product_name: string;
+    sku: string;
+    qty: number;
+    returnable_qty: number;
+};
+
 export type StockTransfer = {
     id: number;
     number?: string | null;

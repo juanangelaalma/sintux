@@ -7,11 +7,13 @@ import Button from '@/components/ui/button';
 import Modal from '@/components/ui/modal';
 import PageHeader from '@/components/ui/page-header';
 import CompanyLayout from '@/layouts/company/company-layout';
-import type { StockTransfer, StockTransferItem } from './types';
+import type { ReturnOption, StockTransfer, StockTransferItem } from './types';
 
 type Props = {
     stockTransfer: StockTransfer;
     canApprove?: boolean;
+    canReturn?: boolean;
+    returnOptions?: ReturnOption[];
     approval?: TransferApprovalStatus | null;
 };
 
@@ -20,9 +22,16 @@ type ReceiveItem = {
     qty_received: number;
 };
 
+type ReturnLine = {
+    stock_transfer_item_id: number;
+    qty: number;
+};
+
 export default function StockTransferShow({
     stockTransfer,
     canApprove = false,
+    canReturn = false,
+    returnOptions = [],
     approval = null,
 }: Props) {
     const { errors } = usePage().props;
@@ -30,6 +39,12 @@ export default function StockTransferShow({
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isReceiving, setIsReceiving] = useState(false);
     const [showReceiveModal, setShowReceiveModal] = useState(false);
+    const [showReturnModal, setShowReturnModal] = useState(false);
+    const [isReturning, setIsReturning] = useState(false);
+    const [returnLines, setReturnLines] = useState<ReturnLine[]>([]);
+    const [submittedReturnLines, setSubmittedReturnLines] = useState<
+        ReturnLine[]
+    >([]);
     const [isApproving, setIsApproving] = useState(false);
     const [pendingDecision, setPendingDecision] = useState<
         'approve' | 'reject' | null
@@ -87,6 +102,65 @@ export default function StockTransferShow({
                 onFinish: () => {
                     setIsApproving(false);
                     setPendingDecision(null);
+                },
+            },
+        );
+    };
+
+    const openReturnModal = () => {
+        setReturnLines(
+            returnOptions.map((option) => ({
+                stock_transfer_item_id: option.stock_transfer_item_id,
+                qty: 0,
+            })),
+        );
+        setShowReturnModal(true);
+    };
+
+    const updateReturnQty = (itemId: number, qty: number) => {
+        setReturnLines((prev) =>
+            prev.map((line) =>
+                line.stock_transfer_item_id === itemId
+                    ? { ...line, qty }
+                    : line,
+            ),
+        );
+    };
+
+    const selectedReturnLines = returnLines.filter((line) => line.qty > 0);
+
+    const returnQtyError = (itemId: number) => {
+        const submittedIndex = submittedReturnLines.findIndex(
+            (line) => line.stock_transfer_item_id === itemId,
+        );
+
+        if (submittedIndex === -1) {
+            return undefined;
+        }
+
+        return errors[`items.${submittedIndex}.qty`] as string | undefined;
+    };
+
+    const handleReturn = () => {
+        if (selectedReturnLines.length === 0) {
+            return;
+        }
+
+        setIsReturning(true);
+        setSubmittedReturnLines(selectedReturnLines);
+        router.post(
+            `/warehouse/stock-transfers/${stockTransfer.id}/return`,
+            {
+                origin_transfer_id: stockTransfer.id,
+                items: selectedReturnLines,
+            },
+            {
+                onSuccess: () => {
+                    setIsReturning(false);
+                    setShowReturnModal(false);
+                },
+                onError: () => {
+                    setIsReturning(false);
                 },
             },
         );
@@ -187,6 +261,14 @@ export default function StockTransferShow({
                                     onClick={() => setShowReceiveModal(true)}
                                 >
                                     Terima Stock Transfer
+                                </Button>
+                            )}
+                            {canReturn && (
+                                <Button
+                                    variant="secondary"
+                                    onClick={openReturnModal}
+                                >
+                                    Retur ke HO
                                 </Button>
                             )}
                         </div>
@@ -463,6 +545,113 @@ export default function StockTransferShow({
                                     : pendingDecision === 'approve'
                                       ? 'Ya, Setujui'
                                       : 'Ya, Tolak'}
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Return Stock Modal */}
+            {showReturnModal && (
+                <Modal
+                    title="Retur Stok ke Head Office"
+                    onClose={() => setShowReturnModal(false)}
+                >
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600">
+                            Barang yang diretur kembali ke{' '}
+                            <span className="font-semibold text-slate-900">
+                                {stockTransfer.from_warehouse?.name ?? 'HQ'}
+                            </span>{' '}
+                            mengikuti transfer ini, sehingga Head Office bisa
+                            membuat retur pembelian dengan asal barang yang
+                            tetap terlacak.
+                        </p>
+
+                        {errors.origin_transfer_id && (
+                            <InputError
+                                message={errors.origin_transfer_id as string}
+                            />
+                        )}
+
+                        {errors.items && (
+                            <InputError message={errors.items as string} />
+                        )}
+
+                        <div className="space-y-3">
+                            {returnOptions.map((option) => (
+                                <div
+                                    key={option.stock_transfer_item_id}
+                                    className="rounded-lg border border-slate-200 p-3"
+                                >
+                                    <div className="text-sm font-semibold text-slate-900">
+                                        {option.product_name || option.sku}
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                        {option.sku} · masuk {option.qty} · bisa
+                                        diretur {option.returnable_qty}
+                                    </div>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        max={option.returnable_qty}
+                                        value={
+                                            returnLines.find(
+                                                (line) =>
+                                                    line.stock_transfer_item_id ===
+                                                    option.stock_transfer_item_id,
+                                            )?.qty ?? 0
+                                        }
+                                        onChange={(event) =>
+                                            updateReturnQty(
+                                                option.stock_transfer_item_id,
+                                                Math.max(
+                                                    0,
+                                                    Math.min(
+                                                        option.returnable_qty,
+                                                        Number(
+                                                            event.target
+                                                                .value || 0,
+                                                        ),
+                                                    ),
+                                                ),
+                                            )
+                                        }
+                                        disabled={option.returnable_qty === 0}
+                                        className="mt-2 w-28 rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+                                    />
+                                    {returnQtyError(
+                                        option.stock_transfer_item_id,
+                                    ) && (
+                                        <p className="mt-1 text-xs text-rose-600">
+                                            {returnQtyError(
+                                                option.stock_transfer_item_id,
+                                            )}
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                            <Button
+                                variant="secondary"
+                                onClick={() => setShowReturnModal(false)}
+                                disabled={isReturning}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={handleReturn}
+                                disabled={
+                                    isReturning ||
+                                    selectedReturnLines.length === 0
+                                }
+                            >
+                                {isReturning
+                                    ? 'Memproses...'
+                                    : 'Buat Retur Transfer'}
                             </Button>
                         </div>
                     </div>

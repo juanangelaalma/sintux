@@ -49,6 +49,11 @@ Route::middleware(['auth', 'verified', EnsureCompanyMember::class])->group(funct
         Route::post('stock-transfers/{stock_transfer}/receive', [StockTransferController::class, 'receive'])
             ->name('stock-transfers.receive');
 
+        // Retur transfer stok: cabang mengembalikan barang ke HO melalui
+        // transfer outbound yang sudah diterima.
+        Route::post('stock-transfers/{stock_transfer}/return', [StockTransferController::class, 'returnStock'])
+            ->name('stock-transfers.return');
+
         Route::resource('adjustments', StockAdjustmentController::class)
             ->only(['index', 'create', 'store', 'show'])
             ->parameters(['adjustments' => 'adjustment']);
