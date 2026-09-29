@@ -774,6 +774,92 @@ class PurchaseInvoiceTest extends TestCase
         $this->actingAs($user)->get(route('purchasing.invoices.index'))->assertOk();
     }
 
+    public function test_invoice_index_exposes_outstanding_for_partially_paid_invoice(): void
+    {
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        tenancy()->initialize($tenantId);
+        $supplierId = $this->createSupplier($hqBranchId);
+        DB::table('purchase_invoices')->insert([
+            'number' => 'FBL/HO/20260924/001/A',
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'status' => PurchaseInvoiceStatus::PartiallyPaid->value,
+            'invoice_date' => '2026-09-24',
+            'due_date' => '2026-11-08',
+            'currency_code' => 'IDR',
+            'subtotal' => 9500000,
+            'tax_amount' => 0,
+            'total' => 9500000,
+            'returned_amount' => 0,
+            'paid_amount' => 2500000,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        tenancy()->end();
+
+        $this->actingAs($user)
+            ->get(route('purchasing.invoices.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Purchasing/Invoices/index')
+                ->where('purchaseInvoices.data.0.number', 'FBL/HO/20260924/001/A')
+                ->where('purchaseInvoices.data.0.outstanding', 7000000)
+                ->where('summary.unpaid_total', 7000000)
+            );
+    }
+
+    public function test_invoice_detail_includes_supplier_payment_and_journal_context(): void
+    {
+        [$tenantId, $branchBId, $hqBranchId, $user] = $this->createCompanyWithMemberAndBranches();
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        tenancy()->initialize($tenantId);
+        $supplierId = $this->createSupplier($hqBranchId);
+        $supplierName = (string) DB::table('contacts')->where('id', $supplierId)->value('name');
+        DB::table('contacts')->where('id', $supplierId)->update([
+            'email' => 'supplier@example.test',
+        ]);
+        DB::table('contact_addresses')->insert([
+            'contact_id' => $supplierId,
+            'type' => 'billing',
+            'detail' => 'Jl. Contoh No. 1',
+            'kelurahan' => 'Sukamaju',
+            'kecamatan' => 'Cibinong',
+            'kabupaten' => 'Bogor',
+            'provinsi' => 'Jawa Barat',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $invoiceId = DB::table('purchase_invoices')->insertGetId([
+            'number' => 'FBL/HO/20260924/002/A',
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'status' => PurchaseInvoiceStatus::Approved->value,
+            'invoice_date' => '2026-09-24',
+            'currency_code' => 'IDR',
+            'subtotal' => 100000,
+            'tax_amount' => 0,
+            'total' => 100000,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        tenancy()->end();
+
+        $this->actingAs($user)
+            ->get(route('purchasing.invoices.show', $invoiceId))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Purchasing/Invoices/show')
+                ->where('supplier.name', $supplierName)
+                ->where('supplier.email', 'supplier@example.test')
+                ->where('supplier.address', 'Jl. Contoh No. 1, Sukamaju, Cibinong, Bogor, Jawa Barat')
+                ->has('payments', 0)
+                ->where('journal', null)
+            );
+    }
+
     /**
      * Pembebanan hutang selalu di HO: faktur dengan branch cabang ditolak
      * walau user HO yang membuatkan.

@@ -26,6 +26,7 @@ type PurchaseInvoice = {
     due_date?: string;
     total: number;
     subtotal: number;
+    outstanding: number;
     items?: Item[];
 };
 
@@ -90,10 +91,10 @@ export default function PurchaseInvoicesIndex({
             render: (row) => <PurchasingStatusBadge status={row.status} />,
         },
         {
-            key: 'subtotal',
+            key: 'outstanding',
             header: 'Sisa tagihan',
             align: 'right',
-            render: (row) => formatCurrency(row.total || 0),
+            render: (row) => formatCurrency(row.outstanding ?? 0),
         },
         {
             key: 'total',

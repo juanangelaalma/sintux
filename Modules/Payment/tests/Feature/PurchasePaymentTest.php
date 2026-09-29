@@ -10,6 +10,7 @@ use Modules\Accounting\Models\Journal;
 use Modules\Approval\Application\CreateApprovalRule;
 use Modules\Payment\Application\Finalize\FinalizePurchasePayment;
 use Modules\Payment\Application\PurchasePayment\CreatePurchasePayment;
+use Modules\Payment\Application\PurchasePayment\GetInvoicePayments;
 use Modules\Payment\Application\PurchasePayment\GetPaymentDetail;
 use Modules\Payment\Models\PurchasePayment;
 use Modules\Purchasing\Application\PurchaseInvoice\ApplyInvoicePayment;
@@ -73,6 +74,35 @@ class PurchasePaymentTest extends TestCase
 
         $this->assertEquals(200000, (float) DB::table('purchase_invoices')->where('id', $invoiceId)->value('paid_amount'));
         $this->assertSame('partially_paid', DB::table('purchase_invoices')->where('id', $invoiceId)->value('status'));
+
+        tenancy()->end();
+    }
+
+    public function test_invoice_payment_history_returns_allocated_payments(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $invoiceId = $this->createInvoice($ctx, 500000);
+
+        $payment = app(CreatePurchasePayment::class)->execute([
+            'branch_id' => $ctx['hqBranchId'],
+            'supplier_id' => $ctx['supplierId'],
+            'cash_account_id' => $ctx['cashAccountId'],
+            'allocations' => [
+                ['purchase_invoice_id' => $invoiceId, 'amount' => 200000],
+            ],
+            'payment_date' => '2026-09-24',
+        ], null, null, [$ctx['hqBranchId']]);
+
+        $rows = app(GetInvoicePayments::class)
+            ->execute($invoiceId, [$ctx['hqBranchId']]);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame($payment->number, $rows[0]['number']);
+        $this->assertSame('approved', $rows[0]['status']);
+        $this->assertEquals(200000, $rows[0]['amount']);
+        $this->assertEquals('2026-09-24', $rows[0]['payment_date']);
 
         tenancy()->end();
     }

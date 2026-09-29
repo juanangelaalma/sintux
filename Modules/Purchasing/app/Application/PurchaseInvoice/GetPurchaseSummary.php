@@ -2,7 +2,9 @@
 
 namespace Modules\Purchasing\Application\PurchaseInvoice;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Modules\Purchasing\Models\PurchaseInvoice;
 
@@ -25,18 +27,28 @@ class GetPurchaseSummary
         $thirtyDaysAgo = Carbon::today()->subDays(30)->toDateTimeString();
 
         $unpaidQuery = PurchaseInvoice::whereIn('branch_id', $accessibleBranchIds)
-            ->whereNotIn('status', [PurchaseInvoiceStatus::Paid->value, PurchaseInvoiceStatus::Cancelled->value]);
+            ->whereNotIn('status', [
+                PurchaseInvoiceStatus::Paid->value,
+                PurchaseInvoiceStatus::ClosedByReturn->value,
+                PurchaseInvoiceStatus::Cancelled->value,
+            ])
+            ->whereRaw($this->outstandingSql().' > 0');
 
         $unpaidCount = (int) (clone $unpaidQuery)->count();
-        $unpaidTotal = (float) (clone $unpaidQuery)->sum('total');
+        $unpaidTotal = $this->sumOutstanding($unpaidQuery);
 
         $overdueQuery = PurchaseInvoice::whereIn('branch_id', $accessibleBranchIds)
-            ->whereNotIn('status', [PurchaseInvoiceStatus::Paid->value, PurchaseInvoiceStatus::Cancelled->value])
+            ->whereNotIn('status', [
+                PurchaseInvoiceStatus::Paid->value,
+                PurchaseInvoiceStatus::ClosedByReturn->value,
+                PurchaseInvoiceStatus::Cancelled->value,
+            ])
             ->whereNotNull('due_date')
-            ->where('due_date', '<', $today);
+            ->where('due_date', '<', $today)
+            ->whereRaw($this->outstandingSql().' > 0');
 
         $overdueCount = (int) (clone $overdueQuery)->count();
-        $overdueTotal = (float) (clone $overdueQuery)->sum('total');
+        $overdueTotal = $this->sumOutstanding($overdueQuery);
 
         $paidRecentQuery = PurchaseInvoice::whereIn('branch_id', $accessibleBranchIds)
             ->where('status', PurchaseInvoiceStatus::Paid->value)
@@ -53,5 +65,17 @@ class GetPurchaseSummary
             'paid_recent_total' => $paidRecentTotal,
             'paid_recent_count' => $paidRecentCount,
         ];
+    }
+
+    private function sumOutstanding(Builder $query): float
+    {
+        return (float) (clone $query)->sum(
+            DB::raw('GREATEST('.$this->outstandingSql().', 0)'),
+        );
+    }
+
+    private function outstandingSql(): string
+    {
+        return 'total - COALESCE(paid_amount, 0) - COALESCE(returned_amount, 0)';
     }
 }

@@ -16,6 +16,8 @@ use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
  * @property int $supplier_id
  * @property int|null $purchase_order_id
  * @property int|null $goods_receipt_id
+ * @property-read PurchaseOrder|null $purchase_order
+ * @property-read GoodsReceipt|null $goods_receipt
  * @property string|null $supplier_invoice_no
  * @property string|null $tax_invoice_no
  * @property PurchaseInvoiceStatus $status
@@ -29,6 +31,7 @@ use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
  * @property float $total
  * @property float $returned_amount
  * @property float $paid_amount
+ * @property-read float $outstanding
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property-read Collection<int, PurchaseInvoiceItem> $items
@@ -56,6 +59,10 @@ class PurchaseInvoice extends Model
         'paid_amount',
     ];
 
+    protected $appends = [
+        'outstanding',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -66,9 +73,20 @@ class PurchaseInvoice extends Model
             'total' => 'decimal:4',
             'returned_amount' => 'decimal:4',
             'paid_amount' => 'decimal:4',
+            'outstanding' => 'float',
             'invoice_date' => 'date',
             'due_date' => 'date',
         ];
+    }
+
+    public function getOutstandingAttribute(): float
+    {
+        return max(
+            0.0,
+            (float) $this->total
+                - (float) ($this->paid_amount ?? 0)
+                - (float) ($this->returned_amount ?? 0),
+        );
     }
 
     /**
@@ -77,6 +95,14 @@ class PurchaseInvoice extends Model
     public function items(): HasMany
     {
         return $this->hasMany(PurchaseInvoiceItem::class);
+    }
+
+    /**
+     * @return BelongsTo<PurchaseOrder, $this>
+     */
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
     }
 
     /**

@@ -8,10 +8,13 @@ use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Accounting\Application\Journal\GetJournalByReference;
 use Modules\Accounting\Application\TaxQuery;
 use Modules\Approval\Application\GetTransactionApprovalStatus;
 use Modules\Company\Application\CompanyAccess;
+use Modules\Contact\Application\GetContact;
 use Modules\Contact\Application\GetContacts;
+use Modules\Payment\Application\PurchasePayment\GetInvoicePayments;
 use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Purchasing\Application\PurchaseInvoice\CreatePurchaseInvoice;
 use Modules\Purchasing\Application\PurchaseInvoice\GetInvoicePrefillFromGrn;
@@ -31,6 +34,9 @@ class PurchaseInvoiceController extends Controller
         private readonly CreatePurchaseInvoice $createPurchaseInvoice,
         private readonly GetPurchaseSummary $getPurchaseSummary,
         private readonly GetTransactionApprovalStatus $getTransactionApprovalStatus,
+        private readonly GetContact $getContact,
+        private readonly GetInvoicePayments $getInvoicePayments,
+        private readonly GetJournalByReference $getJournalByReference,
     ) {}
 
     public function index(): Response
@@ -101,20 +107,23 @@ class PurchaseInvoiceController extends Controller
 
     public function show(int $id): Response
     {
+        $user = request()->user();
+        $tenantId = (string) session('active_tenant_id');
+        $accessibleBranchIds = $this->resolveBranchIds($user, $tenantId);
         $purchaseInvoice = $this->getPurchaseInvoiceDetail->execute($id);
-        $approval = $this->getTransactionApprovalStatus->execute('purchase_invoice', $id, request()->user()?->id);
+        $approval = $this->getTransactionApprovalStatus->execute('purchase_invoice', $id, $user?->id);
         $returns = app(GetInvoiceReturns::class)->execute($id);
+        $supplier = $this->getContact->execute(
+            (int) $purchaseInvoice->supplier_id,
+            $accessibleBranchIds,
+            'supplier',
+        );
 
         $returnableQty = $purchaseInvoice->items->sum(
             fn ($item) => max(0.0, (float) $item->qty - (float) ($item->qty_returned ?? 0))
         );
 
-        $invoiceOutstanding = max(
-            0.0,
-            (float) $purchaseInvoice->total
-                - (float) ($purchaseInvoice->paid_amount ?? 0)
-                - (float) ($purchaseInvoice->returned_amount ?? 0)
-        );
+        $invoiceOutstanding = (float) $purchaseInvoice->outstanding;
 
         $canPay = in_array($purchaseInvoice->status, [
             PurchaseInvoiceStatus::Approved,
@@ -123,6 +132,9 @@ class PurchaseInvoiceController extends Controller
 
         return Inertia::render('Purchasing/Invoices/show', [
             'purchaseInvoice' => $purchaseInvoice,
+            'supplier' => $this->serializeSupplier($supplier),
+            'payments' => $this->getInvoicePayments->execute($id, $accessibleBranchIds),
+            'journal' => $this->getJournalByReference->execute('purchase_invoice', $id),
             'approval' => $approval,
             'paymentContext' => [
                 'canPay' => $canPay,
@@ -136,6 +148,44 @@ class PurchaseInvoiceController extends Controller
                 'returns' => $returns,
             ],
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $supplier
+     * @return array{name: string, email: string|null, address: string}
+     */
+    private function serializeSupplier(array $supplier): array
+    {
+        $address = is_array($supplier['billing_address'] ?? null)
+            ? $supplier['billing_address']
+            : [];
+
+        return [
+            'name' => (string) ($supplier['company_name'] ?: $supplier['name']),
+            'email' => $supplier['email'] ?: null,
+            'address' => $this->formatAddress($address),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $address
+     */
+    private function formatAddress(array $address): string
+    {
+        $parts = [
+            $address['detail'] ?? null,
+            ! empty($address['rt']) ? 'RT '.$address['rt'] : null,
+            ! empty($address['rw']) ? 'RW '.$address['rw'] : null,
+            $address['kelurahan'] ?? null,
+            $address['kecamatan'] ?? null,
+            $address['kabupaten'] ?? null,
+            $address['provinsi'] ?? null,
+        ];
+
+        return implode(', ', array_values(array_filter(
+            $parts,
+            static fn (mixed $part): bool => $part !== null && $part !== '',
+        )));
     }
 
     /**

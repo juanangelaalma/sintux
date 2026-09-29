@@ -8,7 +8,7 @@ class GetPurchaseInvoiceDetail
 {
     public function execute(int $id): PurchaseInvoice
     {
-        return PurchaseInvoice::with(['items', 'goodsReceipt'])
+        return PurchaseInvoice::with(['items', 'goodsReceipt', 'purchaseOrder'])
             ->findOrFail($id);
     }
 }
