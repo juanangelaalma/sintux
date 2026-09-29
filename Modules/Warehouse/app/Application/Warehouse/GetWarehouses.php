@@ -50,21 +50,28 @@ class GetWarehouses
     }
 
     /**
-     * Flat options for goods receipt: active regular warehouses of HQ only.
+     * Flat options untuk retur pembelian: gudang regular dari seluruh
+     * cabang yang accessible. Retur tetap bercabang HQ, tetapi sumber
+     * stoknya dapat berada di gudang branch.
      *
-     * @return list<array{id: int, code: string, name: string}>
+     * @param  list<int>  $branchIds
+     * @return list<array{id: int, branch_id: int, code: string, name: string, branch_name: string}>
      */
-    public function optionsForReceipt(int $hqBranchId): array
+    public function optionsForReturn(array $branchIds): array
     {
-        return Warehouse::where('branch_id', $hqBranchId)
+        return Warehouse::with('branch')
+            ->whereIn('branch_id', $branchIds)
             ->where('is_active', true)
             ->where('warehouse_type', 'regular')
+            ->orderBy('branch_id')
             ->orderBy('code')
-            ->get(['id', 'code', 'name'])
-            ->map(fn (Warehouse $warehouse) => [
+            ->get(['id', 'branch_id', 'code', 'name'])
+            ->map(fn (Warehouse $warehouse): array => [
                 'id' => (int) $warehouse->id,
+                'branch_id' => (int) $warehouse->branch_id,
                 'code' => (string) $warehouse->code,
                 'name' => (string) $warehouse->name,
+                'branch_name' => (string) ($warehouse->branch?->name ?? ''),
             ])
             ->all();
     }

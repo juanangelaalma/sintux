@@ -13,6 +13,7 @@ use Modules\Approval\Application\CreateApprovalRule;
 use Modules\Approval\Models\ApprovalMapping;
 use Modules\Approval\Models\ApprovalTransactionType;
 use Modules\Company\Models\CompanyUser;
+use Modules\Product\Application\Product\EnsureVariantForBranch;
 use Modules\Purchasing\Application\PurchaseReturn\CreatePurchaseReturn;
 use Modules\Purchasing\Application\PurchaseReturn\GetReturnableItems;
 use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
@@ -510,7 +511,70 @@ class PurchaseReturnTest extends TestCase
         tenancy()->end();
     }
 
-    public function test_create_rejects_non_hq_warehouse(): void
+    public function test_create_from_branch_warehouse_consumes_existing_received_transfer_lineage(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        $branchId = DB::table('branches')->insertGetId([
+            'name' => 'Branch Return',
+            'code' => 'BRT_'.uniqid(),
+            'is_headquarters' => false,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $branchWarehouseId = DB::table('warehouses')->insertGetId([
+            'branch_id' => $branchId,
+            'code' => 'WH-BRT-'.uniqid(),
+            'name' => 'Branch Return Warehouse',
+            'warehouse_type' => 'regular',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $branchVariantId = app(EnsureVariantForBranch::class)
+            ->execute($ctx['trackedVariantId'], $branchId);
+        $transferId = DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => null,
+            'from_warehouse_id' => $ctx['warehouseId'],
+            'to_warehouse_id' => $branchWarehouseId,
+            'number' => 'TRF-'.uniqid(),
+            'status' => 'received',
+            'created_by' => $ctx['user']->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->addTransferLayer($branchWarehouseId, $branchVariantId, 6, 52000, $transferId);
+
+        $purchaseReturn = $this->createReturn(
+            $ctx,
+            [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]],
+            [
+                'warehouse_id' => $branchWarehouseId,
+                'return_transfer_id' => $transferId,
+            ],
+            [$ctx['hqBranchId'], $branchId],
+        );
+
+        $this->assertSame('approved', $purchaseReturn->fresh()->status);
+        $this->assertSame($transferId, (int) $purchaseReturn->fresh()->return_transfer_id);
+        $this->assertSame($branchWarehouseId, (int) $purchaseReturn->fresh()->warehouse_id);
+        $this->assertEquals(4, (float) DB::table('stock_layers')
+            ->where('warehouse_id', $branchWarehouseId)
+            ->where('product_variant_id', $branchVariantId)
+            ->where('source_type', 'stock_transfer')
+            ->where('source_id', $transferId)
+            ->sum('qty_remaining'));
+        $this->assertEquals(10, (float) DB::table('stock_layers')
+            ->where('warehouse_id', $ctx['warehouseId'])
+            ->where('product_variant_id', $ctx['trackedVariantId'])
+            ->sum('qty_remaining'));
+
+        tenancy()->end();
+    }
+
+    public function test_create_rejects_non_hq_warehouse_without_transfer(): void
     {
         $ctx = $this->seedContext();
         tenancy()->initialize($ctx['tenantId']);
@@ -544,9 +608,9 @@ class PurchaseReturnTest extends TestCase
                 $ctx['user']->name,
                 [$ctx['hqBranchId'], $branchBId]
             );
-            $this->fail('Expected ValidationException for non-HQ warehouse.');
+            $this->fail('Expected ValidationException for branch warehouse without transfer.');
         } catch (ValidationException $e) {
-            $this->assertArrayHasKey('warehouse_id', $e->errors());
+            $this->assertArrayHasKey('return_transfer_id', $e->errors());
         }
 
         tenancy()->end();
@@ -618,24 +682,43 @@ class PurchaseReturnTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        DB::table('stock_balances')
+        $balanceExists = DB::table('stock_balances')
             ->where('warehouse_id', $warehouseId)
             ->where('product_variant_id', $variantId)
-            ->increment('qty_on_hand', $qty);
+            ->exists();
+
+        if ($balanceExists) {
+            DB::table('stock_balances')
+                ->where('warehouse_id', $warehouseId)
+                ->where('product_variant_id', $variantId)
+                ->increment('qty_on_hand', $qty);
+        } else {
+            DB::table('stock_balances')->insert([
+                'warehouse_id' => $warehouseId,
+                'product_variant_id' => $variantId,
+                'qty_on_hand' => $qty,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     /**
      * @param  list<array{purchase_invoice_item_id: int, qty: float}>  $items
      * @param  array<string, mixed>  $overrides
      */
-    private function createReturn(array $ctx, array $items, array $overrides = []): PurchaseReturn
-    {
+    private function createReturn(
+        array $ctx,
+        array $items,
+        array $overrides = [],
+        array $branchIds = [],
+    ): PurchaseReturn {
         return app(CreatePurchaseReturn::class)->execute(
             $this->payload($ctx, $items, $overrides),
             'HQ',
             $ctx['user']->id,
             $ctx['user']->name,
-            [$ctx['hqBranchId']]
+            $branchIds ?: [$ctx['hqBranchId']],
         );
     }
 

@@ -8,12 +8,20 @@ import CompanyLayout from '@/layouts/company/company-layout';
 import { formatCurrency } from '@/lib/format';
 import { getLineTotals } from '@/lib/purchasing/calc';
 
-type WarehouseOption = { id: number; code: string; name: string };
+type WarehouseOption = {
+    id: number;
+    branch_id: number;
+    code: string;
+    name: string;
+    branch_name: string;
+};
 
 type TransferOption = {
     id: number;
     number: string;
     from_warehouse_name: string;
+    to_warehouse_id: number;
+    to_warehouse_name: string;
 };
 
 type PrefillItem = {
@@ -90,6 +98,10 @@ export default function PurchaseReturnsCreate({
         [prefillInvoice],
     );
 
+    const initialTransfer = transfers.find(
+        (transfer) => transfer.id === Number(selectedTransferId),
+    );
+
     const { data, setData, post, processing, errors } = useForm<{
         branch_id: number | string;
         supplier_id: number | string;
@@ -106,7 +118,8 @@ export default function PurchaseReturnsCreate({
         branch_id: hqBranchId ?? '',
         supplier_id: prefillInvoice?.invoice.supplier_id ?? '',
         purchase_invoice_id: prefillInvoice?.invoice.id ?? '',
-        warehouse_id: warehouses[0]?.id ?? '',
+        warehouse_id:
+            initialTransfer?.to_warehouse_id ?? warehouses[0]?.id ?? '',
         return_transfer_id: selectedTransferId ?? '',
         return_date: today,
         message: '',
@@ -128,6 +141,14 @@ export default function PurchaseReturnsCreate({
         () => availability[String(data.warehouse_id)] ?? {},
         [availability, data.warehouse_id],
     );
+
+    const selectedWarehouse = warehouses.find(
+        (warehouse) => warehouse.id === Number(data.warehouse_id),
+    );
+    const requiresTransfer =
+        hqBranchId !== null &&
+        selectedWarehouse !== undefined &&
+        selectedWarehouse.branch_id !== hqBranchId;
 
     const lines = useMemo(
         () =>
@@ -308,9 +329,23 @@ export default function PurchaseReturnsCreate({
                                             ? String(data.warehouse_id)
                                             : ''
                                     }
-                                    onChange={(val) =>
-                                        setData('warehouse_id', String(val))
-                                    }
+                                    onChange={(val) => {
+                                        const selectedTransfer = transfers.find(
+                                            (transfer) =>
+                                                String(transfer.id) ===
+                                                String(data.return_transfer_id),
+                                        );
+
+                                        setData((previous) => ({
+                                            ...previous,
+                                            warehouse_id: String(val),
+                                            return_transfer_id:
+                                                selectedTransfer?.to_warehouse_id ===
+                                                Number(val)
+                                                    ? previous.return_transfer_id
+                                                    : '',
+                                        }));
+                                    }}
                                 >
                                     <Select.Trigger className="mt-1">
                                         <Select.Value />
@@ -335,24 +370,44 @@ export default function PurchaseReturnsCreate({
                                         {errors.warehouse_id}
                                     </p>
                                 )}
+                                {requiresTransfer &&
+                                !data.return_transfer_id ? (
+                                    <p className="mt-1 text-xs text-warning-700 dark:text-warning-300">
+                                        Gudang branch wajib memiliki transfer
+                                        asal yang sudah diterima.
+                                    </p>
+                                ) : null}
                             </div>
                             <div className="md:col-span-2">
                                 <Label className="block text-xs font-semibold text-foreground">
-                                    Transfer retur dari cabang (opsional)
+                                    Transfer asal stok (opsional)
                                 </Label>
                                 <Select
                                     fullWidth
-                                    placeholder="Tanpa transfer — pakai stok HO"
+                                    placeholder="Tanpa transfer — pakai stok gudang terpilih"
                                     value={
                                         data.return_transfer_id
                                             ? String(data.return_transfer_id)
                                             : ''
                                     }
                                     onChange={(val) => {
-                                        setData(
-                                            'return_transfer_id',
-                                            val ? String(val) : '',
+                                        const selected = transfers.find(
+                                            (transfer) =>
+                                                String(transfer.id) ===
+                                                String(val),
                                         );
+
+                                        setData((previous) => ({
+                                            ...previous,
+                                            return_transfer_id: val
+                                                ? String(val)
+                                                : '',
+                                            warehouse_id: selected
+                                                ? String(
+                                                      selected.to_warehouse_id,
+                                                  )
+                                                : previous.warehouse_id,
+                                        }));
 
                                         const params = new URLSearchParams(
                                             window.location.search,
@@ -395,10 +450,11 @@ export default function PurchaseReturnsCreate({
                                                 <ListBox.Item
                                                     key={trf.id}
                                                     id={String(trf.id)}
-                                                    textValue={`${trf.number} — ${trf.from_warehouse_name}`}
+                                                    textValue={`${trf.number} — ${trf.from_warehouse_name} → ${trf.to_warehouse_name}`}
                                                 >
                                                     {trf.number} —{' '}
-                                                    {trf.from_warehouse_name}
+                                                    {trf.from_warehouse_name} →{' '}
+                                                    {trf.to_warehouse_name}
                                                 </ListBox.Item>
                                             ))}
                                         </ListBox>
@@ -411,7 +467,8 @@ export default function PurchaseReturnsCreate({
                                 )}
                                 <p className="mt-1 text-xs text-muted">
                                     Bila diisi, retur hanya memakai stok dari
-                                    transfer itu; stok HO lain diabaikan.
+                                    transfer yang diterima di gudang tujuan
+                                    tersebut; stok gudang lain diabaikan.
                                 </p>
                                 {transfersTruncated && (
                                     <p className="mt-1 text-xs text-danger">

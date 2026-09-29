@@ -89,9 +89,12 @@ class CreatePurchaseReturn
                 ]);
             }
 
-            if ($hqBranchId !== null && (int) $warehouse->branch_id !== $hqBranchId) {
+            $isHqWarehouse = $hqBranchId !== null
+                && (int) $warehouse->branch_id === (int) $hqBranchId;
+
+            if (! $isHqWarehouse && empty($data['return_transfer_id'])) {
                 throw ValidationException::withMessages([
-                    'warehouse_id' => 'Gudang retur harus milik Head Office.',
+                    'return_transfer_id' => 'Retur dari gudang cabang wajib memilih transfer asal stok.',
                 ]);
             }
 
@@ -236,7 +239,7 @@ class CreatePurchaseReturn
 
     /**
      * Transfer retur yang di-link (opsional). Memastikan transfer ada dalam
-     * scope cabang peminta, menuju gudang retur, dan sudah diterima HO;
+     * scope cabang peminta, menuju gudang retur, dan sudah diterima;
      * ketersediaan stoknya ditegakkan per baris via layer transfer itu.
      *
      * @param  list<int>  $branchIds
@@ -263,7 +266,7 @@ class CreatePurchaseReturn
 
         if ((string) $transfer->status !== 'received') {
             throw ValidationException::withMessages([
-                'return_transfer_id' => 'Transfer retur belum diterima HO sehingga belum bisa diretur.',
+                'return_transfer_id' => 'Transfer retur belum diterima sehingga belum bisa diretur.',
             ]);
         }
 

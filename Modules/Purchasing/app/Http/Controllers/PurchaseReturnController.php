@@ -55,7 +55,7 @@ class PurchaseReturnController extends Controller
             }
         }
 
-        $warehouses = $hqBranchId ? app(GetWarehouses::class)->optionsForReceipt($hqBranchId) : [];
+        $warehouses = app(GetWarehouses::class)->optionsForReturn($accessibleBranchIds);
         $selectedTransferId = request()->query('returnTransfer') ? (int) request()->query('returnTransfer') : null;
         $transferOptions = $this->transferOptions($accessibleBranchIds, $warehouses);
 
@@ -69,7 +69,7 @@ class PurchaseReturnController extends Controller
             'transfers' => $transferOptions['options'],
             'transfersTruncated' => $transferOptions['truncated'],
             'selectedTransferId' => $selectedTransferId,
-            'availability' => $this->availabilityMap($warehouses, $prefillInvoice, $hqBranchId, $selectedTransferId),
+            'availability' => $this->availabilityMap($warehouses, $prefillInvoice, $selectedTransferId),
         ]);
     }
 
@@ -154,14 +154,15 @@ class PurchaseReturnController extends Controller
     }
 
     /**
-     * Opsi transfer retur: transfer received yang masuk gudang HO.
+     * Opsi transfer retur: transfer received yang masuk gudang sumber
+     * yang accessible, termasuk gudang branch.
      *
-     * Satu query untuk semua gudang HO (bukan satu per gudang), dan batas
+     * Satu query untuk semua gudang tujuan (bukan satu per gudang), dan batas
      * eksplisit supaya dropdown tidak diam-diam memotong.
      *
      * @param  list<int>  $accessibleBranchIds
      * @param  list<array{id: int}>  $warehouses
-     * @return array{options: list<array{id: int, number: string, from_warehouse_name: string}>, truncated: bool}
+     * @return array{options: list<array{id: int, number: string, from_warehouse_name: string, to_warehouse_id: int, to_warehouse_name: string}>, truncated: bool}
      */
     private function transferOptions(array $accessibleBranchIds, array $warehouses): array
     {
@@ -182,6 +183,8 @@ class PurchaseReturnController extends Controller
             'id' => (int) $transfer->id,
             'number' => (string) ($transfer->number ?? ('#'.$transfer->id)),
             'from_warehouse_name' => (string) ($transfer->fromWarehouse?->name ?? ''),
+            'to_warehouse_id' => (int) $transfer->to_warehouse_id,
+            'to_warehouse_name' => (string) ($transfer->toWarehouse?->name ?? ''),
         ])->all();
 
         return [
@@ -195,11 +198,11 @@ class PurchaseReturnController extends Controller
      * bisa membatasi qty sebelum submit (validasi final tetap di backend).
      * Bila transfer dipilih, angka dibatasi layer transfer itu (provenance).
      *
-     * @param  list<array{id: int}>  $warehouses
+     * @param  list<array{id: int, branch_id: int}>  $warehouses
      * @param  array{items: list<array{product_variant_id: int}>}|null  $prefillInvoice
      * @return array<int, array<int, int>>
      */
-    private function availabilityMap(array $warehouses, ?array $prefillInvoice, ?int $hqBranchId, ?int $transferId): array
+    private function availabilityMap(array $warehouses, ?array $prefillInvoice, ?int $transferId): array
     {
         if ($prefillInvoice === null) {
             return [];
@@ -220,11 +223,15 @@ class PurchaseReturnController extends Controller
         foreach ($warehouses as $warehouse) {
             $warehouseId = (int) $warehouse['id'];
 
-            if ($transferId !== null && $hqBranchId !== null) {
+            if ($transferId !== null) {
                 $resolved = [];
 
                 foreach ($variantIds as $variantId) {
-                    $hit = app(ResolveReturnVariant::class)->execute($variantId, $hqBranchId, $transferId);
+                    $hit = app(ResolveReturnVariant::class)->execute(
+                        $variantId,
+                        (int) $warehouse['branch_id'],
+                        $transferId,
+                    );
                     $resolved[$variantId] = $hit ?? -1;
                 }
 

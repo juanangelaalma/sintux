@@ -117,6 +117,67 @@ class PurchaseReturnHttpTest extends TestCase
         $this->assertNotEmpty($transfers);
     }
 
+    public function test_new_includes_accessible_branch_warehouse_and_transfer_destination(): void
+    {
+        [$tenantId, $hqBranchId, $user] = $this->seedContext();
+
+        tenancy()->initialize($tenantId);
+        $branchId = DB::table('branches')->insertGetId([
+            'name' => 'AII Jakarta',
+            'code' => 'AII-'.uniqid(),
+            'is_headquarters' => false,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $branchWarehouseId = DB::table('warehouses')->insertGetId([
+            'branch_id' => $branchId,
+            'code' => 'WH-AII-'.uniqid(),
+            'name' => 'AII Regular',
+            'warehouse_type' => 'regular',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $transferId = DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => null,
+            'from_warehouse_id' => DB::table('warehouses')->where('branch_id', $hqBranchId)->value('id'),
+            'to_warehouse_id' => $branchWarehouseId,
+            'number' => 'TRF-HTTP-B-001',
+            'status' => 'received',
+            'created_by' => $user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        tenancy()->end();
+
+        $companyUserId = DB::table('company_users')
+            ->where('user_id', $user->id)
+            ->value('id');
+        DB::table('company_user_branches')->insert([
+            'company_user_id' => $companyUserId,
+            'branch_id' => $branchId,
+        ]);
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+
+        $response = $this->actingAs($user)->get(route('purchasing.returns.new', [
+            'createdFrom' => $this->invoiceId($tenantId),
+            'returnTransfer' => $transferId,
+        ]));
+
+        $response->assertOk();
+        $warehouse = collect($response->inertiaProps('warehouses'))
+            ->firstWhere('id', $branchWarehouseId);
+        $this->assertNotNull($warehouse);
+        $this->assertSame($branchId, (int) $warehouse['branch_id']);
+
+        $transfer = collect($response->inertiaProps('transfers'))
+            ->firstWhere('id', $transferId);
+        $this->assertNotNull($transfer);
+        $this->assertSame($branchWarehouseId, (int) $transfer['to_warehouse_id']);
+        $this->assertSame('AII Regular', $transfer['to_warehouse_name']);
+    }
+
     public function test_store_creates_return_with_attachment(): void
     {
         Storage::fake('local');
