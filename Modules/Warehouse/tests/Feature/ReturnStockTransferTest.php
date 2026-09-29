@@ -12,6 +12,7 @@ use Modules\Company\Models\CompanyUser;
 use Modules\Product\Application\Product\EnsureVariantForBranch;
 use Modules\Warehouse\Application\StockLayer\GetLayerLineage;
 use Modules\Warehouse\Application\StockTransfer\CreateReturnStockTransfer;
+use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
 use Modules\Warehouse\Application\StockTransfer\ReceiveStockTransfer;
 use Modules\Warehouse\Application\StockTransfer\ShipStockTransfer;
 use Tests\TestCase;
@@ -245,6 +246,10 @@ class ReturnStockTransferTest extends TestCase
         $this->assertSame('Modules\\Purchasing\\Models\\GoodsReceipt', (string) $rtrf->source_type);
         $this->assertSame(777, (int) $rtrf->source_id);
         $this->assertNotSame($outbound['transfer_id'], (int) $rtrf->source_id);
+        $this->assertSame($outbound['transfer_id'], (int) $rtrf->origin_transfer_id);
+
+        $detail = app(GetStockTransferDetail::class)->execute($outbound['transfer_id']);
+        $this->assertTrue($detail->returnTransfers->contains('id', $rtrf->id));
 
         tenancy()->end();
     }
@@ -443,6 +448,85 @@ class ReturnStockTransferTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('canReturn', false)
                 ->where('returnOptions', []));
+    }
+
+    public function test_return_transfer_rejects_mixed_purchase_stock(): void
+    {
+        $ctx = $this->seedContext();
+
+        tenancy()->initialize($ctx['tenantId']);
+
+        $outbound = $this->createReceivedOutbound($ctx);
+
+        // Transfer yang sama tercemar pembelian lain: asal tidak bisa eksak.
+        DB::table('stock_layers')->insert([
+            'product_variant_id' => $ctx['branchVariantId'],
+            'warehouse_id' => $ctx['branchWarehouseId'],
+            'qty_remaining' => 4,
+            'unit_cost' => 47500,
+            'received_at' => now(),
+            'source_type' => 'stock_transfer',
+            'source_id' => $outbound['transfer_id'],
+            'root_source_type' => 'purchase_order',
+            'root_source_id' => $ctx['poId'] + 1,
+            'parent_layer_id' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        try {
+            app(CreateReturnStockTransfer::class)->execute(
+                [
+                    'origin_transfer_id' => $outbound['transfer_id'],
+                    'items' => [
+                        ['stock_transfer_item_id' => $outbound['item_id'], 'qty' => 2],
+                    ],
+                ],
+                (int) $ctx['user']->id,
+                $ctx['user']->name,
+            );
+            $this->fail('Expected ValidationException for mixed purchase stock.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('items.0.qty', $e->errors());
+        }
+
+        $this->assertSame(1, DB::table('stock_transfers')->count());
+
+        tenancy()->end();
+    }
+
+    public function test_return_transfer_rejects_incomplete_purchase_lineage(): void
+    {
+        $ctx = $this->seedContext();
+
+        tenancy()->initialize($ctx['tenantId']);
+
+        $outbound = $this->createReceivedOutbound($ctx);
+        DB::table('stock_layers')
+            ->where('warehouse_id', $ctx['branchWarehouseId'])
+            ->where('source_type', 'stock_transfer')
+            ->where('source_id', $outbound['transfer_id'])
+            ->update(['root_source_type' => null, 'root_source_id' => null]);
+
+        try {
+            app(CreateReturnStockTransfer::class)->execute(
+                [
+                    'origin_transfer_id' => $outbound['transfer_id'],
+                    'items' => [
+                        ['stock_transfer_item_id' => $outbound['item_id'], 'qty' => 2],
+                    ],
+                ],
+                (int) $ctx['user']->id,
+                $ctx['user']->name,
+            );
+            $this->fail('Expected ValidationException for incomplete purchase lineage.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('items.0.qty', $e->errors());
+        }
+
+        $this->assertSame(1, DB::table('stock_transfers')->count());
+
+        tenancy()->end();
     }
 
     public function test_return_transfer_rejects_qty_above_returnable_stock(): void

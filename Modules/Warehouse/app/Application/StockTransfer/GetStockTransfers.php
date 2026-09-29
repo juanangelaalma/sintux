@@ -9,7 +9,7 @@ class GetStockTransfers
 {
     /**
      * @param  list<int>  $accessibleBranchIds
-     * @param  array{search?: string, status?: string, from_warehouse_id?: int, to_warehouse_id?: int, to_warehouse_ids?: list<int>}  $filters
+     * @param  array{search?: string, status?: string, from_warehouse_id?: int, to_warehouse_id?: int, to_warehouse_ids?: list<int>, is_return_transfer?: bool}  $filters
      */
     public function execute(array $accessibleBranchIds, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
@@ -39,6 +39,10 @@ class GetStockTransfers
 
         if (! empty($filters['to_warehouse_ids']) && is_array($filters['to_warehouse_ids'])) {
             $query->whereIn('to_warehouse_id', $filters['to_warehouse_ids']);
+        }
+
+        if (! empty($filters['is_return_transfer'])) {
+            $query->whereNotNull('origin_transfer_id');
         }
 
         if (! empty($filters['search'])) {

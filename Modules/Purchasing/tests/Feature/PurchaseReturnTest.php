@@ -13,10 +13,10 @@ use Modules\Approval\Application\CreateApprovalRule;
 use Modules\Approval\Models\ApprovalMapping;
 use Modules\Approval\Models\ApprovalTransactionType;
 use Modules\Company\Models\CompanyUser;
-use Modules\Product\Application\Product\EnsureVariantForBranch;
 use Modules\Purchasing\Application\PurchaseReturn\CreatePurchaseReturn;
 use Modules\Purchasing\Application\PurchaseReturn\GetReturnableItems;
 use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
+use Modules\Purchasing\Models\GoodsReceipt;
 use Modules\Purchasing\Models\PurchaseReturn;
 use Modules\Warehouse\Models\StockBalance;
 use Tests\TestCase;
@@ -269,7 +269,7 @@ class PurchaseReturnTest extends TestCase
 
         // Transfer cabang→HO dibuat tapi BELUM di-receive: ditolak eksplisit
         // di return_transfer_id meski HO punya 10 pcs produk sama.
-        $transferId = $this->createTransfer($ctx, 'shipped');
+        $transferId = $this->createReturnTransfer($ctx, 'shipped');
 
         try {
             $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
@@ -291,8 +291,8 @@ class PurchaseReturnTest extends TestCase
         tenancy()->initialize($ctx['tenantId']);
 
         // Layer transfer 6 @ 52000; stok reguler HO 10 @ 50000 tetap ada.
-        $transferId = $this->createTransfer($ctx, 'received');
-        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId);
+        $transferId = $this->createReturnTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $ctx['poId']);
 
         // Tanpa rule → auto-final: 4 pcs @ DO 50000 + PPN.
         $purchaseReturn = $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 4]], [
@@ -323,8 +323,8 @@ class PurchaseReturnTest extends TestCase
         tenancy()->initialize($ctx['tenantId']);
 
         // Transfer received tapi baru 3 pcs yang masuk (partial receive).
-        $transferId = $this->createTransfer($ctx, 'received');
-        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 3, 52000, $transferId);
+        $transferId = $this->createReturnTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 3, 52000, $transferId, $ctx['poId']);
 
         try {
             $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 5]], [
@@ -349,7 +349,7 @@ class PurchaseReturnTest extends TestCase
         $ctx = $this->seedContext();
         tenancy()->initialize($ctx['tenantId']);
 
-        $transferId = $this->createTransfer($ctx, 'received');
+        $transferId = $this->createReturnTransfer($ctx, 'received');
         $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId);
 
         // Baris untracked tanpa stok: lolos meski transfer tak memuatnya.
@@ -372,7 +372,7 @@ class PurchaseReturnTest extends TestCase
 
         // Transfer received tapi layer-nya untuk varian lain: varian faktur
         // tak punya padanan stok dari transfer ini → ditolak jelas.
-        $transferId = $this->createTransfer($ctx, 'received');
+        $transferId = $this->createReturnTransfer($ctx, 'received');
         $this->addTransferLayer($ctx['warehouseId'], $ctx['untrackedVariantId'], 4, 20000, $transferId);
 
         try {
@@ -389,22 +389,23 @@ class PurchaseReturnTest extends TestCase
         tenancy()->end();
     }
 
-    public function test_create_with_transfer_rejects_different_purchase_order(): void
+    public function test_create_with_transfer_rejects_different_goods_receipt(): void
     {
         $ctx = $this->seedContext();
         tenancy()->initialize($ctx['tenantId']);
 
-        // Faktur terikat PO; layer transfer berakar PO lain.
-        $poId = $this->createPurchaseOrder($ctx, 'PO-V-001');
-        DB::table('purchase_invoices')->where('id', $ctx['invoiceId'])->update(['purchase_order_id' => $poId]);
-        $transferId = $this->createTransfer($ctx, 'received');
-        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $poId + 1);
+        // RTRF berasal dari GRN lain dalam PO yang sama; PO sama tidak cukup.
+        $otherGrnId = $this->createGoodsReceipt($ctx, 'GRN-V-001');
+        $transferId = $this->createReturnTransfer($ctx, 'received', [
+            'goods_receipt_id' => $otherGrnId,
+        ]);
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $ctx['poId']);
 
         try {
             $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
                 'return_transfer_id' => $transferId,
             ]);
-            $this->fail('Expected ValidationException for different PO.');
+            $this->fail('Expected ValidationException for different goods receipt.');
         } catch (ValidationException $e) {
             $this->assertArrayHasKey('return_transfer_id', $e->errors());
         }
@@ -414,80 +415,177 @@ class PurchaseReturnTest extends TestCase
         tenancy()->end();
     }
 
-    public function test_create_with_transfer_accepts_same_purchase_order(): void
+    public function test_create_with_transfer_accepts_matching_goods_receipt(): void
     {
         $ctx = $this->seedContext();
         tenancy()->initialize($ctx['tenantId']);
 
-        $poId = $this->createPurchaseOrder($ctx, 'PO-V-002');
-        DB::table('purchase_invoices')->where('id', $ctx['invoiceId'])->update(['purchase_order_id' => $poId]);
-        $transferId = $this->createTransfer($ctx, 'received');
-        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $poId);
+        $transferId = $this->createReturnTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $ctx['poId']);
 
         $purchaseReturn = $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
             'return_transfer_id' => $transferId,
         ]);
 
         $this->assertSame('approved', $purchaseReturn->fresh()->status);
+        $this->assertSame($transferId, (int) $purchaseReturn->fresh()->return_transfer_id);
 
         tenancy()->end();
     }
 
-    public function test_create_with_transfer_skips_po_validation_when_lineage_legacy(): void
+    public function test_create_with_transfer_rejects_transfer_without_return_origin(): void
     {
         $ctx = $this->seedContext();
         tenancy()->initialize($ctx['tenantId']);
 
-        // Layer lama tanpa root (lineage kosong) → mode lunak: lolos.
-        $poId = $this->createPurchaseOrder($ctx, 'PO-V-003');
-        DB::table('purchase_invoices')->where('id', $ctx['invoiceId'])->update(['purchase_order_id' => $poId]);
-        $transferId = $this->createTransfer($ctx, 'received');
+        // Sumber cocok saja tidak cukup; transfer harus RTRF cabang.
+        $transferId = $this->createReturnTransfer($ctx, 'received');
+        DB::table('stock_transfers')->where('id', $transferId)->update([
+            'origin_transfer_id' => null,
+        ]);
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $ctx['poId']);
+
+        try {
+            $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
+                'return_transfer_id' => $transferId,
+            ]);
+            $this->fail('Expected ValidationException for transfer without return origin.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('return_transfer_id', $e->errors());
+        }
+
+        $this->assertSame(0, PurchaseReturn::query()->count());
+
+        tenancy()->end();
+    }
+
+    public function test_create_with_transfer_rejects_return_not_from_branch(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // RTRF harus berangkat dari cabang, bukan dari gudang HQ.
+        $transferId = $this->createReturnTransfer($ctx, 'received');
+        DB::table('stock_transfers')->where('id', $transferId)->update([
+            'from_warehouse_id' => $ctx['warehouseId'],
+        ]);
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $ctx['poId']);
+
+        try {
+            $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
+                'return_transfer_id' => $transferId,
+            ]);
+            $this->fail('Expected ValidationException for return not from branch.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('return_transfer_id', $e->errors());
+        }
+
+        $this->assertSame(0, PurchaseReturn::query()->count());
+
+        tenancy()->end();
+    }
+
+    public function test_create_with_transfer_rejects_physical_stock_from_other_purchase(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // Dokumen RTRF cocok, tetapi layer fisiknya berakar PO lain.
+        $transferId = $this->createReturnTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $ctx['poId'] + 1);
+
+        try {
+            $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
+                'return_transfer_id' => $transferId,
+            ]);
+            $this->fail('Expected ValidationException for physical stock from another purchase.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('return_transfer_id', $e->errors());
+        }
+
+        $this->assertSame(0, PurchaseReturn::query()->count());
+
+        tenancy()->end();
+    }
+
+    public function test_create_with_transfer_rejects_missing_receipt_source(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // RTRF tanpa sumber GRN tidak bisa dibuktikan asalnya.
+        $transferId = $this->createReturnTransfer($ctx, 'received');
+        DB::table('stock_transfers')->where('id', $transferId)->update([
+            'source_type' => null,
+            'source_id' => null,
+        ]);
         $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId);
 
-        $purchaseReturn = $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
-            'return_transfer_id' => $transferId,
-        ]);
+        try {
+            $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
+                'return_transfer_id' => $transferId,
+            ]);
+            $this->fail('Expected ValidationException for transfer without receipt source.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('return_transfer_id', $e->errors());
+        }
 
-        $this->assertSame('approved', $purchaseReturn->fresh()->status);
-
-        tenancy()->end();
-    }
-
-    public function test_create_with_transfer_skips_po_validation_when_invoice_has_no_po(): void
-    {
-        $ctx = $this->seedContext();
-        tenancy()->initialize($ctx['tenantId']);
-
-        // Faktur tanpa PO → tak bisa dibuktikan, lewati validasi.
-        $transferId = $this->createTransfer($ctx, 'received');
-        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, 999);
-        $purchaseReturn = $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
-            'return_transfer_id' => $transferId,
-        ]);
-
-        $this->assertSame('approved', $purchaseReturn->fresh()->status);
+        $this->assertSame(0, PurchaseReturn::query()->count());
 
         tenancy()->end();
     }
 
-    public function test_create_with_transfer_ignores_po_mismatch_for_untracked_lines(): void
+    public function test_create_with_transfer_rejects_invoice_without_receipt(): void
     {
         $ctx = $this->seedContext();
         tenancy()->initialize($ctx['tenantId']);
 
-        // Baris untracked tak punya lineage; PO beda tak boleh memblokir.
-        $poId = $this->createPurchaseOrder($ctx, 'PO-V-005');
-        DB::table('purchase_invoices')->where('id', $ctx['invoiceId'])->update(['purchase_order_id' => $poId]);
-        $transferId = $this->createTransfer($ctx, 'received');
-        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $poId + 1);
-
-        $purchaseReturn = $this->createReturn($ctx, [
-            ['purchase_invoice_item_id' => $ctx['untrackedItemId'], 'qty' => 5],
-        ], [
-            'return_transfer_id' => $transferId,
+        // Faktur tanpa GRN tidak bisa dipasangkan secara eksak ke RTRF.
+        DB::table('purchase_invoices')->where('id', $ctx['invoiceId'])->update([
+            'purchase_order_id' => null,
+            'goods_receipt_id' => null,
         ]);
+        $transferId = $this->createReturnTransfer($ctx, 'received');
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $ctx['poId']);
 
-        $this->assertSame('approved', $purchaseReturn->fresh()->status);
+        try {
+            $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]], [
+                'return_transfer_id' => $transferId,
+            ]);
+            $this->fail('Expected ValidationException for invoice without receipt.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('return_transfer_id', $e->errors());
+        }
+
+        $this->assertSame(0, PurchaseReturn::query()->count());
+
+        tenancy()->end();
+    }
+
+    public function test_create_with_transfer_rejects_receipt_mismatch_for_untracked_lines(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+
+        // RTRF yang salah tetap ditolak meski barisnya tidak memakai stok.
+        $otherGrnId = $this->createGoodsReceipt($ctx, 'GRN-V-005');
+        $transferId = $this->createReturnTransfer($ctx, 'received', [
+            'goods_receipt_id' => $otherGrnId,
+        ]);
+        $this->addTransferLayer($ctx['warehouseId'], $ctx['trackedVariantId'], 6, 52000, $transferId, $ctx['poId']);
+
+        try {
+            $this->createReturn($ctx, [
+                ['purchase_invoice_item_id' => $ctx['untrackedItemId'], 'qty' => 5],
+            ], [
+                'return_transfer_id' => $transferId,
+            ]);
+            $this->fail('Expected ValidationException for receipt mismatch.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('return_transfer_id', $e->errors());
+        }
+
+        $this->assertSame(0, PurchaseReturn::query()->count());
 
         tenancy()->end();
     }
@@ -497,7 +595,9 @@ class PurchaseReturnTest extends TestCase
         $ctx = $this->seedContext();
         tenancy()->initialize($ctx['tenantId']);
 
-        $transferId = $this->createTransfer($ctx, 'received', true);
+        $transferId = $this->createReturnTransfer($ctx, 'received', [
+            'other_branch_warehouse' => true,
+        ]);
 
         try {
             $this->createReturn($ctx, [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 1]], [
@@ -511,70 +611,7 @@ class PurchaseReturnTest extends TestCase
         tenancy()->end();
     }
 
-    public function test_create_from_branch_warehouse_consumes_existing_received_transfer_lineage(): void
-    {
-        $ctx = $this->seedContext();
-        tenancy()->initialize($ctx['tenantId']);
-
-        $branchId = DB::table('branches')->insertGetId([
-            'name' => 'Branch Return',
-            'code' => 'BRT_'.uniqid(),
-            'is_headquarters' => false,
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $branchWarehouseId = DB::table('warehouses')->insertGetId([
-            'branch_id' => $branchId,
-            'code' => 'WH-BRT-'.uniqid(),
-            'name' => 'Branch Return Warehouse',
-            'warehouse_type' => 'regular',
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $branchVariantId = app(EnsureVariantForBranch::class)
-            ->execute($ctx['trackedVariantId'], $branchId);
-        $transferId = DB::table('stock_transfers')->insertGetId([
-            'stock_request_id' => null,
-            'from_warehouse_id' => $ctx['warehouseId'],
-            'to_warehouse_id' => $branchWarehouseId,
-            'number' => 'TRF-'.uniqid(),
-            'status' => 'received',
-            'created_by' => $ctx['user']->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $this->addTransferLayer($branchWarehouseId, $branchVariantId, 6, 52000, $transferId);
-
-        $purchaseReturn = $this->createReturn(
-            $ctx,
-            [['purchase_invoice_item_id' => $ctx['trackedItemId'], 'qty' => 2]],
-            [
-                'warehouse_id' => $branchWarehouseId,
-                'return_transfer_id' => $transferId,
-            ],
-            [$ctx['hqBranchId'], $branchId],
-        );
-
-        $this->assertSame('approved', $purchaseReturn->fresh()->status);
-        $this->assertSame($transferId, (int) $purchaseReturn->fresh()->return_transfer_id);
-        $this->assertSame($branchWarehouseId, (int) $purchaseReturn->fresh()->warehouse_id);
-        $this->assertEquals(4, (float) DB::table('stock_layers')
-            ->where('warehouse_id', $branchWarehouseId)
-            ->where('product_variant_id', $branchVariantId)
-            ->where('source_type', 'stock_transfer')
-            ->where('source_id', $transferId)
-            ->sum('qty_remaining'));
-        $this->assertEquals(10, (float) DB::table('stock_layers')
-            ->where('warehouse_id', $ctx['warehouseId'])
-            ->where('product_variant_id', $ctx['trackedVariantId'])
-            ->sum('qty_remaining'));
-
-        tenancy()->end();
-    }
-
-    public function test_create_rejects_non_hq_warehouse_without_transfer(): void
+    public function test_create_rejects_non_hq_warehouse(): void
     {
         $ctx = $this->seedContext();
         tenancy()->initialize($ctx['tenantId']);
@@ -608,15 +645,18 @@ class PurchaseReturnTest extends TestCase
                 $ctx['user']->name,
                 [$ctx['hqBranchId'], $branchBId]
             );
-            $this->fail('Expected ValidationException for branch warehouse without transfer.');
+            $this->fail('Expected ValidationException for non-HQ warehouse.');
         } catch (ValidationException $e) {
-            $this->assertArrayHasKey('return_transfer_id', $e->errors());
+            $this->assertArrayHasKey('warehouse_id', $e->errors());
         }
 
         tenancy()->end();
     }
 
-    private function createTransfer(array $ctx, string $status, bool $otherWarehouse = false): int
+    /**
+     * @param  array{goods_receipt_id?: int, other_branch_warehouse?: bool}  $options
+     */
+    private function createReturnTransfer(array $ctx, string $status, array $options = []): int
     {
         $branchBId = DB::table('branches')->insertGetId([
             'name' => 'Branch TF',
@@ -637,30 +677,69 @@ class PurchaseReturnTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $goodsReceiptId = $options['goods_receipt_id'] ?? $ctx['grnId'];
+
+        $originId = DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => null,
+            'from_warehouse_id' => $ctx['warehouseId'],
+            'to_warehouse_id' => $branchWhId,
+            'number' => 'TRF-'.substr(uniqid(), -10),
+            'status' => 'received',
+            'source_type' => GoodsReceipt::class,
+            'source_id' => $goodsReceiptId,
+            'created_by' => $ctx['user']->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $toWarehouseId = $ctx['warehouseId'];
+
+        if (! empty($options['other_branch_warehouse'])) {
+            $otherBranchId = DB::table('branches')->insertGetId([
+                'name' => 'Other Branch TF',
+                'code' => 'BOTF_'.uniqid(),
+                'is_headquarters' => false,
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $toWarehouseId = DB::table('warehouses')->insertGetId([
+                'branch_id' => $otherBranchId,
+                'code' => 'WH-TF-OTH-'.uniqid(),
+                'name' => 'Other TF Warehouse',
+                'warehouse_type' => 'regular',
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
         return DB::table('stock_transfers')->insertGetId([
             'stock_request_id' => null,
+            'origin_transfer_id' => $originId,
             'from_warehouse_id' => $branchWhId,
-            'to_warehouse_id' => $otherWarehouse ? $branchWhId : $ctx['warehouseId'],
-            'number' => 'TRF/'.uniqid(),
+            'to_warehouse_id' => $toWarehouseId,
+            'number' => 'TRF-'.substr(uniqid(), -10),
             'status' => $status,
+            'source_type' => GoodsReceipt::class,
+            'source_id' => $goodsReceiptId,
             'created_by' => $ctx['user']->id,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
     }
 
-    private function createPurchaseOrder(array $ctx, string $number): int
+    private function createGoodsReceipt(array $ctx, string $number): int
     {
-        return DB::table('purchase_orders')->insertGetId([
+        return DB::table('goods_receipts')->insertGetId([
             'number' => $number,
             'branch_id' => $ctx['hqBranchId'],
             'supplier_id' => $ctx['supplierId'],
-            'status' => 'received',
-            'order_date' => '2026-09-01',
-            'currency_code' => 'IDR',
-            'subtotal' => 0,
-            'tax_amount' => 0,
-            'total' => 0,
+            'purchase_order_id' => $ctx['poId'],
+            'warehouse_id' => $ctx['warehouseId'],
+            'supplier_do_no' => 'DO-'.$number.'-'.uniqid(),
+            'status' => 'approved',
+            'receipt_date' => '2026-09-02',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -682,43 +761,24 @@ class PurchaseReturnTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $balanceExists = DB::table('stock_balances')
+        DB::table('stock_balances')
             ->where('warehouse_id', $warehouseId)
             ->where('product_variant_id', $variantId)
-            ->exists();
-
-        if ($balanceExists) {
-            DB::table('stock_balances')
-                ->where('warehouse_id', $warehouseId)
-                ->where('product_variant_id', $variantId)
-                ->increment('qty_on_hand', $qty);
-        } else {
-            DB::table('stock_balances')->insert([
-                'warehouse_id' => $warehouseId,
-                'product_variant_id' => $variantId,
-                'qty_on_hand' => $qty,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
+            ->increment('qty_on_hand', $qty);
     }
 
     /**
      * @param  list<array{purchase_invoice_item_id: int, qty: float}>  $items
      * @param  array<string, mixed>  $overrides
      */
-    private function createReturn(
-        array $ctx,
-        array $items,
-        array $overrides = [],
-        array $branchIds = [],
-    ): PurchaseReturn {
+    private function createReturn(array $ctx, array $items, array $overrides = []): PurchaseReturn
+    {
         return app(CreatePurchaseReturn::class)->execute(
             $this->payload($ctx, $items, $overrides),
             'HQ',
             $ctx['user']->id,
             $ctx['user']->name,
-            $branchIds ?: [$ctx['hqBranchId']],
+            [$ctx['hqBranchId']]
         );
     }
 
@@ -802,6 +862,33 @@ class PurchaseReturnTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $poId = DB::table('purchase_orders')->insertGetId([
+            'number' => 'PO-'.$id,
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'status' => 'received',
+            'order_date' => '2026-09-01',
+            'currency_code' => 'IDR',
+            'subtotal' => 0,
+            'tax_amount' => 0,
+            'total' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $grnId = DB::table('goods_receipts')->insertGetId([
+            'number' => 'GRN-'.$id,
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $poId,
+            'warehouse_id' => $warehouseId,
+            'supplier_do_no' => 'DO-'.$id,
+            'status' => 'approved',
+            'receipt_date' => '2026-09-02',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         $catId = DB::table('product_categories')->insertGetId([
             'name' => 'Category '.uniqid(),
             'is_active' => true,
@@ -870,6 +957,8 @@ class PurchaseReturnTest extends TestCase
             'number' => 'FBL/HQ/20260923/001/A',
             'branch_id' => $hqBranchId,
             'supplier_id' => $supplierId,
+            'purchase_order_id' => $poId,
+            'goods_receipt_id' => $grnId,
             'status' => PurchaseInvoiceStatus::Approved->value,
             'invoice_date' => '2026-09-23',
             'currency_code' => 'IDR',
@@ -961,6 +1050,8 @@ class PurchaseReturnTest extends TestCase
             'invoiceId' => (int) $invoiceId,
             'trackedItemId' => (int) $trackedItemId,
             'untrackedItemId' => (int) $untrackedItemId,
+            'poId' => (int) $poId,
+            'grnId' => (int) $grnId,
             'user' => $user,
             'approver' => $approver,
         ];

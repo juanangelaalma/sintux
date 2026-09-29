@@ -8,6 +8,7 @@ use Modules\Approval\Application\ApprovalEngine;
 use Modules\Product\Application\Variant\GetVariantForBranch;
 use Modules\Warehouse\Application\StockReservation\GetAvailableStock;
 use Modules\Warehouse\Enums\StockTransferStatus;
+use Modules\Warehouse\Models\StockLayer;
 use Modules\Warehouse\Models\StockTransfer;
 use Modules\Warehouse\Models\StockTransferItem;
 
@@ -93,6 +94,7 @@ class CreateReturnStockTransfer
         return DB::transaction(function () use ($origin, $lines, $fromWarehouseId, $toWarehouseId, $createdById, $createdByName) {
             $transfer = StockTransfer::create([
                 'stock_request_id' => null,
+                'origin_transfer_id' => $origin->id,
                 'from_warehouse_id' => $fromWarehouseId,
                 'to_warehouse_id' => $toWarehouseId,
                 'status' => StockTransferStatus::PendingApproval->value,
@@ -175,6 +177,30 @@ class CreateReturnStockTransfer
             }
 
             $variantId = (int) $resolvedVariant['variant_id'];
+
+            $roots = StockLayer::query()
+                ->where('warehouse_id', $fromWarehouseId)
+                ->where('source_type', 'stock_transfer')
+                ->where('source_id', $origin->id)
+                ->where('product_variant_id', $variantId)
+                ->where('qty_remaining', '>', 0)
+                ->selectRaw("COALESCE(root_source_type, '') as root_type, COALESCE(root_source_id, 0) as root_id")
+                ->distinct()
+                ->get()
+                ->map(fn ($row): string => $row->root_type.'#'.$row->root_id)
+                ->all();
+
+            if ($roots === [] || in_array('#0', $roots, true)) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.qty" => 'Asal pembelian stok ini tidak lengkap sehingga tidak bisa diretur secara eksak.',
+                ]);
+            }
+
+            if (count($roots) > 1) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.qty" => 'Transfer ini mengandung stok dari lebih dari satu pembelian sehingga tidak bisa diretur secara eksak.',
+                ]);
+            }
 
             $available = $this->availableStock->forItemsFromTransfer(
                 $fromWarehouseId,

@@ -8,13 +8,7 @@ import CompanyLayout from '@/layouts/company/company-layout';
 import { formatCurrency } from '@/lib/format';
 import { getLineTotals } from '@/lib/purchasing/calc';
 
-type WarehouseOption = {
-    id: number;
-    branch_id: number;
-    code: string;
-    name: string;
-    branch_name: string;
-};
+type WarehouseOption = { id: number; code: string; name: string };
 
 type TransferOption = {
     id: number;
@@ -141,14 +135,6 @@ export default function PurchaseReturnsCreate({
         () => availability[String(data.warehouse_id)] ?? {},
         [availability, data.warehouse_id],
     );
-
-    const selectedWarehouse = warehouses.find(
-        (warehouse) => warehouse.id === Number(data.warehouse_id),
-    );
-    const requiresTransfer =
-        hqBranchId !== null &&
-        selectedWarehouse !== undefined &&
-        selectedWarehouse.branch_id !== hqBranchId;
 
     const lines = useMemo(
         () =>
@@ -370,21 +356,14 @@ export default function PurchaseReturnsCreate({
                                         {errors.warehouse_id}
                                     </p>
                                 )}
-                                {requiresTransfer &&
-                                !data.return_transfer_id ? (
-                                    <p className="mt-1 text-xs text-warning-700 dark:text-warning-300">
-                                        Gudang branch wajib memiliki transfer
-                                        asal yang sudah diterima.
-                                    </p>
-                                ) : null}
                             </div>
                             <div className="md:col-span-2">
                                 <Label className="block text-xs font-semibold text-foreground">
-                                    Transfer asal stok (opsional)
+                                    Retur transfer cabang (opsional)
                                 </Label>
                                 <Select
                                     fullWidth
-                                    placeholder="Tanpa transfer — pakai stok gudang terpilih"
+                                    placeholder="Tanpa transfer — pakai stok HO"
                                     value={
                                         data.return_transfer_id
                                             ? String(data.return_transfer_id)
@@ -467,8 +446,7 @@ export default function PurchaseReturnsCreate({
                                 )}
                                 <p className="mt-1 text-xs text-muted">
                                     Bila diisi, retur hanya memakai stok dari
-                                    transfer yang diterima di gudang tujuan
-                                    tersebut; stok gudang lain diabaikan.
+                                    RTRF tersebut; stok HO lain diabaikan.
                                 </p>
                                 {transfersTruncated && (
                                     <p className="mt-1 text-xs text-danger">

@@ -13,6 +13,7 @@ class StockTransfer extends Model
     protected $fillable = [
         'number',
         'stock_request_id',
+        'origin_transfer_id',
         'from_warehouse_id',
         'to_warehouse_id',
         'status',
@@ -57,6 +58,7 @@ class StockTransfer extends Model
     {
         return [
             'stock_request_id' => 'integer',
+            'origin_transfer_id' => 'integer',
             'from_warehouse_id' => 'integer',
             'to_warehouse_id' => 'integer',
             'created_by' => 'integer',
@@ -72,6 +74,16 @@ class StockTransfer extends Model
     public function stockRequest(): BelongsTo
     {
         return $this->belongsTo(StockRequest::class, 'stock_request_id');
+    }
+
+    public function originTransfer(): BelongsTo
+    {
+        return $this->belongsTo(StockTransfer::class, 'origin_transfer_id');
+    }
+
+    public function returnTransfers(): HasMany
+    {
+        return $this->hasMany(StockTransfer::class, 'origin_transfer_id');
     }
 
     public function fromWarehouse(): BelongsTo

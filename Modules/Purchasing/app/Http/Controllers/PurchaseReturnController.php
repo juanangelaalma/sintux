@@ -55,7 +55,7 @@ class PurchaseReturnController extends Controller
             }
         }
 
-        $warehouses = app(GetWarehouses::class)->optionsForReturn($accessibleBranchIds);
+        $warehouses = $hqBranchId ? app(GetWarehouses::class)->optionsForReceipt($hqBranchId) : [];
         $selectedTransferId = request()->query('returnTransfer') ? (int) request()->query('returnTransfer') : null;
         $transferOptions = $this->transferOptions($accessibleBranchIds, $warehouses);
 
@@ -69,7 +69,7 @@ class PurchaseReturnController extends Controller
             'transfers' => $transferOptions['options'],
             'transfersTruncated' => $transferOptions['truncated'],
             'selectedTransferId' => $selectedTransferId,
-            'availability' => $this->availabilityMap($warehouses, $prefillInvoice, $selectedTransferId),
+            'availability' => $this->availabilityMap($warehouses, $prefillInvoice, $hqBranchId, $selectedTransferId),
         ]);
     }
 
@@ -154,10 +154,9 @@ class PurchaseReturnController extends Controller
     }
 
     /**
-     * Opsi transfer retur: transfer received yang masuk gudang sumber
-     * yang accessible, termasuk gudang branch.
+     * Opsi RTRF: retur transfer cabang yang sudah diterima di gudang HO.
      *
-     * Satu query untuk semua gudang tujuan (bukan satu per gudang), dan batas
+     * Satu query untuk semua gudang HO (bukan satu per gudang), dan batas
      * eksplisit supaya dropdown tidak diam-diam memotong.
      *
      * @param  list<int>  $accessibleBranchIds
@@ -175,7 +174,7 @@ class PurchaseReturnController extends Controller
         $limit = 200;
         $page = app(GetStockTransfers::class)->execute(
             $accessibleBranchIds,
-            ['status' => 'received', 'to_warehouse_ids' => $warehouseIds],
+            ['status' => 'received', 'to_warehouse_ids' => $warehouseIds, 'is_return_transfer' => true],
             $limit
         );
 
@@ -198,11 +197,11 @@ class PurchaseReturnController extends Controller
      * bisa membatasi qty sebelum submit (validasi final tetap di backend).
      * Bila transfer dipilih, angka dibatasi layer transfer itu (provenance).
      *
-     * @param  list<array{id: int, branch_id: int}>  $warehouses
+     * @param  list<array{id: int}>  $warehouses
      * @param  array{items: list<array{product_variant_id: int}>}|null  $prefillInvoice
      * @return array<int, array<int, int>>
      */
-    private function availabilityMap(array $warehouses, ?array $prefillInvoice, ?int $transferId): array
+    private function availabilityMap(array $warehouses, ?array $prefillInvoice, ?int $hqBranchId, ?int $transferId): array
     {
         if ($prefillInvoice === null) {
             return [];
@@ -223,15 +222,11 @@ class PurchaseReturnController extends Controller
         foreach ($warehouses as $warehouse) {
             $warehouseId = (int) $warehouse['id'];
 
-            if ($transferId !== null) {
+            if ($transferId !== null && $hqBranchId !== null) {
                 $resolved = [];
 
                 foreach ($variantIds as $variantId) {
-                    $hit = app(ResolveReturnVariant::class)->execute(
-                        $variantId,
-                        (int) $warehouse['branch_id'],
-                        $transferId,
-                    );
+                    $hit = app(ResolveReturnVariant::class)->execute($variantId, $hqBranchId, $transferId);
                     $resolved[$variantId] = $hit ?? -1;
                 }
 

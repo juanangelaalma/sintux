@@ -49,6 +49,8 @@ class GetStockTransferDetail
             'items.productVariant.product.uom',
             'items.layers.stockLayer.warehouse',
             'items.discrepancies',
+            'originTransfer:id,number,status,from_warehouse_id,to_warehouse_id',
+            'returnTransfers:id,origin_transfer_id,number,status,from_warehouse_id,to_warehouse_id',
         ]);
     }
 

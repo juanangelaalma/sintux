@@ -82,11 +82,36 @@ class PurchaseReturnHttpTest extends TestCase
         session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
 
         tenancy()->initialize($tenantId);
-        $transferId = DB::table('stock_transfers')->insertGetId([
+        $originId = DB::table('stock_transfers')->insertGetId([
             'stock_request_id' => null,
             'from_warehouse_id' => $ids['warehouseId'],
             'to_warehouse_id' => $ids['warehouseId'],
+            'number' => 'TRF-HTTP-000',
+            'status' => 'received',
+            'source_type' => 'Modules\\Purchasing\\Models\\GoodsReceipt',
+            'source_id' => 1,
+            'created_by' => $user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $transferId = DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => null,
+            'origin_transfer_id' => $originId,
+            'from_warehouse_id' => $ids['warehouseId'],
+            'to_warehouse_id' => $ids['warehouseId'],
             'number' => 'TRF-HTTP-001',
+            'status' => 'received',
+            'source_type' => 'Modules\\Purchasing\\Models\\GoodsReceipt',
+            'source_id' => 1,
+            'created_by' => $user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $genericTransferId = DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => null,
+            'from_warehouse_id' => $ids['warehouseId'],
+            'to_warehouse_id' => $ids['warehouseId'],
+            'number' => 'TRF-HTTP-002',
             'status' => 'received',
             'created_by' => $user->id,
             'created_at' => now(),
@@ -113,18 +138,23 @@ class PurchaseReturnHttpTest extends TestCase
         $response->assertOk();
         $availability = $response->inertiaProps('availability');
         $this->assertSame(3, (int) $availability[$ids['warehouseId']][$ids['variantId']]);
-        $transfers = $response->inertiaProps('transfers');
-        $this->assertNotEmpty($transfers);
+        $transfers = collect($response->inertiaProps('transfers'));
+        $selected = $transfers->firstWhere('id', $transferId);
+        $this->assertNotNull($selected);
+        $this->assertSame($ids['warehouseId'], (int) $selected['to_warehouse_id']);
+        $this->assertNull($transfers->firstWhere('id', $genericTransferId));
     }
 
-    public function test_new_includes_accessible_branch_warehouse_and_transfer_destination(): void
+    public function test_store_accepts_return_linked_to_matching_return_transfer(): void
     {
         [$tenantId, $hqBranchId, $user] = $this->seedContext();
+        $ids = $this->ids($tenantId);
+        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
 
         tenancy()->initialize($tenantId);
         $branchId = DB::table('branches')->insertGetId([
-            'name' => 'AII Jakarta',
-            'code' => 'AII-'.uniqid(),
+            'name' => 'Return Branch',
+            'code' => 'RB-'.uniqid(),
             'is_headquarters' => false,
             'is_active' => true,
             'created_at' => now(),
@@ -132,50 +162,86 @@ class PurchaseReturnHttpTest extends TestCase
         ]);
         $branchWarehouseId = DB::table('warehouses')->insertGetId([
             'branch_id' => $branchId,
-            'code' => 'WH-AII-'.uniqid(),
-            'name' => 'AII Regular',
+            'code' => 'WH-RB-'.uniqid(),
+            'name' => 'Return Branch Warehouse',
             'warehouse_type' => 'regular',
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        $transferId = DB::table('stock_transfers')->insertGetId([
-            'stock_request_id' => null,
-            'from_warehouse_id' => DB::table('warehouses')->where('branch_id', $hqBranchId)->value('id'),
-            'to_warehouse_id' => $branchWarehouseId,
-            'number' => 'TRF-HTTP-B-001',
+        $poId = DB::table('purchase_orders')->insertGetId([
+            'number' => 'PO-HTTP-RTRF',
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $ids['supplierId'],
             'status' => 'received',
+            'order_date' => '2026-09-01',
+            'currency_code' => 'IDR',
+            'subtotal' => 0,
+            'tax_amount' => 0,
+            'total' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $grnId = DB::table('goods_receipts')->insertGetId([
+            'number' => 'GRN-HTTP-RTRF',
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $ids['supplierId'],
+            'purchase_order_id' => $poId,
+            'warehouse_id' => $ids['warehouseId'],
+            'supplier_do_no' => 'DO-HTTP-RTRF-'.uniqid(),
+            'status' => 'approved',
+            'receipt_date' => '2026-09-02',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('purchase_invoices')->where('id', $ids['invoiceId'])->update([
+            'purchase_order_id' => $poId,
+            'goods_receipt_id' => $grnId,
+        ]);
+        $originId = DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => null,
+            'from_warehouse_id' => $ids['warehouseId'],
+            'to_warehouse_id' => $branchWarehouseId,
+            'number' => 'TRF-HTTP-RTRF-O',
+            'status' => 'received',
+            'source_type' => 'Modules\\Purchasing\\Models\\GoodsReceipt',
+            'source_id' => $grnId,
+            'created_by' => $user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $rtrfId = DB::table('stock_transfers')->insertGetId([
+            'stock_request_id' => null,
+            'origin_transfer_id' => $originId,
+            'from_warehouse_id' => $branchWarehouseId,
+            'to_warehouse_id' => $ids['warehouseId'],
+            'number' => 'TRF-HTTP-RTRF',
+            'status' => 'received',
+            'source_type' => 'Modules\\Purchasing\\Models\\GoodsReceipt',
+            'source_id' => $grnId,
             'created_by' => $user->id,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
         tenancy()->end();
 
-        $companyUserId = DB::table('company_users')
-            ->where('user_id', $user->id)
-            ->value('id');
-        DB::table('company_user_branches')->insert([
-            'company_user_id' => $companyUserId,
-            'branch_id' => $branchId,
-        ]);
-        session(['active_tenant_id' => $tenantId, 'active_branch_id' => $hqBranchId]);
+        $this->actingAs($user)->post(route('purchasing.returns.store'), [
+            'branch_id' => $hqBranchId,
+            'supplier_id' => $ids['supplierId'],
+            'purchase_invoice_id' => $ids['invoiceId'],
+            'warehouse_id' => $ids['warehouseId'],
+            'return_transfer_id' => $rtrfId,
+            'return_date' => '2026-09-23',
+            'items' => [
+                ['purchase_invoice_item_id' => $ids['itemId'], 'qty' => 2],
+            ],
+        ])->assertRedirect();
 
-        $response = $this->actingAs($user)->get(route('purchasing.returns.new', [
-            'createdFrom' => $this->invoiceId($tenantId),
-            'returnTransfer' => $transferId,
-        ]));
-
-        $response->assertOk();
-        $warehouse = collect($response->inertiaProps('warehouses'))
-            ->firstWhere('id', $branchWarehouseId);
-        $this->assertNotNull($warehouse);
-        $this->assertSame($branchId, (int) $warehouse['branch_id']);
-
-        $transfer = collect($response->inertiaProps('transfers'))
-            ->firstWhere('id', $transferId);
-        $this->assertNotNull($transfer);
-        $this->assertSame($branchWarehouseId, (int) $transfer['to_warehouse_id']);
-        $this->assertSame('AII Regular', $transfer['to_warehouse_name']);
+        tenancy()->initialize($tenantId);
+        $purchaseReturn = DB::table('purchase_returns')->orderByDesc('id')->first();
+        $this->assertSame($rtrfId, (int) $purchaseReturn->return_transfer_id);
+        $this->assertSame('approved', $purchaseReturn->status);
+        tenancy()->end();
     }
 
     public function test_store_creates_return_with_attachment(): void

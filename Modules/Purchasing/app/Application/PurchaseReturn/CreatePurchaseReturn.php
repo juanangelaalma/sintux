@@ -13,6 +13,7 @@ use Modules\Product\Application\Variant\GetPurchaseVariants;
 use Modules\Product\Application\Variant\GetVariantReturnProfile;
 use Modules\Purchasing\Enums\PurchaseInvoiceStatus;
 use Modules\Purchasing\Enums\PurchaseReturnStatus;
+use Modules\Purchasing\Models\GoodsReceipt;
 use Modules\Purchasing\Models\PurchaseInvoice;
 use Modules\Purchasing\Models\PurchaseInvoiceItem;
 use Modules\Purchasing\Models\PurchaseReturn;
@@ -20,6 +21,7 @@ use Modules\Warehouse\Application\StockLayer\GetLayerLineage;
 use Modules\Warehouse\Application\StockReservation\GetAvailableStock;
 use Modules\Warehouse\Application\StockTransfer\GetStockTransferDetail;
 use Modules\Warehouse\Application\Warehouse\GetWarehouse;
+use Modules\Warehouse\Models\StockTransfer;
 
 class CreatePurchaseReturn
 {
@@ -89,21 +91,19 @@ class CreatePurchaseReturn
                 ]);
             }
 
-            $isHqWarehouse = $hqBranchId !== null
-                && (int) $warehouse->branch_id === (int) $hqBranchId;
-
-            if (! $isHqWarehouse && empty($data['return_transfer_id'])) {
+            if ($hqBranchId !== null && (int) $warehouse->branch_id !== $hqBranchId) {
                 throw ValidationException::withMessages([
-                    'return_transfer_id' => 'Retur dari gudang cabang wajib memilih transfer asal stok.',
+                    'warehouse_id' => 'Gudang retur harus milik Head Office.',
                 ]);
             }
 
             $returnDate = $this->parseReturnDate($data['return_date'] ?? null);
-            $transferId = $this->resolveTransfer(
+            $transfer = $this->resolveTransfer(
                 $data['return_transfer_id'] ?? null,
                 (int) $warehouse->id,
                 $branchIds ?? [(int) $data['branch_id']]
             );
+            $transferId = $transfer?->id;
 
             $invoiceItems = PurchaseInvoiceItem::where('purchase_invoice_id', $invoice->id)
                 ->lockForUpdate()
@@ -127,8 +127,13 @@ class CreatePurchaseReturn
 
             $this->validateTags($data['tag_ids'] ?? []);
 
-            if ($transferId !== null) {
-                $this->validateTransferMatchesInvoicePurchaseOrder($invoice, $lines, (int) $warehouse->id, $transferId);
+            if ($transfer !== null) {
+                $this->validateTransferMatchesInvoiceReceipt(
+                    $invoice,
+                    $transfer,
+                    $lines,
+                    (int) $warehouse->id,
+                );
             }
 
             $number = $this->nextNumber($invoice);
@@ -193,24 +198,47 @@ class CreatePurchaseReturn
     }
 
     /**
-     * Provenance lunak: bila faktur punya PO dan layer transfer punya root
-     * PO yang terbukti berbeda, tolak retur. Bila root tak diketahui (data
-     * lama) atau faktur tanpa PO, lewati — jangan blokir data lama.
-     *
+     * Provenance eksak: transfer retur harus merupakan RTRF dari penerimaan
+     * barang yang sama dengan faktur yang dipilih. GRN bersifat 1:1 dengan
+     * faktur, sehingga pemeriksaan ini lebih tepat daripada memakai PO.
+     */
+    /**
      * @param  list<array<string, mixed>>  $lines
      */
-    private function validateTransferMatchesInvoicePurchaseOrder(
+    private function validateTransferMatchesInvoiceReceipt(
         PurchaseInvoice $invoice,
+        StockTransfer $transfer,
         array $lines,
         int $warehouseId,
-        int $transferId
     ): void {
-        $invoicePoId = $invoice->purchase_order_id !== null
-            ? (int) $invoice->purchase_order_id
+        $invoiceReceiptId = $invoice->goods_receipt_id !== null
+            ? (int) $invoice->goods_receipt_id
             : null;
 
-        if ($invoicePoId === null) {
-            return;
+        if ($invoiceReceiptId === null) {
+            throw ValidationException::withMessages([
+                'return_transfer_id' => 'Faktur ini tidak memiliki penerimaan barang sehingga tidak bisa dipasangkan ke transfer retur.',
+            ]);
+        }
+
+        if ($transfer->origin_transfer_id === null) {
+            throw ValidationException::withMessages([
+                'return_transfer_id' => 'Transfer ini bukan retur transfer cabang yang sah.',
+            ]);
+        }
+
+        if ((bool) $transfer->fromWarehouse?->branch?->is_headquarters) {
+            throw ValidationException::withMessages([
+                'return_transfer_id' => 'Transfer ini bukan retur transfer dari cabang.',
+            ]);
+        }
+
+        if ($transfer->source_type !== GoodsReceipt::class
+            || (int) $transfer->source_id !== $invoiceReceiptId
+        ) {
+            throw ValidationException::withMessages([
+                'return_transfer_id' => 'Transfer retur ini berasal dari penerimaan barang lain, bukan faktur yang dipilih.',
+            ]);
         }
 
         $stockVariantIds = array_values(array_unique(array_filter(array_map(
@@ -224,15 +252,18 @@ class CreatePurchaseReturn
             return;
         }
 
+        $invoicePoId = $invoice->purchase_order_id !== null
+            ? (int) $invoice->purchase_order_id
+            : null;
         $transferPoId = $this->layerLineage->rootPurchaseOrderIdForTransfer(
             $warehouseId,
-            $transferId,
+            (int) $transfer->id,
             $stockVariantIds
         );
 
-        if ($transferPoId !== null && $transferPoId !== $invoicePoId) {
+        if ($invoicePoId === null || $transferPoId === null || $transferPoId !== $invoicePoId) {
             throw ValidationException::withMessages([
-                'return_transfer_id' => 'Transfer retur berasal dari PO berbeda dengan PO faktur sumber.',
+                'return_transfer_id' => 'Stok transfer ini tidak terbukti berasal dari pembelian pada faktur yang dipilih.',
             ]);
         }
     }
@@ -244,7 +275,7 @@ class CreatePurchaseReturn
      *
      * @param  list<int>  $branchIds
      */
-    private function resolveTransfer(mixed $value, int $warehouseId, array $branchIds): ?int
+    private function resolveTransfer(mixed $value, int $warehouseId, array $branchIds): ?StockTransfer
     {
         if (empty($value)) {
             return null;
@@ -270,7 +301,7 @@ class CreatePurchaseReturn
             ]);
         }
 
-        return (int) $transfer->id;
+        return $transfer;
     }
 
     private function parseReturnDate(mixed $value): string
