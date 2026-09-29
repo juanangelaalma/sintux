@@ -55,6 +55,12 @@ class StoreReturnStockTransferRequest extends FormRequest
                 return;
             }
 
+            if ($origin->source_type === null || $origin->source_id === null) {
+                $fail('Transfer asal tidak memiliki sumber pembelian yang bisa dilacak.');
+
+                return;
+            }
+
             $returnSourceBranchId = (int) ($origin->toWarehouse?->branch_id ?? 0);
 
             if (! in_array($returnSourceBranchId, $branchIds, true)) {

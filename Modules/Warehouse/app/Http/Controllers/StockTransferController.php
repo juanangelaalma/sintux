@@ -104,6 +104,8 @@ class StockTransferController extends Controller
         $canReturn = $stockTransfer->status === StockTransferStatus::Received->value
             && (bool) $stockTransfer->fromWarehouse?->branch?->is_headquarters
             && ! (bool) $stockTransfer->toWarehouse?->branch?->is_headquarters
+            && $stockTransfer->source_type !== null
+            && $stockTransfer->source_id !== null
             && $user
             && $user->can('warehouse.stock.transfer')
             && $this->returnIsWithinBranchScope($user, $tenantId, (int) $stockTransfer->to_warehouse_id);

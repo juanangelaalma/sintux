@@ -77,6 +77,12 @@ class CreateReturnStockTransfer
             ]);
         }
 
+        if ($origin->source_type === null || $origin->source_id === null) {
+            throw ValidationException::withMessages([
+                'origin_transfer_id' => 'Transfer asal tidak memiliki sumber pembelian yang bisa dilacak.',
+            ]);
+        }
+
         // Cabang mengembalikan ke gudang asal transfer outbound.
         $fromWarehouseId = (int) $origin->to_warehouse_id;
         $toWarehouseId = (int) $origin->from_warehouse_id;

@@ -390,6 +390,61 @@ class ReturnStockTransferTest extends TestCase
         tenancy()->end();
     }
 
+    public function test_return_transfer_rejects_origin_without_purchase_source(): void
+    {
+        $ctx = $this->seedContext();
+
+        tenancy()->initialize($ctx['tenantId']);
+
+        $outbound = $this->createReceivedOutbound($ctx);
+        DB::table('stock_transfers')
+            ->where('id', $outbound['transfer_id'])
+            ->update(['source_type' => null, 'source_id' => null]);
+
+        try {
+            app(CreateReturnStockTransfer::class)->execute(
+                [
+                    'origin_transfer_id' => $outbound['transfer_id'],
+                    'items' => [
+                        ['stock_transfer_item_id' => $outbound['item_id'], 'qty' => 1],
+                    ],
+                ],
+                (int) $ctx['user']->id,
+                $ctx['user']->name,
+            );
+            $this->fail('Expected ValidationException for origin without purchase source.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('origin_transfer_id', $e->errors());
+        }
+
+        $this->assertSame(1, DB::table('stock_transfers')->count());
+
+        tenancy()->end();
+    }
+
+    public function test_return_button_is_hidden_without_purchase_source(): void
+    {
+        $ctx = $this->seedContext();
+        tenancy()->initialize($ctx['tenantId']);
+        $outboundId = $this->seedReceivedOutbound($ctx);
+        DB::table('stock_transfers')
+            ->where('id', $outboundId)
+            ->update(['source_type' => null, 'source_id' => null]);
+        tenancy()->end();
+
+        session([
+            'active_tenant_id' => $ctx['tenantId'],
+            'active_branch_id' => $ctx['branchId'],
+        ]);
+
+        $this->actingAs($ctx['user'])
+            ->get(route('warehouse.stock-transfers.show', $outboundId))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('canReturn', false)
+                ->where('returnOptions', []));
+    }
+
     public function test_return_transfer_rejects_qty_above_returnable_stock(): void
     {
         $ctx = $this->seedContext();
