@@ -10,6 +10,7 @@ use Modules\Approval\Application\GetTransactionApprovalStatus;
 use Modules\Company\Application\CompanyAccess;
 use Modules\Product\Application\Variant\GetVariantForBranch;
 use Modules\Product\Models\ProductVariant;
+use Modules\Purchasing\Application\PurchaseInvoice\GetInvoiceForGoodsReceipt;
 use Modules\Warehouse\Application\StockReservation\GetAvailableStock;
 use Modules\Warehouse\Application\StockTransfer\ApproveDirectTransfer;
 use Modules\Warehouse\Application\StockTransfer\CreateDirectTransfer;
@@ -117,8 +118,80 @@ class StockTransferController extends Controller
             'returnOptions' => $canReturn
                 ? $this->returnOptions($stockTransfer)['options']
                 : [],
+            'purchaseLineage' => $this->purchaseLineage($stockTransfer),
             'approval' => $approval,
         ]);
+    }
+
+    /**
+     * Asal pembelian per item: layer asal yang dikonsumsi saat ship,
+     * ditambah faktur (FBL) bila transfer membawa referensi GRN.
+     *
+     * Resolusi GRN -> FBL lewat API publik Purchasing
+     * (GetInvoiceForGoodsReceipt); Warehouse tidak membaca tabel
+     * Purchasing langsung. Suffix 'GoodsReceipt' mengikuti konvensi
+     * yang sudah dipakai halaman ini untuk link GRN.
+     *
+     * @return array{
+     *     invoice: array{id: int, number: string, status: string}|null,
+     *     items: list<array{
+     *         stock_transfer_item_id: int,
+     *         origins: list<array{
+     *             layer_id: int,
+     *             warehouse_name: string,
+     *             qty_taken: float,
+     *             unit_cost: float,
+     *             root_source_type: string|null,
+     *             root_source_id: int|null
+     *         }>
+     *     }>
+     * }
+     */
+    private function purchaseLineage(StockTransfer $transfer): array
+    {
+        $invoice = null;
+
+        if (is_string($transfer->source_type)
+            && str_ends_with($transfer->source_type, 'GoodsReceipt')
+            && $transfer->source_id !== null
+        ) {
+            $invoice = app(GetInvoiceForGoodsReceipt::class)
+                ->execute((int) $transfer->source_id);
+        }
+
+        $items = [];
+
+        foreach ($transfer->items ?? [] as $item) {
+            $origins = [];
+
+            foreach ($item->layers ?? [] as $breakdown) {
+                $layer = $breakdown->stockLayer;
+
+                if (! $layer) {
+                    continue;
+                }
+
+                $origins[] = [
+                    'layer_id' => (int) $layer->id,
+                    'warehouse_name' => (string) ($layer->warehouse?->name ?? ''),
+                    'qty_taken' => (float) $breakdown->qty_taken,
+                    'unit_cost' => (float) $breakdown->unit_cost,
+                    'root_source_type' => $layer->root_source_type !== null
+                        ? (string) $layer->root_source_type
+                        : null,
+                    'root_source_id' => $layer->root_source_id !== null
+                        ? (int) $layer->root_source_id
+                        : null,
+                ];
+            }
+
+            $items[] = [
+                'stock_transfer_item_id' => (int) $item->id,
+                'origins' => $origins,
+            ];
+        }
+
+        return ['invoice' => $invoice, 'items' => $items];
     }
 
     /**

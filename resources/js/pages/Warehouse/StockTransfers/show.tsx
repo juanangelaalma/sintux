@@ -7,13 +7,19 @@ import Button from '@/components/ui/button';
 import Modal from '@/components/ui/modal';
 import PageHeader from '@/components/ui/page-header';
 import CompanyLayout from '@/layouts/company/company-layout';
-import type { ReturnOption, StockTransfer, StockTransferItem } from './types';
+import type {
+    PurchaseLineage,
+    ReturnOption,
+    StockTransfer,
+    StockTransferItem,
+} from './types';
 
 type Props = {
     stockTransfer: StockTransfer;
     canApprove?: boolean;
     canReturn?: boolean;
     returnOptions?: ReturnOption[];
+    purchaseLineage?: PurchaseLineage | null;
     approval?: TransferApprovalStatus | null;
 };
 
@@ -32,6 +38,7 @@ export default function StockTransferShow({
     canApprove = false,
     canReturn = false,
     returnOptions = [],
+    purchaseLineage = null,
     approval = null,
 }: Props) {
     const { errors } = usePage().props;
@@ -508,6 +515,106 @@ export default function StockTransferShow({
                         ))}
                     </div>
                 </div>
+
+                {/* Asal Pembelian (Lineage) */}
+                {purchaseLineage && (
+                    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h3 className="text-base font-bold text-slate-900">
+                            Asal Pembelian
+                        </h3>
+                        {purchaseLineage.invoice ? (
+                            <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-sm">
+                                <div>
+                                    <span className="font-semibold text-emerald-900">
+                                        {purchaseLineage.invoice.number}
+                                    </span>{' '}
+                                    <span className="text-xs text-emerald-700">
+                                        ({purchaseLineage.invoice.status})
+                                    </span>
+                                </div>
+                                <Link
+                                    href={`/purchasing/invoices/${purchaseLineage.invoice.id}`}
+                                    className="text-xs font-semibold text-indigo-600 hover:underline"
+                                >
+                                    Lihat faktur
+                                </Link>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-slate-500">
+                                Transfer ini tidak membawa referensi penerimaan
+                                barang, sehingga faktur asal tidak bisa
+                                ditentukan.
+                            </p>
+                        )}
+                        <div className="space-y-3">
+                            {purchaseLineage.items.map((lineageItem) => {
+                                const item = stockTransfer.items?.find(
+                                    (transferItem) =>
+                                        transferItem.id ===
+                                        lineageItem.stock_transfer_item_id,
+                                );
+
+                                return (
+                                    <div
+                                        key={lineageItem.stock_transfer_item_id}
+                                        className="rounded-lg border border-slate-200 p-3"
+                                    >
+                                        <div className="text-sm font-semibold text-slate-900">
+                                            {item?.product_variant?.product
+                                                ?.name ?? 'Barang'}{' '}
+                                            -{' '}
+                                            {item?.product_variant
+                                                ?.variant_name ?? ''}
+                                        </div>
+                                        {lineageItem.origins.length === 0 ? (
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                Belum ada layer asal (transfer
+                                                belum dikirim).
+                                            </p>
+                                        ) : (
+                                            <div className="mt-2 space-y-1">
+                                                {lineageItem.origins.map(
+                                                    (origin) => (
+                                                        <div
+                                                            key={
+                                                                origin.layer_id
+                                                            }
+                                                            className="flex items-center justify-between rounded border border-slate-100 bg-slate-50 px-2.5 py-1 text-xs text-slate-600"
+                                                        >
+                                                            <span>
+                                                                Layer #
+                                                                {
+                                                                    origin.layer_id
+                                                                }{' '}
+                                                                ·{' '}
+                                                                {
+                                                                    origin.warehouse_name
+                                                                }{' '}
+                                                                · akar:{' '}
+                                                                {
+                                                                    origin.root_source_type
+                                                                }
+                                                                #
+                                                                {origin.root_source_id ??
+                                                                    '-'}
+                                                            </span>
+                                                            <span className="font-medium text-slate-900">
+                                                                Qty:{' '}
+                                                                {
+                                                                    origin.qty_taken
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    ),
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Approval Modal */}

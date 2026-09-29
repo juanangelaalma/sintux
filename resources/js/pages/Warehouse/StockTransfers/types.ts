@@ -64,6 +64,29 @@ export type StockTransferDiscrepancy = {
     updated_at: string;
 };
 
+export type PurchaseOrigin = {
+    layer_id: number;
+    warehouse_name: string;
+    qty_taken: number;
+    unit_cost: number;
+    root_source_type: string | null;
+    root_source_id: number | null;
+};
+
+export type PurchaseLineageItem = {
+    stock_transfer_item_id: number;
+    origins: PurchaseOrigin[];
+};
+
+export type PurchaseLineage = {
+    invoice: {
+        id: number;
+        number: string;
+        status: string;
+    } | null;
+    items: PurchaseLineageItem[];
+};
+
 export type ReturnOption = {
     stock_transfer_item_id: number;
     product_variant_id: number;
