@@ -41,3 +41,27 @@ export function formatDate(dateString: string | null | undefined): string {
         return String(dateString);
     }
 }
+
+/**
+ * Format tanggal dengan pemisah tanda hubung: 15-09-2026.
+ * Dipakai tabel daftar biaya (PRD §7.1), sementara `formatDate` memakai
+ * garis miring dan dipakai form serta tabel lain.
+ */
+export function formatDateDash(
+    dateString: string | Date | null | undefined,
+): string {
+    if (!dateString) {
+        return '-';
+    }
+
+    const date = dateString instanceof Date ? dateString : new Date(dateString);
+
+    if (Number.isNaN(date.getTime())) {
+        return String(dateString);
+    }
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+
+    return `${day}-${month}-${date.getFullYear()}`;
+}

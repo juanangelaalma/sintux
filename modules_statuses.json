@@ -10,5 +10,6 @@
     "Purchasing": true,
     "Approval": true,
     "Sales": true,
-    "Payment": true
+    "Payment": true,
+    "Expense": true
 }

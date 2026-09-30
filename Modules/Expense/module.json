@@ -1,0 +1,12 @@
+{
+    "name": "Expense",
+    "alias": "expense",
+    "description": "Biaya dan pengeluaran: pencatatan, pajak, pemotongan, jurnal otomatis, dan pelunasan",
+    "keywords": [],
+    "priority": 0,
+    "requires": ["Company", "Contact", "Accounting", "Payment"],
+    "providers": [
+        "Modules\\Expense\\Providers\\ExpenseServiceProvider"
+    ],
+    "files": []
+}

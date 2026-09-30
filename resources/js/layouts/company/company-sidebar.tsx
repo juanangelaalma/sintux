@@ -10,6 +10,7 @@ import {
     Settings,
     ShoppingCart,
     Users,
+    Wallet,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useSidebar } from '@/context/SidebarContext';
@@ -20,6 +21,7 @@ import chartOfAccountsRoute from '@/routes/accounting/chart-of-accounts';
 import inboxRoute from '@/routes/approval/inbox';
 import branchesRoute from '@/routes/company/branches';
 import contactsRoute from '@/routes/company/contacts';
+import expensesRoute from '@/routes/expenses/index';
 import productRoute from '@/routes/product';
 import grnsRoute from '@/routes/purchasing/grns';
 import purchaseInvoicesRoute from '@/routes/purchasing/invoices';
@@ -68,6 +70,12 @@ const COMPANY_NAV_ITEMS: SidebarEntry[] = [
         icon: <ReceiptText />,
         name: 'Penjualan',
         path: salesInvoicesRoute.index.url(),
+    },
+    {
+        icon: <Wallet />,
+        name: 'Biaya',
+        path: expensesRoute.index.url(),
+        permission: 'expense.view',
     },
     {
         icon: <PackageCheck />,

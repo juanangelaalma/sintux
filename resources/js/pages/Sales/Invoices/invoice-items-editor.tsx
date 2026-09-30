@@ -1,7 +1,7 @@
 import { Button, Checkbox } from '@heroui/react';
 import { MinusCircle, Plus } from 'lucide-react';
+import CurrencyInput from '@/components/ui/currency-input';
 import { formatCurrency } from '@/lib/format';
-import CurrencyInput from './currency-input';
 import SearchableSelect from './searchable-select';
 import { calculateInvoiceTotals } from './totals';
 import type {

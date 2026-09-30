@@ -84,6 +84,14 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'Join Purchase Invoices', 'slug' => 'purchasing.invoice.join', 'module' => 'purchasing'],
             ['name' => 'View Approval Rules', 'slug' => 'approval.rule.view', 'module' => 'approval'],
             ['name' => 'Manage Approval Rules', 'slug' => 'approval.rule.manage', 'module' => 'approval'],
+            ['name' => 'View Expenses', 'slug' => 'expense.view', 'module' => 'expense'],
+            ['name' => 'Create Expenses', 'slug' => 'expense.create', 'module' => 'expense'],
+            ['name' => 'Update Expenses', 'slug' => 'expense.update', 'module' => 'expense'],
+            ['name' => 'Delete Expenses', 'slug' => 'expense.delete', 'module' => 'expense'],
+            ['name' => 'Pay Expenses', 'slug' => 'expense.pay', 'module' => 'expense'],
+            // Fase 3: approval draft memakai modul Approval yang sudah ada,
+            // permission ini hanya untuk Restricted CoA per peran dan gate tab.
+            ['name' => 'Approve Expenses', 'slug' => 'expense.approve', 'module' => 'expense'],
         ];
 
         $mapping = [
@@ -142,13 +150,19 @@ class RolePermissionSeeder extends Seeder
                 'purchasing.invoice.join',
                 'approval.rule.view',
                 'approval.rule.manage',
+                'expense.view',
+                'expense.create',
+                'expense.update',
+                'expense.delete',
+                'expense.pay',
+                'expense.approve',
             ],
             'member' => ['dashboard.view'],
             'sales_admin' => ['dashboard.view', 'contact.view', 'contact.create', 'contact.update', 'contact.delete', 'product.view'],
             'warehouse_admin' => ['dashboard.view', 'product.view', 'product.create', 'product.update', 'product.delete', 'warehouse.view', 'warehouse.create', 'warehouse.update', 'warehouse.delete', 'warehouse.stock.view', 'warehouse.stock.manage', 'warehouse.stock.request', 'warehouse.stock.request.approve', 'warehouse.stock.transfer', 'contact.view'],
-            'finance' => ['dashboard.view', 'contact.view', 'finance.transaction.view', 'finance.transaction.manage', 'fiscal.report.view'],
+            'finance' => ['dashboard.view', 'contact.view', 'finance.transaction.view', 'finance.transaction.manage', 'fiscal.report.view', 'expense.view', 'expense.create', 'expense.update', 'expense.delete', 'expense.pay'],
             'fiscal' => ['dashboard.view', 'fiscal.report.view'],
-            'accounting' => ['dashboard.view', 'contact.view', 'accounting.account.view', 'accounting.account.manage', 'accounting.tax.view', 'accounting.tax.manage', 'accounting.journal.view', 'accounting.journal.manage', 'finance.transaction.view'],
+            'accounting' => ['dashboard.view', 'contact.view', 'accounting.account.view', 'accounting.account.manage', 'accounting.tax.view', 'accounting.tax.manage', 'accounting.journal.view', 'accounting.journal.manage', 'finance.transaction.view', 'expense.view', 'expense.create', 'expense.update', 'expense.delete', 'expense.pay', 'expense.approve'],
             'cashier' => ['dashboard.view', 'sales.order.view', 'sales.order.create', 'contact.view', 'contact.create'],
             'inventory_staff' => ['dashboard.view', 'product.view', 'warehouse.view', 'warehouse.stock.view', 'warehouse.stock.request', 'contact.view'],
             'purchasing' => [

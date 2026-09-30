@@ -5,10 +5,13 @@ type CurrencyInputProps = {
     value: number;
     onChange: (value: number) => void;
     disabled?: boolean;
+    placeholder?: string;
+    className?: string;
 };
 
 /**
  * Format tampilan angka: 138636 -> "138.636" (id-ID, live saat mengetik).
+ * Maks 4 desimal, sesuai presisi kolom decimal(15,4) di database.
  */
 export function formatRupiahInput(raw: string): string {
     if (!raw) {
@@ -51,6 +54,8 @@ export default function CurrencyInput({
     value,
     onChange,
     disabled = false,
+    placeholder = '0',
+    className = '',
 }: CurrencyInputProps) {
     const numericValue = Number(value || 0);
     const [prevValue, setPrevValue] = useState(numericValue);
@@ -58,7 +63,7 @@ export default function CurrencyInput({
         numericValue ? formatRupiahInput(String(numericValue)) : '',
     );
 
-    // Sinkronisasi perubahan dari luar (mis. ganti produk me-reset harga).
+    // Sinkronisasi perubahan dari luar (mis. ganti akun me-reset nominal).
     if (prevValue !== numericValue) {
         setPrevValue(numericValue);
         setText(numericValue ? formatRupiahInput(String(numericValue)) : '');
@@ -70,8 +75,8 @@ export default function CurrencyInput({
             inputMode="decimal"
             aria-label={ariaLabel}
             disabled={disabled}
-            placeholder="0"
-            className="w-full min-w-0 border-none bg-transparent px-2 py-1.5 text-right text-xs text-foreground outline-none focus:ring-0 disabled:bg-surface-secondary/50 disabled:text-muted"
+            placeholder={placeholder}
+            className={`w-full min-w-0 border-none bg-transparent px-2 py-1.5 text-right text-xs text-foreground outline-none focus:ring-0 disabled:bg-surface-secondary/50 disabled:text-muted ${className}`}
             value={text}
             onChange={(e) => {
                 const formatted = formatRupiahInput(e.target.value);
