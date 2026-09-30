@@ -27,8 +27,8 @@ export const CategoryManagementModal: React.FC<Props> = ({
     const [editingName, setEditingName] = useState('');
 
     if (!show) {
-return null;
-}
+        return null;
+    }
 
     const filteredCategories = categories.filter((c) =>
         c.name.toLowerCase().includes(search.toLowerCase()),
@@ -38,8 +38,8 @@ return null;
         e.preventDefault();
 
         if (!newCategoryName.trim()) {
-return;
-}
+            return;
+        }
 
         router.post(
             '/product/categories',
@@ -57,8 +57,8 @@ return;
 
     const handleUpdateSubmit = (id: number) => {
         if (!editingName.trim()) {
-return;
-}
+            return;
+        }
 
         router.put(
             `/product/categories/${id}`,

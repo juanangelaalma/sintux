@@ -10,7 +10,12 @@ type Props = {
     error?: string;
 };
 
-export function AddBranchBar({ availableBranches, initialDate, onAdd, error }: Props) {
+export function AddBranchBar({
+    availableBranches,
+    initialDate,
+    onAdd,
+    error,
+}: Props) {
     const [isPicking, setIsPicking] = useState(false);
     const [pick, setPick] = useState<string>('');
     const [date, setDate] = useState<string>(initialDate);
@@ -38,7 +43,13 @@ export function AddBranchBar({ availableBranches, initialDate, onAdd, error }: P
     if (!isPicking) {
         return (
             <div className="flex flex-wrap items-center gap-3">
-                <Button type="button" variant="secondary" size="sm" className="gap-1.5 border border-dashed" onPress={() => setIsPicking(true)}>
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="gap-1.5 border border-dashed"
+                    onPress={() => setIsPicking(true)}
+                >
                     <Plus className="size-3.5" aria-hidden />
                     Tambah cabang
                 </Button>
@@ -51,7 +62,10 @@ export function AddBranchBar({ availableBranches, initialDate, onAdd, error }: P
         <div className="rounded-xl border border-border bg-surface p-3 shadow-xs">
             <div className="flex flex-wrap items-end gap-3">
                 <div className="min-w-[220px] flex-1">
-                    <label htmlFor="add-branch-select" className="mb-1 block text-xs font-semibold text-foreground">
+                    <label
+                        htmlFor="add-branch-select"
+                        className="mb-1 block text-xs font-semibold text-foreground"
+                    >
                         Cabang Tujuan
                     </label>
                     <select
@@ -70,7 +84,10 @@ export function AddBranchBar({ availableBranches, initialDate, onAdd, error }: P
                     </select>
                 </div>
                 <div>
-                    <label htmlFor="add-branch-date" className="mb-1 block text-xs font-semibold text-foreground">
+                    <label
+                        htmlFor="add-branch-date"
+                        className="mb-1 block text-xs font-semibold text-foreground"
+                    >
                         Tgl. Kirim
                     </label>
                     <input
@@ -82,11 +99,23 @@ export function AddBranchBar({ availableBranches, initialDate, onAdd, error }: P
                         className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:ring-accent"
                     />
                 </div>
-                <Button type="button" variant="primary" size="sm" className="gap-1.5" onPress={handleAdd}>
+                <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    className="gap-1.5"
+                    onPress={handleAdd}
+                >
                     <Plus className="size-3.5" aria-hidden />
                     Tambah
                 </Button>
-                <Button type="button" variant="secondary" size="sm" className="gap-1.5" onPress={() => setIsPicking(false)}>
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="gap-1.5"
+                    onPress={() => setIsPicking(false)}
+                >
                     <X className="size-3.5" aria-hidden />
                     Batal
                 </Button>

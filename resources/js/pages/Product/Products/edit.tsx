@@ -32,7 +32,14 @@ type Props = {
     salesTaxes: TaxOption[];
 };
 
-export default function Edit({ product, categories, uoms, availableProducts = [], purchaseTaxes, salesTaxes }: Props) {
+export default function Edit({
+    product,
+    categories,
+    uoms,
+    availableProducts = [],
+    purchaseTaxes,
+    salesTaxes,
+}: Props) {
     const [activeFormTab, setActiveFormTab] = useState<'pricing' | 'bundle'>(
         product.product_type === 'bundle' ? 'bundle' : 'pricing',
     );
@@ -610,9 +617,19 @@ export default function Edit({ product, categories, uoms, availableProducts = []
                                                         Pajak beli
                                                     </label>
                                                     <SearchableSelect
-                                                        options={purchaseTaxOptions}
-                                                        value={form.data.purchase_tax_id}
-                                                        onChange={(value) => form.setData('purchase_tax_id', value)}
+                                                        options={
+                                                            purchaseTaxOptions
+                                                        }
+                                                        value={
+                                                            form.data
+                                                                .purchase_tax_id
+                                                        }
+                                                        onChange={(value) =>
+                                                            form.setData(
+                                                                'purchase_tax_id',
+                                                                value,
+                                                            )
+                                                        }
                                                         placeholder="Pilih pajak beli"
                                                     />
                                                 </div>
@@ -692,9 +709,19 @@ export default function Edit({ product, categories, uoms, availableProducts = []
                                                             Pajak jual
                                                         </label>
                                                         <SearchableSelect
-                                                            options={salesTaxOptions}
-                                                            value={form.data.sales_tax_id}
-                                                            onChange={(value) => form.setData('sales_tax_id', value)}
+                                                            options={
+                                                                salesTaxOptions
+                                                            }
+                                                            value={
+                                                                form.data
+                                                                    .sales_tax_id
+                                                            }
+                                                            onChange={(value) =>
+                                                                form.setData(
+                                                                    'sales_tax_id',
+                                                                    value,
+                                                                )
+                                                            }
                                                             placeholder="Pilih pajak jual"
                                                         />
                                                     </div>

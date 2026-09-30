@@ -1,7 +1,11 @@
 import { router } from '@inertiajs/react';
 import React, { useState } from 'react';
-import { ApprovalActionType, ApprovalStatus, APPROVAL_STATUS_LABEL  } from '@/lib/approval/status';
-import type {ApprovalStatusType} from '@/lib/approval/status';
+import {
+    ApprovalActionType,
+    ApprovalStatus,
+    APPROVAL_STATUS_LABEL,
+} from '@/lib/approval/status';
+import type { ApprovalStatusType } from '@/lib/approval/status';
 
 type Approver = {
     id: number;
@@ -184,17 +188,34 @@ export default function ApprovalHeaderControls({
                         <div className="flex flex-col gap-4">
                             {approval.stages.map((stage, idx) => {
                                 const isCurrent =
-                                    stage.stage_order === approval.current_stage_order && approval.overall_status === ApprovalStatus.Pending;
+                                    stage.stage_order ===
+                                        approval.current_stage_order &&
+                                    approval.overall_status ===
+                                        ApprovalStatus.Pending;
                                 const isPassed =
-                                    stage.stage_order < approval.current_stage_order || approval.overall_status === ApprovalStatus.Approved;
+                                    stage.stage_order <
+                                        approval.current_stage_order ||
+                                    approval.overall_status ===
+                                        ApprovalStatus.Approved;
                                 const isRejected =
-                                    approval.overall_status === ApprovalStatus.Rejected && stage.stage_order === approval.current_stage_order;
+                                    approval.overall_status ===
+                                        ApprovalStatus.Rejected &&
+                                    stage.stage_order ===
+                                        approval.current_stage_order;
 
                                 const lastApproveAction = stage.actions
-                                    .filter((a) => a.action === ApprovalActionType.Approve)
+                                    .filter(
+                                        (a) =>
+                                            a.action ===
+                                            ApprovalActionType.Approve,
+                                    )
                                     .pop();
                                 const lastRejectAction = stage.actions
-                                    .filter((a) => a.action === ApprovalActionType.Reject)
+                                    .filter(
+                                        (a) =>
+                                            a.action ===
+                                            ApprovalActionType.Reject,
+                                    )
                                     .pop();
 
                                 return (
@@ -225,28 +246,56 @@ export default function ApprovalHeaderControls({
                                             </div>
 
                                             <div className="mt-1 text-[11px] font-medium text-gray-500">
-                                                {isRejected && lastRejectAction ? (
+                                                {isRejected &&
+                                                lastRejectAction ? (
                                                     <span className="text-rose-600 dark:text-rose-400">
-                                                        {APPROVAL_STATUS_LABEL[ApprovalStatus.Rejected]} -{' '}
-                                                        {lastRejectAction.comment ? `"${lastRejectAction.comment}"` : ''}
+                                                        {
+                                                            APPROVAL_STATUS_LABEL[
+                                                                ApprovalStatus
+                                                                    .Rejected
+                                                            ]
+                                                        }{' '}
+                                                        -{' '}
+                                                        {lastRejectAction.comment
+                                                            ? `"${lastRejectAction.comment}"`
+                                                            : ''}
                                                     </span>
-                                                ) : isPassed && lastApproveAction ? (
+                                                ) : isPassed &&
+                                                  lastApproveAction ? (
                                                     <span className="text-emerald-600 dark:text-emerald-400">
-                                                        {APPROVAL_STATUS_LABEL[ApprovalStatus.Approved]} -{' '}
+                                                        {
+                                                            APPROVAL_STATUS_LABEL[
+                                                                ApprovalStatus
+                                                                    .Approved
+                                                            ]
+                                                        }{' '}
+                                                        -{' '}
                                                         {lastApproveAction.acted_at
-                                                            ? new Date(lastApproveAction.acted_at).toLocaleDateString('id-ID', {
-                                                                  day: '2-digit',
-                                                                  month: 'short',
-                                                                  year: 'numeric',
-                                                              })
+                                                            ? new Date(
+                                                                  lastApproveAction.acted_at,
+                                                              ).toLocaleDateString(
+                                                                  'id-ID',
+                                                                  {
+                                                                      day: '2-digit',
+                                                                      month: 'short',
+                                                                      year: 'numeric',
+                                                                  },
+                                                              )
                                                             : ''}
                                                     </span>
                                                 ) : isCurrent ? (
                                                     <span className="text-amber-600 dark:text-amber-400">
-                                                        {APPROVAL_STATUS_LABEL[ApprovalStatus.Pending]}
+                                                        {
+                                                            APPROVAL_STATUS_LABEL[
+                                                                ApprovalStatus
+                                                                    .Pending
+                                                            ]
+                                                        }
                                                     </span>
                                                 ) : (
-                                                    <span className="text-gray-400">Belum diproses</span>
+                                                    <span className="text-gray-400">
+                                                        Belum diproses
+                                                    </span>
                                                 )}
                                             </div>
                                         </div>

@@ -1,9 +1,18 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { Branch, BranchGroup, BranchItem, FlatAllocationRow, ProductVariant, Warehouse } from './types';
+import type {
+    Branch,
+    BranchGroup,
+    BranchItem,
+    FlatAllocationRow,
+    ProductVariant,
+    Warehouse,
+} from './types';
 
 function genId(): string {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-        return (crypto as unknown as { randomUUID: () => string }).randomUUID().slice(0, 9);
+        return (crypto as unknown as { randomUUID: () => string })
+            .randomUUID()
+            .slice(0, 9);
     }
 
     return Math.random().toString(36).slice(2, 9);
@@ -31,11 +40,16 @@ export function useBranchGroups({
 
     const createEmptyItem = useCallback(
         (branchId: number | string): BranchItem => {
-            const firstForBranch = productVariants.find((v) => v.branch_id === Number(branchId));
+            const firstForBranch = productVariants.find(
+                (v) => v.branch_id === Number(branchId),
+            );
 
             return {
                 uid: genId(),
-                product_variant_id: firstForNewBranch(firstForBranch, productVariants),
+                product_variant_id: firstForNewBranch(
+                    firstForBranch,
+                    productVariants,
+                ),
                 description: '',
                 qty: 1,
                 unit_price: 0,
@@ -60,10 +74,26 @@ export function useBranchGroups({
 
     const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
-    const sortedGroups = useMemo(() => [...groups].sort((a, b) => a.destination_expected_date.localeCompare(b.destination_expected_date)), [groups]);
+    const sortedGroups = useMemo(
+        () =>
+            [...groups].sort((a, b) =>
+                a.destination_expected_date.localeCompare(
+                    b.destination_expected_date,
+                ),
+            ),
+        [groups],
+    );
 
     const availableBranches = useMemo(
-        () => branches.filter((b) => !groups.some((g) => String(g.destination_branch_id) === String((b as unknown as { id: number }).id))),
+        () =>
+            branches.filter(
+                (b) =>
+                    !groups.some(
+                        (g) =>
+                            String(g.destination_branch_id) ===
+                            String((b as unknown as { id: number }).id),
+                    ),
+            ),
         [branches, groups],
     );
 
@@ -83,12 +113,22 @@ export function useBranchGroups({
 
     const addBranchGroup = useCallback(
         (branchId: number | string, dateStr: string) => {
-            if (groups.some((g) => String(g.destination_branch_id) === String(branchId))) {
+            if (
+                groups.some(
+                    (g) => String(g.destination_branch_id) === String(branchId),
+                )
+            ) {
                 return false;
             }
 
             const newGroup = createEmptyGroup(branchId, dateStr);
-            setGroups((prev) => [...prev, newGroup].sort((a, b) => a.destination_expected_date.localeCompare(b.destination_expected_date)));
+            setGroups((prev) =>
+                [...prev, newGroup].sort((a, b) =>
+                    a.destination_expected_date.localeCompare(
+                        b.destination_expected_date,
+                    ),
+                ),
+            );
             setExpanded((prev) => new Set([...prev, newGroup.uid]));
 
             return true;
@@ -113,7 +153,13 @@ export function useBranchGroups({
 
     const changeBranchForGroup = useCallback(
         (uid: string, newBranchId: number | string) => {
-            if (groups.some((g) => g.uid !== uid && String(g.destination_branch_id) === String(newBranchId))) {
+            if (
+                groups.some(
+                    (g) =>
+                        g.uid !== uid &&
+                        String(g.destination_branch_id) === String(newBranchId),
+                )
+            ) {
                 return false;
             }
 
@@ -125,15 +171,27 @@ export function useBranchGroups({
 
                     const newWarehouseId = getRegularWarehouseId(newBranchId);
                     const updatedItems = g.items.map((it) => {
-                        const ok = productVariants.some((v) => v.id === it.product_variant_id && v.branch_id === Number(newBranchId));
+                        const ok = productVariants.some(
+                            (v) =>
+                                v.id === it.product_variant_id &&
+                                v.branch_id === Number(newBranchId),
+                        );
 
                         if (ok) {
                             return it;
                         }
 
-                        const firstForNew = productVariants.find((v) => v.branch_id === Number(newBranchId));
+                        const firstForNew = productVariants.find(
+                            (v) => v.branch_id === Number(newBranchId),
+                        );
 
-                        return { ...it, product_variant_id: firstForNew?.id ?? productVariants[0]?.id ?? it.product_variant_id };
+                        return {
+                            ...it,
+                            product_variant_id:
+                                firstForNew?.id ??
+                                productVariants[0]?.id ??
+                                it.product_variant_id,
+                        };
                     });
 
                     return {
@@ -152,9 +210,17 @@ export function useBranchGroups({
 
     const changeGroupDate = useCallback((uid: string, newDate: string) => {
         setGroups((prev) => {
-            const updated = prev.map((g) => (g.uid === uid ? { ...g, destination_expected_date: newDate } : g));
+            const updated = prev.map((g) =>
+                g.uid === uid
+                    ? { ...g, destination_expected_date: newDate }
+                    : g,
+            );
 
-            return [...updated].sort((a, b) => a.destination_expected_date.localeCompare(b.destination_expected_date));
+            return [...updated].sort((a, b) =>
+                a.destination_expected_date.localeCompare(
+                    b.destination_expected_date,
+                ),
+            );
         });
     }, []);
 
@@ -166,7 +232,13 @@ export function useBranchGroups({
                         return g;
                     }
 
-                    return { ...g, items: [...g.items, createEmptyItem(g.destination_branch_id)] };
+                    return {
+                        ...g,
+                        items: [
+                            ...g.items,
+                            createEmptyItem(g.destination_branch_id),
+                        ],
+                    };
                 }),
             );
         },
@@ -184,24 +256,39 @@ export function useBranchGroups({
                     return g;
                 }
 
-                return { ...g, items: g.items.filter((it) => it.uid !== itemUid) };
+                return {
+                    ...g,
+                    items: g.items.filter((it) => it.uid !== itemUid),
+                };
             }),
         );
     }, []);
 
-    const updateItemInGroup = useCallback((uid: string, itemUid: string, field: keyof BranchItem, value: string | number | null) => {
-        setGroups((prev) =>
-            prev.map((g) => {
-                if (g.uid !== uid) {
-                    return g;
-                }
+    const updateItemInGroup = useCallback(
+        (
+            uid: string,
+            itemUid: string,
+            field: keyof BranchItem,
+            value: string | number | null,
+        ) => {
+            setGroups((prev) =>
+                prev.map((g) => {
+                    if (g.uid !== uid) {
+                        return g;
+                    }
 
-                const nextItems = g.items.map((it) => (it.uid === itemUid ? ({ ...it, [field]: value } as BranchItem) : it));
+                    const nextItems = g.items.map((it) =>
+                        it.uid === itemUid
+                            ? ({ ...it, [field]: value } as BranchItem)
+                            : it,
+                    );
 
-                return { ...g, items: nextItems };
-            }),
-        );
-    }, []);
+                    return { ...g, items: nextItems };
+                }),
+            );
+        },
+        [],
+    );
 
     const flatItems: FlatAllocationRow[] = useMemo(
         () =>
@@ -221,7 +308,10 @@ export function useBranchGroups({
         [sortedGroups],
     );
 
-    const totalAllocations = useMemo(() => groups.reduce((acc, g) => acc + g.items.length, 0), [groups]);
+    const totalAllocations = useMemo(
+        () => groups.reduce((acc, g) => acc + g.items.length, 0),
+        [groups],
+    );
 
     return {
         groups,
@@ -243,6 +333,9 @@ export function useBranchGroups({
     };
 }
 
-function firstForNewBranch(firstForBranch: ProductVariant | undefined, all: ProductVariant[]): number {
+function firstForNewBranch(
+    firstForBranch: ProductVariant | undefined,
+    all: ProductVariant[],
+): number {
     return firstForBranch?.id ?? all[0]?.id ?? 0;
 }

@@ -56,7 +56,9 @@ export default function Create({
     purchaseTaxes,
     salesTaxes,
 }: Props) {
-    const [activeFormTab, setActiveFormTab] = useState<'pricing' | 'bundle'>('pricing');
+    const [activeFormTab, setActiveFormTab] = useState<'pricing' | 'bundle'>(
+        'pricing',
+    );
     const [uploadingImage, setUploadingImage] = useState(false);
     const [imageError, setImageError] = useState<string | null>(null);
     const [uomOptions, setUomOptions] = useState<UomOption[]>(uoms);
@@ -122,7 +124,9 @@ export default function Create({
         const isValidMime = validMimeTypes.includes(file.type);
 
         if (!isValidExtension || !isValidMime) {
-            setImageError('Format file tidak diizinkan! Hanya diperbolehkan berkas gambar JPG (.jpg, .jpeg) dan PNG (.png).');
+            setImageError(
+                'Format file tidak diizinkan! Hanya diperbolehkan berkas gambar JPG (.jpg, .jpeg) dan PNG (.png).',
+            );
 
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
@@ -190,7 +194,9 @@ export default function Create({
             return;
         }
 
-        const exists = form.data.bundle_items.some((i) => i.item_product_id === selectedProductId);
+        const exists = form.data.bundle_items.some(
+            (i) => i.item_product_id === selectedProductId,
+        );
 
         if (exists) {
             return;
@@ -622,9 +628,19 @@ export default function Create({
                                                         Akun pembelian
                                                     </label>
                                                     <SearchableSelect
-                                                        options={chartOfAccountOptions}
-                                                        value={form.data.purchase_account_id}
-                                                        onChange={(value) => form.setData('purchase_account_id', value)}
+                                                        options={
+                                                            chartOfAccountOptions
+                                                        }
+                                                        value={
+                                                            form.data
+                                                                .purchase_account_id
+                                                        }
+                                                        onChange={(value) =>
+                                                            form.setData(
+                                                                'purchase_account_id',
+                                                                value,
+                                                            )
+                                                        }
                                                         placeholder="Pilih akun pembelian"
                                                     />
                                                 </div>
@@ -634,9 +650,19 @@ export default function Create({
                                                         Pajak beli
                                                     </label>
                                                     <SearchableSelect
-                                                        options={purchaseTaxOptions}
-                                                        value={form.data.purchase_tax_id}
-                                                        onChange={(value) => form.setData('purchase_tax_id', value)}
+                                                        options={
+                                                            purchaseTaxOptions
+                                                        }
+                                                        value={
+                                                            form.data
+                                                                .purchase_tax_id
+                                                        }
+                                                        onChange={(value) =>
+                                                            form.setData(
+                                                                'purchase_tax_id',
+                                                                value,
+                                                            )
+                                                        }
                                                         placeholder="Pilih pajak beli"
                                                     />
                                                 </div>
@@ -700,9 +726,19 @@ export default function Create({
                                                             Akun penjualan
                                                         </label>
                                                         <SearchableSelect
-                                                            options={chartOfAccountOptions}
-                                                            value={form.data.sales_account_id}
-                                                            onChange={(value) => form.setData('sales_account_id', value)}
+                                                            options={
+                                                                chartOfAccountOptions
+                                                            }
+                                                            value={
+                                                                form.data
+                                                                    .sales_account_id
+                                                            }
+                                                            onChange={(value) =>
+                                                                form.setData(
+                                                                    'sales_account_id',
+                                                                    value,
+                                                                )
+                                                            }
                                                             placeholder="Pilih akun penjualan"
                                                         />
                                                     </div>
@@ -712,9 +748,19 @@ export default function Create({
                                                             Pajak jual
                                                         </label>
                                                         <SearchableSelect
-                                                            options={salesTaxOptions}
-                                                            value={form.data.sales_tax_id}
-                                                            onChange={(value) => form.setData('sales_tax_id', value)}
+                                                            options={
+                                                                salesTaxOptions
+                                                            }
+                                                            value={
+                                                                form.data
+                                                                    .sales_tax_id
+                                                            }
+                                                            onChange={(value) =>
+                                                                form.setData(
+                                                                    'sales_tax_id',
+                                                                    value,
+                                                                )
+                                                            }
                                                             placeholder="Pilih pajak jual"
                                                         />
                                                     </div>
@@ -784,9 +830,19 @@ export default function Create({
                                                             barang default
                                                         </label>
                                                         <SearchableSelect
-                                                            options={chartOfAccountOptions}
-                                                            value={form.data.inventory_account_id}
-                                                            onChange={(value) => form.setData('inventory_account_id', value)}
+                                                            options={
+                                                                chartOfAccountOptions
+                                                            }
+                                                            value={
+                                                                form.data
+                                                                    .inventory_account_id
+                                                            }
+                                                            onChange={(value) =>
+                                                                form.setData(
+                                                                    'inventory_account_id',
+                                                                    value,
+                                                                )
+                                                            }
                                                             placeholder="Pilih akun persediaan"
                                                         />
                                                     </div>
@@ -843,8 +899,15 @@ export default function Create({
 
                                         {/* Added Component Rows */}
                                         {form.data.bundle_items.map((item) => {
-                                            const prod = availableProducts.find((p) => p.id === item.item_product_id);
-                                            const price = (prod?.selling_price ?? prod?.purchase_price ?? 0) * item.quantity;
+                                            const prod = availableProducts.find(
+                                                (p) =>
+                                                    p.id ===
+                                                    item.item_product_id,
+                                            );
+                                            const price =
+                                                (prod?.selling_price ??
+                                                    prod?.purchase_price ??
+                                                    0) * item.quantity;
 
                                             return (
                                                 <div

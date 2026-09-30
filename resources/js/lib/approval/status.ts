@@ -4,14 +4,16 @@ export const ApprovalStatus = {
     Rejected: 'rejected',
 } as const;
 
-export type ApprovalStatusType = (typeof ApprovalStatus)[keyof typeof ApprovalStatus];
+export type ApprovalStatusType =
+    (typeof ApprovalStatus)[keyof typeof ApprovalStatus];
 
 export const ApprovalActionType = {
     Approve: 'approve',
     Reject: 'reject',
 } as const;
 
-export type ApprovalActionType = (typeof ApprovalActionType)[keyof typeof ApprovalActionType];
+export type ApprovalActionType =
+    (typeof ApprovalActionType)[keyof typeof ApprovalActionType];
 
 export const APPROVAL_STATUS_LABEL: Record<ApprovalStatusType, string> = {
     [ApprovalStatus.Pending]: 'Menunggu',
@@ -31,7 +33,11 @@ export const APPROVAL_STAGE_STATUS = {
     Upcoming: 'upcoming',
 } as const;
 
-export function getStageStatus(stageOrder: number, currentStageOrder: number, overallStatus: ApprovalStatusType): string {
+export function getStageStatus(
+    stageOrder: number,
+    currentStageOrder: number,
+    overallStatus: ApprovalStatusType,
+): string {
     if (overallStatus === ApprovalStatus.Approved) {
         return APPROVAL_STAGE_STATUS.Passed;
     }
@@ -40,11 +46,17 @@ export function getStageStatus(stageOrder: number, currentStageOrder: number, ov
         return APPROVAL_STAGE_STATUS.Passed;
     }
 
-    if (stageOrder === currentStageOrder && overallStatus === ApprovalStatus.Pending) {
+    if (
+        stageOrder === currentStageOrder &&
+        overallStatus === ApprovalStatus.Pending
+    ) {
         return APPROVAL_STAGE_STATUS.Current;
     }
 
-    if (overallStatus === ApprovalStatus.Rejected && stageOrder === currentStageOrder) {
+    if (
+        overallStatus === ApprovalStatus.Rejected &&
+        stageOrder === currentStageOrder
+    ) {
         return APPROVAL_STAGE_STATUS.Current;
     }
 

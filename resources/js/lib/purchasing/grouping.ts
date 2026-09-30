@@ -20,11 +20,15 @@ export type BranchGroupView<T extends ItemWithBranch> = {
     subtotal: number;
 };
 
-export function groupAndSortByBranch<T extends ItemWithBranch>(items: T[]): BranchGroupView<T>[] {
+export function groupAndSortByBranch<T extends ItemWithBranch>(
+    items: T[],
+): BranchGroupView<T>[] {
     const map = new Map<string, T[]>();
 
     items.forEach((it) => {
-        const key = it.destination_branch?.code ?? `Cabang ${it.destination_branch_id ?? '-'}`;
+        const key =
+            it.destination_branch?.code ??
+            `Cabang ${it.destination_branch_id ?? '-'}`;
 
         if (!map.has(key)) {
             map.set(key, []);
@@ -33,20 +37,26 @@ export function groupAndSortByBranch<T extends ItemWithBranch>(items: T[]): Bran
         map.get(key)!.push(it);
     });
 
-    const groups: BranchGroupView<T>[] = Array.from(map.entries()).map(([branchCode, groupItems]) => {
-        const first = groupItems[0];
-        const subtotal = groupItems.reduce((acc, it) => acc + Number(it.line_total || 0), 0);
+    const groups: BranchGroupView<T>[] = Array.from(map.entries()).map(
+        ([branchCode, groupItems]) => {
+            const first = groupItems[0];
+            const subtotal = groupItems.reduce(
+                (acc, it) => acc + Number(it.line_total || 0),
+                0,
+            );
 
-        return {
-            key: branchCode,
-            branchCode,
-            branch: first?.destination_branch ?? null,
-            warehouse: first?.destination_warehouse ?? null,
-            date: (first?.destination_expected_date as string | null) ?? null,
-            items: groupItems,
-            subtotal,
-        };
-    });
+            return {
+                key: branchCode,
+                branchCode,
+                branch: first?.destination_branch ?? null,
+                warehouse: first?.destination_warehouse ?? null,
+                date:
+                    (first?.destination_expected_date as string | null) ?? null,
+                items: groupItems,
+                subtotal,
+            };
+        },
+    );
 
     groups.sort((a, b) => {
         const dateA = a.date ?? '9999-12-31';
